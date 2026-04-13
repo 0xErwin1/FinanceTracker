@@ -2,7 +2,7 @@ import { BelongsTo, Column, DataType, ForeignKey, HasMany, Model, Table } from '
 import { FinancialGoalsType, CurrencyEnum, MonthEnum } from '../enums';
 import { TransactionModel, UserModel } from '.';
 
-@Table({ modelName: "financial_goals", paranoid: true })
+@Table({ modelName: 'financial_goals', paranoid: true })
 export class FinancialGoalModel extends Model<FinancialGoalModel> {
   @Column({
     allowNull: false,
@@ -57,10 +57,10 @@ export class FinancialGoalModel extends Model<FinancialGoalModel> {
   })
   public userId: string;
 
-  @BelongsTo(() => UserModel, "user_id")
+  @BelongsTo(() => UserModel, 'user_id')
   public user: UserModel;
 
-  @HasMany(() => TransactionModel, "goal_id")
+  @HasMany(() => TransactionModel, 'goal_id')
   public transaction: TransactionModel;
 }
 

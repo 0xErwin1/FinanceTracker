@@ -27,25 +27,26 @@ export class TransactionModel extends Model<TransactionModel> {
   public note: string;
 
   @Column({
-    allowNull: true, type: DataType.STRING
+    allowNull: true,
+    type: DataType.STRING,
   })
   public day: number;
 
   @Column({
     allowNull: false,
-    type: DataType.ENUM(...Object.values(MonthEnum))
+    type: DataType.ENUM(...Object.values(MonthEnum)),
   })
   public month: MonthEnum;
 
   @Column({
     allowNull: false,
-    type: DataType.INTEGER
+    type: DataType.INTEGER,
   })
   public year: number;
 
   @Column({
     allowNull: true,
-    type: DataType.DOUBLE
+    type: DataType.DOUBLE,
   })
   public exchangeRate: number;
 
@@ -53,21 +54,21 @@ export class TransactionModel extends Model<TransactionModel> {
   public deletedAt: Date;
 
   @ForeignKey(() => UserModel)
-  @Column({type: DataType.UUIDV4})
+  @Column({ type: DataType.UUIDV4 })
   public userId: string;
 
   @BelongsTo(() => UserModel, 'user_id')
   public user: UserModel;
 
   @ForeignKey(() => CategoryModel)
-  @Column({type: DataType.UUIDV4})
+  @Column({ type: DataType.UUIDV4 })
   public categoryId: string;
 
   @BelongsTo(() => CategoryModel)
   public category: CategoryModel;
 
   @ForeignKey(() => FinancialGoalModel)
-  @Column({type: DataType.UUIDV4})
+  @Column({ type: DataType.UUIDV4 })
   public goalId: string;
 
   @BelongsTo(() => FinancialGoalModel)

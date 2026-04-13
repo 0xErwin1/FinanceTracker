@@ -13,8 +13,7 @@
     "start": "NODE_PATH=dist/src/ node dist/src/server.js",
     "test": "env $(cat .env.test | grep -v '#' | xargs) ENV=test jest --verbose --colors --coverage --detectOpenHandles --forceExit --runInBand",
     "lint": "pnpm biome check {src/,test/}/**/*.ts",
-    "format": "pnpm biome format --write {src/,test/}**/*.ts",
-    "postinstall": "husky install"
+    "format": "pnpm biome format --write {src/,test/}**/*.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
@@ -27,8 +26,7 @@
     "@types/node": "^22.15.0",
     "@types/pg": "^8.11.0",
     "@types/supertest": "^6.0.3",
-    "husky": "^9.1.7",
-    "jest": "^29.7.0",
+"jest": "^29.7.0",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.0",
     "ts-jest": "^29.3.2",

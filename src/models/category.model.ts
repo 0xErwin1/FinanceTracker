@@ -15,19 +15,17 @@ export class CategoryModel extends Model<CategoryModel> {
 
   @Column({
     allowNull: false,
-    type: DataType.ENUM(...Object.values(TransactionType))
+    type: DataType.ENUM(...Object.values(TransactionType)),
   })
   public type: TransactionType;
 
   @Column({
     allowNull: false,
-    type: DataType.STRING
+    type: DataType.STRING,
   })
   public name: string;
 
-  @Column({ allowNull: true,
-    type: DataType.STRING
-  })
+  @Column({ allowNull: true, type: DataType.STRING })
   public note: string;
 
   @HasMany(() => TransactionModel, 'category_id')
@@ -35,7 +33,7 @@ export class CategoryModel extends Model<CategoryModel> {
 
   @ForeignKey(() => UserModel)
   @Column({
-    type: DataType.UUIDV4
+    type: DataType.UUIDV4,
   })
   public userId: string;
 

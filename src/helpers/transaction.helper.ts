@@ -12,9 +12,7 @@ interface CustomValidationError {
   value: any;
 }
 
-function createTransactionValidation(
-  transactions: CreateTransactionRequest[],
-): CustomValidationError[] {
+function createTransactionValidation(transactions: CreateTransactionRequest[]): CustomValidationError[] {
   const error: CustomValidationError[] = [];
 
   for (const [index, transaction] of transactions.entries()) {

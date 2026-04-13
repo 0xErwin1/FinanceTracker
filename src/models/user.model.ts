@@ -2,7 +2,7 @@ import { Column, DataType, HasMany, Model, Table } from 'sequelize-typescript';
 import { CategoryModel, FinancialGoalModel, SessionModel, TransactionModel } from '.';
 
 @Table({
-  modelName: "users",
+  modelName: 'users',
   paranoid: true,
 })
 export class UserModel extends Model<UserModel> {
@@ -30,16 +30,16 @@ export class UserModel extends Model<UserModel> {
   @Column({ type: DataType.DATE })
   public deletedAt: Date;
 
-  @HasMany(() => SessionModel, "user_id")
+  @HasMany(() => SessionModel, 'user_id')
   public sessions: SessionModel[];
 
-  @HasMany(() => TransactionModel, "user_id")
+  @HasMany(() => TransactionModel, 'user_id')
   public trasactions: TransactionModel[];
 
-  @HasMany(() => CategoryModel, "user_id")
+  @HasMany(() => CategoryModel, 'user_id')
   public categories: CategoryModel[];
 
-  @HasMany(() => FinancialGoalModel, "user_id")
+  @HasMany(() => FinancialGoalModel, 'user_id')
   public financialGoals: FinancialGoalModel[];
 }
 

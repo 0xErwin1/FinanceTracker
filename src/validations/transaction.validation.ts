@@ -25,7 +25,10 @@ const createTransaction = [
     .if(body('transactions').not().exists())
     .isIn(Object.values(MonthEnum))
     .trim(),
-  body('year', 'Please enter a year').if(body('transactions').not().exists()).isInt({ min: 2000, max: moment().year() }).trim(),
+  body('year', 'Please enter a year')
+    .if(body('transactions').not().exists())
+    .isInt({ min: 2000, max: moment().year() })
+    .trim(),
   body('exchangeRate', 'Please enter a exchangeRate')
     .if(body('currency').custom((value) => value === CurrencyEnum.USD || value === CurrencyEnum.EUR))
     .isNumeric()
