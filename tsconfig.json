@@ -6,9 +6,6 @@
     "src/**/*.ts"
   ],
   "compilerOptions": {
-    "types": [
-      "reflect-metadata"
-    ],
     "module": "commonjs",
     "noImplicitAny": false,
     "target": "es2021",

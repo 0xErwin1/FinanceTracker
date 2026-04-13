@@ -1,7 +1,7 @@
 services:
   expenses:
-    image: node:18-alpine
-    command: sh -c "yarn install && yarn test"
+    image: node:24-alpine
+    command: sh -c "corepack enable && pnpm install && pnpm test"
     container_name: expenses-test
     depends_on:
       - postgres

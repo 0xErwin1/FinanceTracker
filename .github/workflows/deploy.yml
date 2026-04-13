@@ -12,7 +12,7 @@ jobs:
       PORT: 3000
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Create env
         run: |
@@ -35,15 +35,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
-      - name: Use Node 18
-        uses: actions/setup-node@v1
+      - name: Use Node 24
+        uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: 24.x
+
+      - name: Enable pnpm
+        run: corepack enable
 
       - name: Install packages
-        run: yarn install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Install Railway
         run: npm i -g @railway/cli

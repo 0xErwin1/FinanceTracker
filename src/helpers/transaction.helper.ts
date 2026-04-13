@@ -1,22 +1,27 @@
 import { CurrencyEnum, MonthEnum, TransactionType } from '../enums';
 import { CreateTransactionRequest } from '../types/request/trsactions';
-import { ValidationError } from 'express-validator';
 import { dayHelper } from './day.helper';
 import { Request, Response } from 'express';
 import { TransactionMetadata, TransactionsRedisMetadata } from '../types/redis_types';
 import { TransactionDTO } from '../types/DTOs';
 import { TransactionBalances } from '../types/response/transactions';
 
+interface CustomValidationError {
+  msg: string;
+  path: string;
+  value: any;
+}
+
 function createTransactionValidation(
   transactions: CreateTransactionRequest[],
-): Omit<ValidationError, 'location' | 'nestedErrors'>[] {
-  const error: Omit<ValidationError, 'location' | 'nestedErrors'>[] = [];
+): CustomValidationError[] {
+  const error: CustomValidationError[] = [];
 
   for (const [index, transaction] of transactions.entries()) {
     if (!Object.values(TransactionType).includes(transaction.type)) {
       error.push({
         msg: `Please enter a type: ${Object.values(TransactionType).join('|')}`,
-        param: `transactions[${index}].type`,
+        path: `transactions[${index}].type`,
         value: transaction.type,
       });
     }
@@ -24,7 +29,7 @@ function createTransactionValidation(
     if (!transaction.amount || typeof transaction.amount !== 'number') {
       error.push({
         msg: 'Please enter a amount',
-        param: `transactions[${index}].amount`,
+        path: `transactions[${index}].amount`,
         value: transaction.amount,
       });
     }
@@ -32,7 +37,7 @@ function createTransactionValidation(
     if (!Object.values(CurrencyEnum).includes(transaction.currency)) {
       error.push({
         msg: 'Please enter a currency',
-        param: `transactions[${index}].currency`,
+        path: `transactions[${index}].currency`,
         value: transaction.currency,
       });
     } else {
@@ -42,7 +47,7 @@ function createTransactionValidation(
       ) {
         error.push({
           msg: 'Please enter a exchange rate',
-          param: `transactions[${index}].exchangeRate`,
+          path: `transactions[${index}].exchangeRate`,
           value: transaction.exchangeRate,
         });
       }
@@ -51,7 +56,7 @@ function createTransactionValidation(
     if (!Object.values(MonthEnum).includes(transaction.month)) {
       error.push({
         msg: `Please enter a month: ${Object.values(MonthEnum).join(' | ')}`,
-        param: `transactions[${index}].month`,
+        path: `transactions[${index}].month`,
         value: transaction.month,
       });
     }
@@ -65,7 +70,7 @@ function createTransactionValidation(
     ) {
       error.push({
         msg: `Please enter a day for ${transaction.month}`,
-        param: `transactions[${index}].day`,
+        path: `transactions[${index}].day`,
         value: transaction.day,
       });
     }
@@ -73,7 +78,7 @@ function createTransactionValidation(
     if (!transaction.year || transaction.year < 2000) {
       error.push({
         msg: 'Please enter a year > 2000',
-        param: `transactions[${index}].year`,
+        path: `transactions[${index}].year`,
         value: transaction.year,
       });
     }
@@ -81,13 +86,13 @@ function createTransactionValidation(
     if (transaction.categoryId && transaction.category) {
       error.push({
         msg: 'Please only enter a category or a category id',
-        param: `transactions[${index}].category | transaction[${index}].categoryId`,
+        path: `transactions[${index}].category | transaction[${index}].categoryId`,
         value: null,
       });
     } else if (!(transaction.categoryId || transaction.category)) {
       error.push({
         msg: 'Please enter a category or a category id',
-        param: `transactions[${index}].category | transaction[${index}].categoryId`,
+        path: `transactions[${index}].category | transaction[${index}].categoryId`,
         value: null,
       });
     } else {
@@ -99,7 +104,7 @@ function createTransactionValidation(
         ) {
           error.push({
             msg: 'Transaction and category are not of the same type.',
-            param: `transactions[${index}].category.type`,
+            path: `transactions[${index}].category.type`,
             value: null,
           });
         }
@@ -107,7 +112,7 @@ function createTransactionValidation(
         if (!transaction.category.name) {
           error.push({
             msg: 'Please enter a category name.',
-            param: `transactions[${index}].category.name`,
+            path: `transactions[${index}].category.name`,
             value: transaction.category.name,
           });
         }

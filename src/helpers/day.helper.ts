@@ -1,7 +1,7 @@
 import { MonthEnum } from '../enums';
 import moment from 'moment';
 
-const getMaxDayByMonth = (month: MonthEnum): Number => {
+const getMaxDayByMonth = (month: MonthEnum): number => {
   switch (month) {
     case MonthEnum.APRIL:
     case MonthEnum.JUNE:

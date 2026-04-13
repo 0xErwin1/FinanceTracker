@@ -14,14 +14,14 @@ import { customErrors, CustomError, CustomResponse, logger } from './lib';
 import { redisKeyLifetime, redisStore } from './redis';
 import { connectMongoDatabase } from './mongo';
 
-const exceptionMiddleware = <T extends Error>(err: T, _req: Request, res: Response, _next: NextFunction) => {
+const exceptionMiddleware = (err: Error, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof CustomError) {
     logger.error({ err }, 'Exception Middleware');
     const httpStatus = customErrors[err.errorCode] && customErrors[err.errorCode].HTTPStatusCode;
     return res.status(httpStatus || 500).send(new CustomResponse(false, err.data, err.errorCode));
   }
 
-  logger.error(err);
+  logger.error({ err });
   res.status(500);
 
   if (['TEST', 'QA', 'DEV'].includes(config.env)) {

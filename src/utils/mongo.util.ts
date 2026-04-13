@@ -1,4 +1,4 @@
-import { Schema } from 'mongoose';
+import { Schema, Query } from 'mongoose';
 
 enum MongooseQueryMethods {
   Find = 'find',
@@ -20,7 +20,7 @@ enum MongooseQueryMethods {
 
 function applySoftDelete(schema: Schema) {
   for (const method of Object.values(MongooseQueryMethods)) {
-    schema.pre(new RegExp(method), function () {
+    schema.pre(new RegExp(method), function (this: Query<unknown, unknown>) {
       this.where({ deletedAt: null, 'items.deletedAt': null });
     });
   }
