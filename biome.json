@@ -9,14 +9,14 @@
     "enabled": true,
     "formatWithErrors": true,
     "indentStyle": "space",
-    "indentSize": 2,
+    "indentWidth": 2,
     "lineWidth": 110
   },
   "javascript": {
     "formatter": {
       "quoteProperties": "asNeeded",
       "quoteStyle": "single",
-      "trailingComma": "all",
+      "trailingCommas": "all",
       "semicolons": "always"
     }
   }

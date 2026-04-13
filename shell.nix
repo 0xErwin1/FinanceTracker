@@ -4,8 +4,6 @@
 pkgs.mkShell {
   buildInputs = with pkgs; [
     git
-    docker
-    docker-compose
     biome
     openssl
     nodejs
