@@ -1,125 +1,9 @@
-import { CurrencyEnum, MonthEnum, TransactionType } from '../enums';
-import { CreateTransactionRequest } from '../types/request/trsactions';
+import type { Request, Response } from 'express';
+import { MonthEnum, TransactionType } from '../enums';
+import type { TransactionDTO } from '../types/DTOs';
+import type { TransactionMetadata, TransactionsRedisMetadata } from '../types/redis_types';
+import type { TransactionBalances } from '../types/response/transactions';
 import { dayHelper } from './day.helper';
-import { Request, Response } from 'express';
-import { TransactionMetadata, TransactionsRedisMetadata } from '../types/redis_types';
-import { TransactionDTO } from '../types/DTOs';
-import { TransactionBalances } from '../types/response/transactions';
-
-interface CustomValidationError {
-  msg: string;
-  path: string;
-  value: any;
-}
-
-function createTransactionValidation(transactions: CreateTransactionRequest[]): CustomValidationError[] {
-  const error: CustomValidationError[] = [];
-
-  for (const [index, transaction] of transactions.entries()) {
-    if (!Object.values(TransactionType).includes(transaction.type)) {
-      error.push({
-        msg: `Please enter a type: ${Object.values(TransactionType).join('|')}`,
-        path: `transactions[${index}].type`,
-        value: transaction.type,
-      });
-    }
-
-    if (!transaction.amount || typeof transaction.amount !== 'number') {
-      error.push({
-        msg: 'Please enter a amount',
-        path: `transactions[${index}].amount`,
-        value: transaction.amount,
-      });
-    }
-
-    if (!Object.values(CurrencyEnum).includes(transaction.currency)) {
-      error.push({
-        msg: 'Please enter a currency',
-        path: `transactions[${index}].currency`,
-        value: transaction.currency,
-      });
-    } else {
-      if (
-        (transaction.currency === CurrencyEnum.USD || transaction.currency === CurrencyEnum.EUR) &&
-        !transaction.exchangeRate
-      ) {
-        error.push({
-          msg: 'Please enter a exchange rate',
-          path: `transactions[${index}].exchangeRate`,
-          value: transaction.exchangeRate,
-        });
-      }
-    }
-
-    if (!Object.values(MonthEnum).includes(transaction.month)) {
-      error.push({
-        msg: `Please enter a month: ${Object.values(MonthEnum).join(' | ')}`,
-        path: `transactions[${index}].month`,
-        value: transaction.month,
-      });
-    }
-
-    if (
-      !(
-        transaction.day &&
-        transaction.day > 0 &&
-        transaction.day <= dayHelper.getMaxDayByMonth(transaction.month)
-      )
-    ) {
-      error.push({
-        msg: `Please enter a day for ${transaction.month}`,
-        path: `transactions[${index}].day`,
-        value: transaction.day,
-      });
-    }
-
-    if (!transaction.year || transaction.year < 2000) {
-      error.push({
-        msg: 'Please enter a year > 2000',
-        path: `transactions[${index}].year`,
-        value: transaction.year,
-      });
-    }
-
-    if (transaction.categoryId && transaction.category) {
-      error.push({
-        msg: 'Please only enter a category or a category id',
-        path: `transactions[${index}].category | transaction[${index}].categoryId`,
-        value: null,
-      });
-    } else if (!(transaction.categoryId || transaction.category)) {
-      error.push({
-        msg: 'Please enter a category or a category id',
-        path: `transactions[${index}].category | transaction[${index}].categoryId`,
-        value: null,
-      });
-    } else {
-      if (!transaction.categoryId || transaction.category) {
-        if (
-          transaction.category?.type &&
-          !Object.values(TransactionType).includes(transaction.category?.type) &&
-          transaction.category?.type !== transaction.type
-        ) {
-          error.push({
-            msg: 'Transaction and category are not of the same type.',
-            path: `transactions[${index}].category.type`,
-            value: null,
-          });
-        }
-
-        if (!transaction.category.name) {
-          error.push({
-            msg: 'Please enter a category name.',
-            path: `transactions[${index}].category.name`,
-            value: transaction.category.name,
-          });
-        }
-      }
-    }
-  }
-
-  return error;
-}
 
 interface TransactionQuery {
   userId: string;
@@ -131,15 +15,21 @@ interface TransactionQuery {
 
 function getQueryInGetTransaction(req: Request, { locals }: Response): TransactionQuery {
   const where: TransactionQuery = {
-    userId: locals.userId,
+    userId: locals.userId as string,
   };
 
   if (req.query.type) {
-    where.type = TransactionType[req.query.type as string];
+    const typeKey = req.query.type as string;
+    if (typeKey in TransactionType) {
+      where.type = TransactionType[typeKey as keyof typeof TransactionType];
+    }
   }
 
   if (req.query.month) {
-    where.month = MonthEnum[req.query.month as string];
+    const monthKey = req.query.month as string;
+    if (monthKey in MonthEnum) {
+      where.month = MonthEnum[monthKey as keyof typeof MonthEnum];
+    }
   }
 
   if (req.query.day) {
@@ -154,11 +44,11 @@ function getQueryInGetTransaction(req: Request, { locals }: Response): Transacti
 }
 
 function queryIsEqualToData(
-  object: TransactionsRedisMetadata<TransactionDTO[] | TransactionBalances>,
+  object: TransactionsRedisMetadata<TransactionDTO[] | TransactionBalances> | null,
   where: TransactionMetadata,
 ): boolean {
   return (
-    object?.metadata &&
+    !!object?.metadata &&
     object.metadata.type === where?.type &&
     object.metadata.day === where?.day &&
     object.metadata.month === where?.month &&
@@ -167,7 +57,6 @@ function queryIsEqualToData(
 }
 
 export const transactionHelper = {
-  createTransactionValidation,
   getQueryInGetTransaction,
   queryIsEqualToData,
 };

@@ -1,17 +1,11 @@
 {
-  "files": [
-    "src/server.ts"
-  ],
-  "include": [
-    "src/**/*.ts"
-  ],
+  "files": ["src/server.ts"],
+  "include": ["src/**/*.ts"],
   "compilerOptions": {
     "module": "commonjs",
-    "noImplicitAny": false,
+    "strict": true,
     "target": "es2021",
-    "lib": [
-      "es2021"
-    ],
+    "lib": ["es2021"],
     "outDir": "dist",
     "rootDir": "",
     "emitDecoratorMetadata": true,
@@ -21,54 +15,23 @@
     "sourceMap": true,
     "moduleResolution": "node",
     "removeComments": true,
-    "typeRoots": [
-      "node_modules/@types"
-    ],
+    "typeRoots": ["node_modules/@types"],
     "baseUrl": "src",
     "paths": {
-      "config/*": [
-        "config/*"
-      ],
-      "constrollers/*": [
-        "constrollers/*"
-      ],
-      "enums/*": [
-        "enums/*"
-      ],
-      "helpers/*": [
-        "helpers/*"
-      ],
-      "lib/*": [
-        "lib/*"
-      ],
-      "models/*": [
-        "models/*"
-      ],
-      "routes/*": [
-        "routes/*"
-      ],
-      "services/*": [
-        "services/*"
-      ],
-      "types/*": [
-        "types/*"
-      ],
-      "utils/*": [
-        "utils/*"
-      ],
-      "validations/*": [
-        "validations/*"
-      ],
-      "src/*": [
-        "*"
-      ],
-      "*": [
-        "../node_modules/@types/*",
-        "types/*"
-      ]
+      "config/*": ["config/*"],
+      "constrollers/*": ["constrollers/*"],
+      "enums/*": ["enums/*"],
+      "helpers/*": ["helpers/*"],
+      "lib/*": ["lib/*"],
+      "models/*": ["models/*"],
+      "routes/*": ["routes/*"],
+      "services/*": ["services/*"],
+      "types/*": ["types/*"],
+      "utils/*": ["utils/*"],
+      "validations/*": ["validations/*"],
+      "src/*": ["*"],
+      "*": ["../node_modules/@types/*", "types/*"]
     }
   },
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

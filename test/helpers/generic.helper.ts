@@ -1,10 +1,12 @@
-import { SuperTest, Request } from 'supertest';
+import type supertest from 'supertest';
+
+type RequestAgent = ReturnType<typeof supertest>;
 
 export abstract class Helper {
-  readonly request: SuperTest<Request>;
+  readonly request: RequestAgent;
   readonly cookieMock: string;
 
-  constructor(request: SuperTest<Request>, cookieMock: string) {
+  constructor(request: RequestAgent, cookieMock: string) {
     this.request = request;
     this.cookieMock = cookieMock;
   }

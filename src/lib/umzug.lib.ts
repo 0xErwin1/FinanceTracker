@@ -1,7 +1,7 @@
 import { Sequelize } from 'sequelize';
-import { Umzug, SequelizeStorage } from 'umzug';
-import { sequelize } from '../models';
+import { SequelizeStorage, Umzug } from 'umzug';
 import { logger } from '.';
+import { sequelize } from '../models';
 
 const sequelizeConfig = sequelize();
 

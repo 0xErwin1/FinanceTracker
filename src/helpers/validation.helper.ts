@@ -1,5 +1,5 @@
-import { Request } from 'express';
-import { Result, ValidationError, validationResult } from 'express-validator';
+import type { Request } from 'express';
+import { type Result, type ValidationError, validationResult } from 'express-validator';
 import { ApiError } from '../enums';
 import { CustomError } from '../lib';
 

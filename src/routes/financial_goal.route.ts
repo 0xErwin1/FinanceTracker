@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { middlewareController, financialGoalController } from '../controllers';
+import { financialGoalController, middlewareController } from '../controllers';
 import { financialGoalValidation } from '../validations';
 
 const router: Router = Router();

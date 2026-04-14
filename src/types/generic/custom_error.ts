@@ -1,14 +1,14 @@
-import { StatusCodes } from 'http-status-codes';
+import type { StatusCodes } from 'http-status-codes';
 
 class ShowMessage {
-  public EN: string;
-  public ES: string;
+  declare EN: string;
+  declare ES: string;
 }
 
 class CustomError {
-  public message: string;
-  public showMessage: ShowMessage;
-  public HTTPStatusCode: StatusCodes;
+  declare message: string;
+  declare showMessage: ShowMessage;
+  declare HTTPStatusCode: StatusCodes;
 }
 
 export { CustomError, ShowMessage };

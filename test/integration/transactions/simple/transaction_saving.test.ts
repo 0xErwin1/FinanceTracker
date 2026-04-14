@@ -1,11 +1,11 @@
 import 'jest';
+import { StatusCodes } from 'http-status-codes';
 import supertest from 'supertest';
 import { App } from '../../../../src/app';
 import { ApiError, CurrencyEnum, TransactionType } from '../../../../src/enums';
+import { redisClient } from '../../../../src/redis';
 import { transactionFactory } from '../../../factories';
 import { CategoryHelper, TransactionHelper, UserHelper, databaseHelper } from '../../../helpers';
-import { StatusCodes } from 'http-status-codes';
-import { redisClient } from '../../../../src/redis';
 
 describe('/api/transactions Simple Saving', () => {
   const app: App = new App();

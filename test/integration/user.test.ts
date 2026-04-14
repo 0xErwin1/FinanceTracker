@@ -4,9 +4,9 @@ import { App } from '../../src/app';
 import { ApiError } from '../../src/enums';
 import { logger } from '../../src/lib';
 import { redisClient } from '../../src/redis';
-import { RegisterUserRequest } from '../../src/types/request/user';
+import type { RegisterUserRequest } from '../../src/types/request/user';
 import { userFactory } from '../factories';
-import { databaseHelper, UserHelper } from '../helpers';
+import { UserHelper, databaseHelper } from '../helpers';
 import userMock from '../mock/user.json';
 
 describe('/api/users', () => {

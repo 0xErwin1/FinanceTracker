@@ -13,34 +13,34 @@ export class UserModel extends Model<UserModel> {
     unique: true,
     primaryKey: true,
   })
-  public userId: string;
+  declare userId: string;
 
   @Column({ allowNull: false, unique: true, type: DataType.STRING })
-  public email: string;
+  declare email: string;
 
   @Column({ allowNull: false, type: DataType.STRING })
-  public firstName: string;
+  declare firstName: string;
 
   @Column({ allowNull: false, type: DataType.STRING })
-  public lastName: string;
+  declare lastName: string;
 
   @Column({ allowNull: false, type: DataType.STRING })
-  public password: string;
+  declare password: string;
 
   @Column({ type: DataType.DATE })
-  public deletedAt: Date;
+  declare deletedAt: Date;
 
   @HasMany(() => SessionModel, 'user_id')
-  public sessions: SessionModel[];
+  declare sessions: SessionModel[];
 
   @HasMany(() => TransactionModel, 'user_id')
-  public trasactions: TransactionModel[];
+  declare trasactions: TransactionModel[];
 
   @HasMany(() => CategoryModel, 'user_id')
-  public categories: CategoryModel[];
+  declare categories: CategoryModel[];
 
   @HasMany(() => FinancialGoalModel, 'user_id')
-  public financialGoals: FinancialGoalModel[];
+  declare financialGoals: FinancialGoalModel[];
 }
 
 export default UserModel;

@@ -1,6 +1,6 @@
-import { logger } from '../lib';
 import { Sequelize } from 'sequelize-typescript';
 import { config } from '../config';
+import { logger } from '../lib';
 
 let sequelizeInstance: Sequelize;
 
@@ -8,7 +8,7 @@ export const sequelize = () => {
   if (sequelizeInstance) {
     return sequelizeInstance;
   }
-  const env = config.env;
+  const env = config.env ?? '';
 
   const models = [`${__dirname}/${['LOCAL', 'TEST'].includes(env) ? '/*.model.ts' : '*.model.js'}`];
 
@@ -27,13 +27,13 @@ export const sequelize = () => {
       underscored: true,
       freezeTableName: true,
     },
-    logging: (str) => {
-      if (!['PROD'].includes(config.env)) {
+    logging: (str: string) => {
+      if (!['PROD'].includes(env)) {
         logger.debug(str);
       }
     },
     models,
-    modelMatch: (filename, member) => {
+    modelMatch: (filename: string, member: string) => {
       return filename.substring(0, filename.indexOf('.model')).replace(/_/g, '') === member.toLowerCase();
     },
   });

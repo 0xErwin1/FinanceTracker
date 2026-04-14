@@ -1,6 +1,6 @@
 import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from 'sequelize-typescript';
-import { TransactionType, CurrencyEnum, MonthEnum } from '../enums';
 import { CategoryModel, UserModel } from '.';
+import { type CurrencyEnum, MonthEnum, TransactionType } from '../enums';
 import FinancialGoalModel from './financial_goals.model';
 
 @Table({ modelName: 'transactions', paranoid: true })
@@ -12,67 +12,67 @@ export class TransactionModel extends Model<TransactionModel> {
     unique: true,
     primaryKey: true,
   })
-  public transactionId: string;
+  declare transactionId: string;
 
   @Column({ allowNull: false, type: DataType.ENUM(...Object.values(TransactionType)) })
-  public type: TransactionType;
+  declare type: TransactionType;
 
   @Column({ allowNull: false, type: DataType.STRING })
-  public amount: number;
+  declare amount: number;
 
   @Column({ allowNull: false, type: DataType.STRING })
-  public currency: CurrencyEnum;
+  declare currency: CurrencyEnum;
 
   @Column({ allowNull: true, type: DataType.STRING })
-  public note: string;
+  declare note: string;
 
   @Column({
     allowNull: true,
     type: DataType.STRING,
   })
-  public day: number;
+  declare day: number;
 
   @Column({
     allowNull: false,
     type: DataType.ENUM(...Object.values(MonthEnum)),
   })
-  public month: MonthEnum;
+  declare month: MonthEnum;
 
   @Column({
     allowNull: false,
     type: DataType.INTEGER,
   })
-  public year: number;
+  declare year: number;
 
   @Column({
     allowNull: true,
     type: DataType.DOUBLE,
   })
-  public exchangeRate: number;
+  declare exchangeRate: number | null;
 
   @Column({ type: DataType.DATE })
-  public deletedAt: Date;
+  declare deletedAt: Date;
 
   @ForeignKey(() => UserModel)
   @Column({ type: DataType.UUIDV4 })
-  public userId: string;
+  declare userId: string;
 
   @BelongsTo(() => UserModel, 'user_id')
-  public user: UserModel;
+  declare user: UserModel;
 
   @ForeignKey(() => CategoryModel)
   @Column({ type: DataType.UUIDV4 })
-  public categoryId: string;
+  declare categoryId: string;
 
   @BelongsTo(() => CategoryModel)
-  public category: CategoryModel;
+  declare category: CategoryModel;
 
   @ForeignKey(() => FinancialGoalModel)
   @Column({ type: DataType.UUIDV4 })
-  public goalId: string;
+  declare goalId: string;
 
   @BelongsTo(() => FinancialGoalModel)
-  public financialGoal: FinancialGoalModel;
+  declare financialGoal: FinancialGoalModel;
 }
 
 export default TransactionModel;

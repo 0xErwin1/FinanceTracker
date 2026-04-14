@@ -5,7 +5,7 @@ import { App } from '../../../../src/app';
 import { ApiError, CurrencyEnum, TransactionType } from '../../../../src/enums';
 import { redisClient } from '../../../../src/redis';
 import { transactionFactory } from '../../../factories';
-import { CategoryHelper, databaseHelper, TransactionHelper, UserHelper } from '../../../helpers';
+import { CategoryHelper, TransactionHelper, UserHelper, databaseHelper } from '../../../helpers';
 
 describe('/api/transactions Simple INSTALLMENTS', () => {
   const app: App = new App();

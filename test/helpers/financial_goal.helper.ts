@@ -1,15 +1,11 @@
-import { SuperTest, Request, Response } from 'supertest';
+import type { Response } from 'supertest';
 import { Helper } from '.';
-import { CreateFinancialGoal } from '../../src/types/request/financial_goal';
+import type { CreateFinancialGoal } from '../../src/types/request/financial_goal';
 import { genericFactory } from '../factories';
-import { RequestOptions } from '../types';
+import type { RequestOptions } from '../types';
 
 export class FinancialGoalHelper extends Helper {
-  private endpoint: string = '/api/financial_goals';
-
-  constructor(request: SuperTest<Request>, cookieMock: string) {
-    super(request, cookieMock);
-  }
+  private endpoint = '/api/financial_goals';
 
   public async createFinancialGoal(body: CreateFinancialGoal, options: RequestOptions): Promise<Response> {
     const request = this.request.post(this.endpoint).set(genericFactory.buildHeader());

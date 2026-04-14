@@ -1,16 +1,30 @@
-import { NextFunction, Request, Response } from 'express';
-import { CustomResponse, CustomError } from '../lib';
-import { TransactionModel } from '../models';
+import type { NextFunction, Request, Response } from 'express';
+import { ApiError, type CurrencyEnum, type FinancialGoalsType, type MonthEnum } from '../enums';
 import { validationHelper } from '../helpers';
+import { CustomError, CustomResponse } from '../lib';
+import { TransactionModel } from '../models';
 import { financialGoalService } from '../services';
 import { CreateFinancialGoal } from '../types/request/financial_goal';
-import { ApiError } from '../enums';
 
-async function createFinancialGoal(req: Request, res: Response, next: NextFunction) {
+interface CreateFinancialGoalBody {
+  type: FinancialGoalsType;
+  targetAmount: number;
+  currency: CurrencyEnum;
+  note: string;
+  month: MonthEnum;
+  year: number;
+  name: string;
+}
+
+async function createFinancialGoal(
+  req: Request<Record<string, never>, unknown, CreateFinancialGoalBody>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
-    const { userId } = res.locals;
+    const userId = res.locals.userId as string;
 
     const body: CreateFinancialGoal = new CreateFinancialGoal({
       ...req.body,
@@ -21,15 +35,19 @@ async function createFinancialGoal(req: Request, res: Response, next: NextFuncti
 
     res.send(new CustomResponse(true, financialGoal));
   } catch (err) {
-    return next(err);
+    next(err);
   }
 }
 
-async function getFinancialGoalById(req: Request, res: Response, next: NextFunction) {
+async function getFinancialGoalById(
+  req: Request<{ goalId: string }>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
-    const { userId } = res.locals;
+    const userId = res.locals.userId as string;
     const { goalId } = req.params;
 
     const financialGoal = await financialGoalService.getFinancialGoal(
@@ -48,15 +66,15 @@ async function getFinancialGoalById(req: Request, res: Response, next: NextFunct
       throw new CustomError(ApiError.FinancialGoal.FINANCIAL_GOAL_NOT_EXIST);
     }
 
-    return res.send(new CustomResponse(true, financialGoal));
+    res.send(new CustomResponse(true, financialGoal));
   } catch (err) {
-    return next(err);
+    next(err);
   }
 }
 
-async function getAllFinancialGoals(_req: Request, res: Response, next: NextFunction) {
+async function getAllFinancialGoals(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { userId } = res.locals;
+    const userId = res.locals.userId as string;
 
     const financialGoals = await financialGoalService.getAllFinancialGoals(
       {
@@ -69,9 +87,9 @@ async function getAllFinancialGoals(_req: Request, res: Response, next: NextFunc
       ],
     );
 
-    return res.send(new CustomResponse(true, financialGoals));
+    res.send(new CustomResponse(true, financialGoals));
   } catch (err) {
-    return next(err);
+    next(err);
   }
 }
 

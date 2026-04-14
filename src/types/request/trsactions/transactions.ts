@@ -1,5 +1,5 @@
-import { CurrencyEnum, MonthEnum, TransactionType } from '../../../enums';
-import { CreateCategoryRequest } from '../category';
+import type { CurrencyEnum, MonthEnum, TransactionType } from '../../../enums';
+import type { CreateCategoryRequest } from '../category';
 
 export interface BodyRequest {
   type: TransactionType;

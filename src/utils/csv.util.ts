@@ -1,6 +1,6 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { parse } from 'csv-parse/sync';
-import * as fs from 'fs';
-import * as path from 'path';
 import { logger } from '../lib';
 
 export async function parseCSV<T extends object>(filePath: string): Promise<T[]> {

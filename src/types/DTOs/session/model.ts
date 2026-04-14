@@ -4,18 +4,18 @@ import { UserDTO } from '..';
 @Exclude()
 export class SessionDTO {
   @Expose()
-  readonly sessionId: string;
+  declare readonly sessionId: string;
 
   @Expose()
-  readonly token: string;
+  declare readonly token: string;
 
   @Expose()
-  readonly deletedAt: Date;
+  declare readonly deletedAt: Date;
 
   @Expose()
-  readonly userId: string;
+  declare readonly userId: string;
 
   @Type(() => UserDTO)
   @Expose()
-  readonly user: UserDTO;
+  declare readonly user: UserDTO;
 }

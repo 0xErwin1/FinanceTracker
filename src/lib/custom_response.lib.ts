@@ -1,12 +1,12 @@
-import { ShowMessage } from '../types/generic';
 import { customErrors } from '.';
+import type { ShowMessage } from '../types/generic';
 
 export class CustomResponse<T extends object | string> {
-  readonly data: T;
+  readonly data: T | undefined;
   readonly result: boolean;
-  readonly message: string;
-  readonly showMessage: ShowMessage;
-  readonly errorCode: number;
+  readonly message: string | null;
+  readonly showMessage: ShowMessage | null;
+  readonly errorCode: number | undefined;
 
   constructor(result: boolean, data?: T, errorCode?: number) {
     this.data = data;
@@ -15,6 +15,7 @@ export class CustomResponse<T extends object | string> {
     if (result) {
       this.message = null;
       this.showMessage = null;
+      this.errorCode = undefined;
 
       return;
     }
@@ -26,5 +27,9 @@ export class CustomResponse<T extends object | string> {
 
       return;
     }
+
+    this.message = null;
+    this.showMessage = null;
+    this.errorCode = undefined;
   }
 }

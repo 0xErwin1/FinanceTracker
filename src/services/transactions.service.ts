@@ -1,16 +1,16 @@
-import { IncludeOptions, Transaction, WhereOptions } from 'sequelize';
-import { CategoryModel, FinancialGoalModel, sequelize, TransactionModel } from '../models';
-import { CreateTransactionRequest } from '../types/request/trsactions';
-import { Balances, TransactionBalances } from '../types/response/transactions';
-import { CategoryDTO, TransactionDTO } from '../types/DTOs';
-import { categoryService, financialGoalService } from '.';
-import { CustomError, logger } from '../lib';
-import { ApiError, CurrencyEnum, FinancialGoalsType, MonthEnum, TransactionType } from '../enums';
 import { plainToInstance } from 'class-transformer';
+import type { IncludeOptions, Transaction, WhereOptions } from 'sequelize';
+import { categoryService, financialGoalService } from '.';
+import { ApiError, CurrencyEnum, FinancialGoalsType, MonthEnum, TransactionType } from '../enums';
+import { CustomError, logger } from '../lib';
+import { CategoryModel, FinancialGoalModel, TransactionModel, sequelize } from '../models';
 import { redisClient } from '../redis';
-import { TransactionsRedisMetadata, TransactionMetadata } from '../types/redis_types';
+import { type CategoryDTO, TransactionDTO } from '../types/DTOs';
+import { type TransactionMetadata, TransactionsRedisMetadata } from '../types/redis_types';
+import type { CreateTransactionRequest } from '../types/request/trsactions';
+import type { Balances, TransactionBalances } from '../types/response/transactions';
 
-async function deleteTransaction(transactionId: string) {
+async function deleteTransaction(transactionId: string): Promise<void> {
   const transaction = await getTrasaction(
     {
       transactionId,
@@ -38,7 +38,7 @@ async function deleteTransaction(transactionId: string) {
 
     await updateTransaction(
       {
-        goalId: null,
+        goalId: null as unknown as string,
       },
       {
         transactionId,
@@ -56,37 +56,34 @@ async function deleteTransaction(transactionId: string) {
 async function createTransactionByArray(
   newTransaction: CreateTransactionRequest | CreateTransactionRequest[],
 ): Promise<TransactionDTO | TransactionDTO[]> {
-  const transaction = await sequelize().transaction();
+  const t = await sequelize().transaction();
   try {
     if (Array.isArray(newTransaction)) {
       const transactionCreated: TransactionDTO[] = [];
 
       for (const transactionData of newTransaction) {
-        const data = await createTransaction(transactionData, transaction, false);
+        const data = await createTransaction(transactionData, t, false);
 
         transactionCreated.push(data);
       }
 
-      await transaction.commit();
+      await t.commit();
 
       return transactionCreated;
-    } else {
-      return await createTransaction(newTransaction);
     }
+    return await createTransaction(newTransaction);
   } catch (err) {
-    transaction.rollback();
+    t.rollback();
     throw err;
   }
 }
 
 async function createTransaction(
   newTransaction: CreateTransactionRequest,
-  transaction: Transaction = undefined,
-  commit: boolean = true,
+  sequelizeTransaction: Transaction | undefined = undefined,
+  commit = true,
 ): Promise<TransactionDTO> {
-  if (!transaction) {
-    transaction = await sequelize().transaction();
-  }
+  const t = sequelizeTransaction ?? (await sequelize().transaction());
 
   try {
     let category: CategoryDTO;
@@ -98,7 +95,7 @@ async function createTransaction(
           userId: newTransaction.userId,
         },
         [],
-        { transaction },
+        { transaction: t },
       );
 
       logger.debug({
@@ -117,63 +114,68 @@ async function createTransaction(
         throw new CustomError(ApiError.Transaction.TRANSACTION_AND_CATEGORY_NOT_SAME_TYPE);
       }
 
-      const type = newTransaction.category?.type ? newTransaction.category?.type : newTransaction.type;
+      const type = newTransaction.category?.type ? newTransaction.category.type : newTransaction.type;
 
       category = await categoryService.createCategory(
         {
           ...newTransaction.category,
           type,
           userId: newTransaction.userId,
-        },
+        } as unknown as import('../types/request/category').BodyRequest,
         {
-          transaction,
+          transaction: t,
           commit: false,
         },
       );
     }
 
-    newTransaction.category = null;
+    const transactionData = {
+      ...newTransaction,
+      category: undefined,
+      categoryId: category.categoryId,
+    };
 
-    newTransaction.categoryId = category.categoryId;
-
+    // Sequelize .create() expects Optional<Model, Nullish> which includes model methods;
+    // our plain object only has data fields, so a type assertion is needed here.
     const transactionCreated: TransactionModel = await TransactionModel.create(
       {
-        type: newTransaction.type,
-        amount: newTransaction.amount,
-        day: newTransaction.day,
-        month: newTransaction.month,
-        year: newTransaction.year,
-        currency: newTransaction.currency,
-        note: newTransaction.note,
-        userId: newTransaction.userId,
-        categoryId: newTransaction.categoryId,
-        exchangeRate: newTransaction?.exchangeRate,
-      },
+        type: transactionData.type,
+        amount: transactionData.amount,
+        day: transactionData.day,
+        month: transactionData.month,
+        year: transactionData.year,
+        currency: transactionData.currency,
+        note: transactionData.note,
+        userId: transactionData.userId,
+        categoryId: transactionData.categoryId,
+        exchangeRate: transactionData.exchangeRate ?? null,
+        // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
+      } as any,
       {
         include: [
           {
             model: CategoryModel,
           },
         ],
-        transaction,
+        transaction: t,
       },
     );
 
     if (commit) {
-      await transaction.commit();
+      await t.commit();
     }
 
     return plainToInstance(TransactionDTO, transactionCreated);
   } catch (err) {
     if (commit) {
-      await transaction.rollback();
+      await t.rollback();
     }
 
     throw err;
   }
 }
 
-async function getBalance(month: MonthEnum): Promise<TransactionBalances> {
+async function getBalance(month: MonthEnum | undefined): Promise<TransactionBalances> {
   const transactions = await getAllTrasactions(
     month
       ? {
@@ -186,7 +188,7 @@ async function getBalance(month: MonthEnum): Promise<TransactionBalances> {
   return calculateBalances(transactions);
 }
 
-function calculateBalance(transaction: TransactionDTO, balances: Balances) {
+function calculateBalance(transaction: TransactionDTO, balances: Balances): void {
   switch (transaction.currency) {
     case CurrencyEnum.UYU:
       balances.uyu += transaction.amount;
@@ -230,7 +232,7 @@ function calculateBalances(transactions: TransactionDTO[]): TransactionBalances 
     uyu: 0,
   };
 
-  transactions.forEach((transaction) => {
+  for (const transaction of transactions) {
     switch (transaction.type) {
       case TransactionType.EXPENSE:
       case TransactionType.INSTALLMENTS:
@@ -243,7 +245,7 @@ function calculateBalances(transactions: TransactionDTO[]): TransactionBalances 
         calculateBalance(transaction, savings);
         break;
     }
-  });
+  }
 
   return {
     expenses,
@@ -276,7 +278,7 @@ async function getTrasaction(
   return plainToInstance(TransactionDTO, trasaction);
 }
 
-type MonthByYear = { [key: string]: string[] };
+type MonthByYear = Record<string, string[]>;
 
 async function getMonthsAndYears(userId: string): Promise<MonthByYear> {
   const transactions = await TransactionModel.findAll({
@@ -289,24 +291,25 @@ async function getMonthsAndYears(userId: string): Promise<MonthByYear> {
   const monthByYear: MonthByYear = {};
 
   for (const value of transactions) {
-    if (!monthByYear.hasOwnProperty(value.year)) {
-      monthByYear[value.year] = [];
+    const yearKey = String(value.year);
+    if (!Object.prototype.hasOwnProperty.call(monthByYear, yearKey)) {
+      monthByYear[yearKey] = [];
     }
 
-    if (!monthByYear[value.year].includes(value.month)) {
-      monthByYear[value.year].push(value.month);
+    if (!monthByYear[yearKey].includes(value.month)) {
+      monthByYear[yearKey].push(value.month);
     }
 
-    monthByYear[value.year].sort(
-      (a: MonthEnum, b: MonthEnum) =>
-        Object.values(MonthEnum).indexOf(a) - Object.values(MonthEnum).indexOf(b),
+    monthByYear[yearKey].sort(
+      (a: string, b: string) =>
+        Object.values(MonthEnum).indexOf(a as MonthEnum) - Object.values(MonthEnum).indexOf(b as MonthEnum),
     );
   }
 
   return monthByYear;
 }
 
-async function updateTransaction<T extends Object>(
+async function updateTransaction<T extends object>(
   newTransaction: T,
   where: WhereOptions<TransactionModel>,
 ): Promise<TransactionDTO> {
@@ -316,18 +319,19 @@ async function updateTransaction<T extends Object>(
     throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
   }
 
-  const updated = await TransactionModel.update(newTransaction, {
+  const updated = await TransactionModel.update(newTransaction as Partial<TransactionModel>, {
     where,
+    returning: true,
   });
 
-  return plainToInstance(TransactionDTO, updated[0][1].get());
+  return plainToInstance(TransactionDTO, (updated as [number, TransactionModel[]])[1][0].get());
 }
 
-async function setGoalIdInTransaction(transactionId: string, goalId: string, userId: string) {
+async function setGoalIdInTransaction(transactionId: string, goalId: string, userId: string): Promise<void> {
   const transaction = await getTrasaction(
     {
       transactionId,
-      goalId: null,
+      goalId: null as unknown as string,
     },
     [],
   );
@@ -384,17 +388,19 @@ async function setGoalIdInTransaction(transactionId: string, goalId: string, use
   );
 }
 
-async function getTransactionsInRedis(userId: string): Promise<TransactionsRedisMetadata<TransactionDTO[]>> {
-  const transactions: string = await redisClient.get(`transactions:${userId}`);
+async function getTransactionsInRedis(
+  userId: string,
+): Promise<TransactionsRedisMetadata<TransactionDTO[]> | null> {
+  const transactions: string | null = await redisClient.get(`transactions:${userId}`);
 
-  return JSON.parse(transactions);
+  return transactions ? JSON.parse(transactions) : null;
 }
 
 async function setTransactionsInRedis(
   transactions: TransactionDTO[],
   userId: string,
   metadata: TransactionMetadata,
-) {
+): Promise<void> {
   await redisClient.set(
     `transactions:${userId}`,
     JSON.stringify(new TransactionsRedisMetadata(transactions, metadata)),
@@ -406,17 +412,17 @@ async function setTransactionsInRedis(
 
 async function getBalanceTransactionInRedis(
   userId: string,
-): Promise<TransactionsRedisMetadata<TransactionBalances>> {
-  const balance: string = await redisClient.get(`balances:${userId}`);
+): Promise<TransactionsRedisMetadata<TransactionBalances> | null> {
+  const balance: string | null = await redisClient.get(`balances:${userId}`);
 
-  return JSON.parse(balance);
+  return balance ? JSON.parse(balance) : null;
 }
 
 async function setBalanceTransactionInRedis(
   transactions: TransactionBalances,
   userId: string,
   metadata: TransactionMetadata,
-) {
+): Promise<void> {
   await redisClient.set(
     `balances:${userId}`,
     JSON.stringify(new TransactionsRedisMetadata(transactions, metadata)),
@@ -426,11 +432,11 @@ async function setBalanceTransactionInRedis(
   );
 }
 
-async function deleteTransactionsInRedis(userId: string) {
+async function deleteTransactionsInRedis(userId: string): Promise<void> {
   await redisClient.del(`transactions:${userId}`);
 }
 
-async function deleteBalanceTransactionInRedis(userId: string) {
+async function deleteBalanceTransactionInRedis(userId: string): Promise<void> {
   await redisClient.del(`balances:${userId}`);
 }
 

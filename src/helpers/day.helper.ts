@@ -1,7 +1,6 @@
 import { MonthEnum } from '../enums';
-import moment from 'moment';
 
-const getMaxDayByMonth = (month: MonthEnum): number => {
+const getMaxDayByMonth = (month: MonthEnum, year: number = new Date().getFullYear()): number => {
   switch (month) {
     case MonthEnum.APRIL:
     case MonthEnum.JUNE:
@@ -18,14 +17,10 @@ const getMaxDayByMonth = (month: MonthEnum): number => {
     case MonthEnum.DECEMBER:
       return 31;
 
-    case MonthEnum.FEBRUARY:
-      const year = moment().year();
-
-      if (year % 4 !== 0 || year % 400 !== 0) {
-        return 28;
-      } else {
-        return 29;
-      }
+    case MonthEnum.FEBRUARY: {
+      const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+      return isLeapYear ? 29 : 28;
+    }
   }
 };
 

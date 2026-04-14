@@ -1,10 +1,10 @@
 import { plainToInstance } from 'class-transformer';
-import { CategoryModel, sequelize, TransactionModel } from '../models';
-import { IncludeOptions, Transaction, WhereOptions } from 'sequelize';
-import { CategoryDTO } from '../types/DTOs';
-import { CreateCategoryRequest } from '../types/request/category';
-import { CustomError, logger } from '../lib';
 import { ApiError } from 'enums/api_error.enum';
+import type { IncludeOptions, Transaction, WhereOptions } from 'sequelize';
+import { CustomError, logger } from '../lib';
+import { CategoryModel, TransactionModel, sequelize } from '../models';
+import { CategoryDTO } from '../types/DTOs';
+import type { CreateCategoryRequest } from '../types/request/category';
 
 interface Opt {
   transaction?: Transaction;
@@ -21,8 +21,12 @@ async function getAllCategories(userId: string): Promise<CategoryDTO[]> {
   return plainToInstance(CategoryDTO, categories);
 }
 
-async function deleteCategory(categoryId: string, userId: string, deleteTransactions: boolean) {
-  const transaction = await sequelize().transaction();
+async function deleteCategory(
+  categoryId: string,
+  userId: string,
+  deleteTransactions: boolean,
+): Promise<void> {
+  const t = await sequelize().transaction();
   try {
     const category = await CategoryModel.findOne({
       where: {
@@ -34,7 +38,7 @@ async function deleteCategory(categoryId: string, userId: string, deleteTransact
           model: TransactionModel,
         },
       ],
-      transaction,
+      transaction: t,
     });
 
     if (!category) {
@@ -46,7 +50,7 @@ async function deleteCategory(categoryId: string, userId: string, deleteTransact
       deleteTransactions,
     });
 
-    if (category?.trasactions.length !== 0 && !deleteTransactions) {
+    if (category.trasactions.length !== 0 && !deleteTransactions) {
       throw new CustomError(ApiError.Category.CANNOT_DELETE_CATEGORY_TRASACTIONS);
     }
 
@@ -56,19 +60,19 @@ async function deleteCategory(categoryId: string, userId: string, deleteTransact
           categoryId,
           userId,
         },
-        transaction,
+        transaction: t,
       });
     } else {
       await TransactionModel.update(
         {
-          categoryId: null,
+          categoryId: null as unknown as string,
         },
         {
           where: {
             categoryId,
             userId,
           },
-          transaction,
+          transaction: t,
         },
       );
     }
@@ -78,12 +82,12 @@ async function deleteCategory(categoryId: string, userId: string, deleteTransact
         categoryId,
         userId,
       },
-      transaction,
+      transaction: t,
     });
 
-    await transaction.commit();
+    await t.commit();
   } catch (err) {
-    await transaction.rollback();
+    await t.rollback();
     throw err;
   }
 }
@@ -92,7 +96,7 @@ async function getCategory(
   where: WhereOptions<CategoryModel>,
   include: IncludeOptions[] = [],
   opt: Opt = {
-    transaction: null,
+    transaction: undefined,
     commit: true,
   },
 ): Promise<CategoryDTO> {
@@ -121,13 +125,19 @@ async function getCategory(
   }
 }
 
-async function createCategory(newCategory: CreateCategoryRequest, opt: Opt = null): Promise<CategoryDTO> {
+async function createCategory(
+  newCategory: CreateCategoryRequest,
+  opt: Opt = { transaction: undefined, commit: true },
+): Promise<CategoryDTO> {
   if (!opt.transaction) {
     opt.transaction = await sequelize().transaction();
   }
 
   try {
-    const category = await CategoryModel.create(newCategory, {
+    // Sequelize .create() expects Optional<Model, Nullish> which includes model methods;
+    // our DTO only has plain fields, so a type assertion is needed here.
+    // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
+    const category = await CategoryModel.create(newCategory as any, {
       transaction: opt.transaction,
     });
 

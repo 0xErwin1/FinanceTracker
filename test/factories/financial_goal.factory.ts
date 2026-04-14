@@ -1,5 +1,5 @@
 import { CurrencyEnum, FinancialGoalsType, MonthEnum } from '../../src/enums';
-import { CreateFinancialGoal, CreateFinancialGoalBody } from '../../src/types/request/financial_goal';
+import { CreateFinancialGoal, type CreateFinancialGoalBody } from '../../src/types/request/financial_goal';
 
 const financialGoal: CreateFinancialGoal = new CreateFinancialGoal({
   name: 'Finacial goal example',
@@ -13,15 +13,7 @@ const financialGoal: CreateFinancialGoal = new CreateFinancialGoal({
 });
 
 function buildFinancialGoal(attributes: Partial<CreateFinancialGoalBody>): CreateFinancialGoal {
-  const build = Object.assign({}, financialGoal);
-
-  const keys = Object.keys(attributes);
-
-  keys.forEach((key) => {
-    build[key] = attributes[key];
-  });
-
-  return build;
+  return Object.assign({}, financialGoal, attributes);
 }
 
 export const financialGoalFactory = {

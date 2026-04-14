@@ -1,6 +1,8 @@
 services:
   expenses:
     image: node:24-alpine
+    environment:
+      CI: "true"
     command: sh -c "corepack enable && pnpm install && pnpm test"
     container_name: expenses-test
     depends_on:
@@ -33,5 +35,3 @@ services:
     restart: always
     volumes:
       - ./.redis:/data
-
-version: "3.9"

@@ -1,4 +1,4 @@
-import { CurrencyEnum, FinancialGoalsType, MonthEnum } from '../../../enums/index';
+import type { CurrencyEnum, FinancialGoalsType, MonthEnum } from '../../../enums/index';
 
 export interface UpdateOptions {
   type?: FinancialGoalsType;
@@ -12,14 +12,14 @@ export interface UpdateOptions {
 }
 
 export class FinancialGoalUpdateOptions implements UpdateOptions {
-  readonly type: FinancialGoalsType;
-  readonly targetAmount: number;
-  readonly currency: CurrencyEnum;
-  readonly note: string;
-  readonly month: MonthEnum;
-  readonly year: number;
-  readonly name: string;
-  readonly currentAmount: number;
+  readonly type?: FinancialGoalsType;
+  readonly targetAmount?: number;
+  readonly currency?: CurrencyEnum;
+  readonly note?: string;
+  readonly month?: MonthEnum;
+  readonly year?: number;
+  readonly name?: string;
+  readonly currentAmount?: number;
 
   constructor({ type, targetAmount, currency, note, month, year, name, currentAmount }: UpdateOptions) {
     this.name = name;

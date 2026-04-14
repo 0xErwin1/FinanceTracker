@@ -1,5 +1,5 @@
 import { TransactionType } from '../../src/enums';
-import { CreateCategoryRequest, BodyRequest } from '../../src/types/request/category';
+import { type BodyRequest, CreateCategoryRequest } from '../../src/types/request/category';
 
 const category: CreateCategoryRequest = new CreateCategoryRequest({
   name: 'Category example',
@@ -9,15 +9,7 @@ const category: CreateCategoryRequest = new CreateCategoryRequest({
 });
 
 function buildCategory(attributes: Partial<BodyRequest>): CreateCategoryRequest {
-  const build = Object.assign({}, category);
-
-  const keys = Object.keys(attributes);
-
-  keys.forEach((key) => {
-    build[key] = attributes[key];
-  });
-
-  return build;
+  return Object.assign({}, category, attributes);
 }
 
 export const categoryFactory = {

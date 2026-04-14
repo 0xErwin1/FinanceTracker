@@ -1,12 +1,12 @@
 import 'jest';
+import { StatusCodes } from 'http-status-codes';
 import supertest from 'supertest';
 import { App } from '../../src/app';
-import { StatusCodes } from 'http-status-codes';
 import { ApiError, TransactionType } from '../../src/enums';
-import { categoryFactory } from '../factories';
-import { CategoryHelper, databaseHelper, UserHelper } from '../helpers';
-import categoryMock from '../mock/category.json';
 import { redisClient } from '../../src/redis';
+import { categoryFactory } from '../factories';
+import { CategoryHelper, UserHelper, databaseHelper } from '../helpers';
+import categoryMock from '../mock/category.json';
 
 describe('/api/cateogries', () => {
   const app: App = new App();

@@ -1,20 +1,44 @@
+import type { NextFunction, Request, Response } from 'express';
+import type { WhereOptions } from 'sequelize';
 import { ApiError, TransactionType } from '../enums';
 import { transactionHelper, validationHelper } from '../helpers';
 import { CustomError, CustomResponse, logger } from '../lib';
-import { CategoryModel, TransactionModel } from '../models';
+import { CategoryModel, type TransactionModel } from '../models';
 import { transactionService } from '../services';
-import { TransactionDTO } from '../types/DTOs';
+import type { TransactionDTO } from '../types/DTOs';
+import type { TransactionMetadata, TransactionsRedisMetadata } from '../types/redis_types';
 import { CreateTransactionRequest } from '../types/request/trsactions';
-import { NextFunction, Request, Response } from 'express';
-import { WhereOptions } from 'sequelize';
-import { TransactionBalances } from '../types/response/transactions';
-import { TransactionMetadata, TransactionsRedisMetadata } from '../types/redis_types';
+import type { TransactionBalances } from '../types/response/transactions';
 
-async function createTransaction(req: Request, res: Response, next: NextFunction) {
+interface CreateTransactionBody {
+  type?: string;
+  amount?: number;
+  currency?: string;
+  note?: string;
+  day?: number;
+  month?: string;
+  year?: number;
+  exchangeRate?: number;
+  goalId?: string;
+  categoryId?: string;
+  category?: { type?: string; name?: string };
+  transactions?: Record<string, unknown>[];
+}
+
+interface SetGoalBody {
+  goalId: string;
+}
+
+async function createTransaction(
+  req: Request<Record<string, never>, unknown, CreateTransactionBody>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
     const body = req.body;
+    const userId = res.locals.userId as string;
 
     let newTransaction: CreateTransactionRequest | CreateTransactionRequest[];
 
@@ -25,30 +49,24 @@ async function createTransaction(req: Request, res: Response, next: NextFunction
     const { transactions } = body;
 
     if (Array.isArray(transactions)) {
-      const errors = transactionHelper.createTransactionValidation(transactions);
-
-      if (errors.length) {
-        throw new CustomError(ApiError.Server.PARAMS_REQUIRED, errors);
-      }
-
       newTransaction = transactions.map(
         (value) =>
           new CreateTransactionRequest({
             ...value,
-            userId: res.locals.userId,
-          }),
+            userId,
+          } as import('../types/request/trsactions').BodyRequest),
       );
     } else {
       newTransaction = new CreateTransactionRequest({
         ...body,
-        userId: res.locals.userId,
-      });
+        userId,
+      } as import('../types/request/trsactions').BodyRequest);
     }
 
     const transaction = await transactionService.createTransactionByArray(newTransaction);
 
-    await transactionService.deleteTransactionsInRedis(res.locals.userId);
-    await transactionService.deleteBalanceTransactionInRedis(res.locals.userId);
+    await transactionService.deleteTransactionsInRedis(userId);
+    await transactionService.deleteBalanceTransactionInRedis(userId);
 
     res.send(new CustomResponse(true, transaction));
   } catch (err) {
@@ -56,12 +74,16 @@ async function createTransaction(req: Request, res: Response, next: NextFunction
   }
 }
 
-async function getTransactionById(req: Request, res: Response, next: NextFunction) {
+async function getTransactionById(
+  req: Request<{ transactionId: string }>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
     const { transactionId } = req.params;
-    const { userId } = res.locals;
+    const userId = res.locals.userId as string;
 
     const transaction = await transactionService.getTrasaction(
       {
@@ -85,7 +107,19 @@ async function getTransactionById(req: Request, res: Response, next: NextFunctio
   }
 }
 
-async function getAllTransactionsByUserId(req: Request, res: Response, next: NextFunction) {
+interface TransactionQuery {
+  [key: string]: string | undefined;
+  type?: string;
+  month?: string;
+  day?: string;
+  year?: string;
+}
+
+async function getAllTransactionsByUserId(
+  req: Request<Record<string, never>, unknown, Record<string, never>, TransactionQuery>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
@@ -93,8 +127,9 @@ async function getAllTransactionsByUserId(req: Request, res: Response, next: Nex
 
     const transationsInRedis = await transactionService.getTransactionsInRedis(where.userId);
 
-    if (transactionHelper.queryIsEqualToData(transationsInRedis, where)) {
-      return res.send(new CustomResponse(true, transationsInRedis.object));
+    if (transationsInRedis && transactionHelper.queryIsEqualToData(transationsInRedis, where)) {
+      res.send(new CustomResponse(true, transationsInRedis.object));
+      return;
     }
 
     const transactions = await transactionService.getAllTrasactions(where as WhereOptions<TransactionModel>, [
@@ -111,17 +146,22 @@ async function getAllTransactionsByUserId(req: Request, res: Response, next: Nex
   }
 }
 
-async function getTransactionBalance(req: Request, res: Response, next: NextFunction) {
+async function getTransactionBalance(
+  req: Request<Record<string, never>, unknown, Record<string, never>, TransactionQuery>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
     const where = transactionHelper.getQueryInGetTransaction(req, res);
 
-    const balanceInRedis: TransactionsRedisMetadata<TransactionBalances> =
+    const balanceInRedis: TransactionsRedisMetadata<TransactionBalances> | null =
       await transactionService.getBalanceTransactionInRedis(where.userId);
 
     if (balanceInRedis && transactionHelper.queryIsEqualToData(balanceInRedis, where)) {
-      return res.send(new CustomResponse(true, balanceInRedis.object));
+      res.send(new CustomResponse(true, balanceInRedis.object));
+      return;
     }
 
     const transactions = await transactionService.getBalance(where.month);
@@ -138,7 +178,11 @@ async function getTransactionBalance(req: Request, res: Response, next: NextFunc
   }
 }
 
-async function deleteTrasactions(req: Request, res: Response, next: NextFunction) {
+async function deleteTrasactions(
+  req: Request<{ transactionId: string }>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
@@ -152,9 +196,9 @@ async function deleteTrasactions(req: Request, res: Response, next: NextFunction
   }
 }
 
-async function getMonthsAndYears(_req: Request, res: Response, next: NextFunction) {
+async function getMonthsAndYears(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { userId } = res.locals;
+    const userId = res.locals.userId as string;
 
     const monthByYear = await transactionService.getMonthsAndYears(userId);
 
@@ -164,9 +208,9 @@ async function getMonthsAndYears(_req: Request, res: Response, next: NextFunctio
   }
 }
 
-async function getTotalSavings(_req: Request, res: Response, next: NextFunction) {
+async function getTotalSavings(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { userId } = res.locals;
+    const userId = res.locals.userId as string;
 
     const total = await transactionService.getAllTrasactions({
       userId,
@@ -174,7 +218,7 @@ async function getTotalSavings(_req: Request, res: Response, next: NextFunction)
     });
 
     const totalSavings = total.reduce(
-      (acc: number, transaction: TransactionDTO) => (acc += transaction.amount),
+      (acc: number, transaction: TransactionDTO) => acc + transaction.amount,
       0,
     );
 
@@ -188,11 +232,15 @@ async function getTotalSavings(_req: Request, res: Response, next: NextFunction)
   }
 }
 
-async function setGoalIdInTrnasaction(req: Request, res: Response, next: NextFunction) {
+async function setGoalIdInTrnasaction(
+  req: Request<{ transactionId: string }, unknown, SetGoalBody>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
-    const { userId } = res.locals;
+    const userId = res.locals.userId as string;
     const { goalId } = req.body;
     const { transactionId } = req.params;
 
@@ -200,7 +248,7 @@ async function setGoalIdInTrnasaction(req: Request, res: Response, next: NextFun
 
     res.send(new CustomResponse(true));
   } catch (err) {
-    return next(err);
+    next(err);
   }
 }
 

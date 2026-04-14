@@ -1,14 +1,17 @@
-import { NextFunction, Request, Response } from 'express';
-import { RegisterUserRequest } from '../types/request/user';
+import type { NextFunction, Request, Response } from 'express';
+import { ApiError } from '../enums';
 import { validationHelper } from '../helpers';
 import { CustomResponse } from '../lib';
-import { userService } from '../services';
-import { BodyRequest } from '../types/request/user/register_user';
-import { TransactionModel } from '../models/index';
-import { ApiError } from '../enums';
 import { CustomError } from '../lib';
+import { userService } from '../services';
+import { RegisterUserRequest } from '../types/request/user';
+import type { BodyRequest } from '../types/request/user/register_user';
 
-async function createUser(req: Request, res: Response, next: NextFunction) {
+async function createUser(
+  req: Request<Record<string, never>, unknown, BodyRequest>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
@@ -16,15 +19,15 @@ async function createUser(req: Request, res: Response, next: NextFunction) {
 
     const user: RegisterUserRequest = new RegisterUserRequest(body);
 
-    return res.send(new CustomResponse(true, await userService.createUser(user)));
+    res.send(new CustomResponse(true, await userService.createUser(user)));
   } catch (err) {
     next(err);
   }
 }
 
-async function getUserById(_req: Request, res: Response, next: NextFunction) {
+async function getUserById(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { userId } = res.locals;
+    const userId = res.locals.userId as string;
 
     if (!userId) {
       throw new CustomError(ApiError.Server.TOO_FEW_PARAMS);
@@ -32,7 +35,7 @@ async function getUserById(_req: Request, res: Response, next: NextFunction) {
 
     const user = await userService.getUser({ userId }, []);
 
-    return res.send(new CustomResponse(true, user));
+    res.send(new CustomResponse(true, user));
   } catch (err) {
     next(err);
   }

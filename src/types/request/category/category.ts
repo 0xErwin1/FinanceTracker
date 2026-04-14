@@ -1,4 +1,4 @@
-import { TransactionType } from '../../../enums';
+import type { TransactionType } from '../../../enums';
 
 export interface BodyRequest {
   type: TransactionType;

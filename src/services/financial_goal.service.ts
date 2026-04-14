@@ -1,13 +1,16 @@
-import { IncludeOptions, WhereOptions } from 'sequelize';
 import { plainToInstance } from 'class-transformer';
-import { CreateFinancialGoal, UpdateOptions } from '../types/request/financial_goal';
+import type { IncludeOptions, WhereOptions } from 'sequelize';
+import { ApiError } from '../enums';
+import { CustomError } from '../lib';
 import { FinancialGoalModel } from '../models';
 import { FinancialGoalDTO } from '../types/DTOs';
-import { CustomError } from '../lib';
-import { ApiError } from '../enums';
+import type { CreateFinancialGoal, UpdateOptions } from '../types/request/financial_goal';
 
 async function createFinancialGoal(newGoal: CreateFinancialGoal): Promise<FinancialGoalDTO> {
-  const financialGoal = await FinancialGoalModel.create(newGoal);
+  // Sequelize .create() expects Optional<Model, Nullish> which includes model methods;
+  // our DTO only has plain fields, so a type assertion is needed here.
+  // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
+  const financialGoal = await FinancialGoalModel.create(newGoal as any);
 
   return plainToInstance(FinancialGoalDTO, financialGoal);
 }
@@ -24,11 +27,13 @@ async function updateFinancialGoal(
     throw new CustomError(ApiError.FinancialGoal.FINANCIAL_GOAL_NOT_EXIST);
   }
 
-  const updated = await FinancialGoalModel.update(newGoal, {
+  // biome-ignore lint/suspicious/noExplicitAny: Sequelize update() type mismatch
+  const updated = await FinancialGoalModel.update(newGoal as any, {
     where,
+    returning: true,
   });
 
-  return plainToInstance(FinancialGoalDTO, updated[0][1]);
+  return plainToInstance(FinancialGoalDTO, (updated as [number, FinancialGoalModel[]])[1][0]);
 }
 
 async function getFinancialGoal(

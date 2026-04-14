@@ -1,12 +1,12 @@
 import 'jest';
-import supertest from 'supertest';
 import { StatusCodes } from 'http-status-codes';
+import supertest from 'supertest';
 import { App } from '../../src/app';
 import { ApiError, CurrencyEnum, FinancialGoalsType } from '../../src/enums';
-import { financialGoalFactory } from '../factories';
-import { databaseHelper, FinancialGoalHelper, UserHelper } from '../helpers';
-import financialGoalMock from '../mock/financial_goal.json';
 import { redisClient } from '../../src/redis';
+import { financialGoalFactory } from '../factories';
+import { FinancialGoalHelper, UserHelper, databaseHelper } from '../helpers';
+import financialGoalMock from '../mock/financial_goal.json';
 
 describe('/api/financial_goals', () => {
   const app: App = new App();

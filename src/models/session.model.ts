@@ -10,20 +10,20 @@ export class SessionModel extends Model<SessionModel> {
     unique: true,
     primaryKey: true,
   })
-  public sessionId: string;
+  declare sessionId: string;
 
   @Column({ allowNull: false, type: DataType.STRING })
-  public token: string;
+  declare token: string;
 
   @Column({ type: DataType.DATE })
-  public deletedAt: Date;
+  declare deletedAt: Date;
 
   @ForeignKey(() => UserModel)
   @Column({ type: DataType.UUIDV4 })
-  public userId: string;
+  declare userId: string;
 
   @BelongsTo(() => UserModel, 'user_id')
-  public user: UserModel;
+  declare user: UserModel;
 }
 
 export default SessionModel;

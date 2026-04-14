@@ -1,5 +1,5 @@
-import { CurrencyEnum, FinancialGoalsType, MonthEnum } from '../enums';
 import { body, param } from 'express-validator';
+import { CurrencyEnum, FinancialGoalsType, MonthEnum } from '../enums';
 
 const createFinancialGoal = [
   body('type', `Please enter a type: ${Object.values(FinancialGoalsType).join('|')}`).isIn(

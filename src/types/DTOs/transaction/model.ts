@@ -1,56 +1,57 @@
 import { Exclude, Expose, Type } from 'class-transformer';
-import { CurrencyEnum, MonthEnum, TransactionType } from '../../../enums';
-import { FinancialGoalDTO, CategoryDTO, UserDTO } from '..';
+import { CategoryDTO, FinancialGoalDTO, UserDTO } from '..';
+import type { CurrencyEnum, MonthEnum, TransactionType } from '../../../enums';
 
 @Exclude()
 export class TransactionDTO {
   @Expose()
-  readonly transactionId: string;
+  declare readonly transactionId: string;
 
   @Expose()
-  readonly type: TransactionType;
+  declare readonly type: TransactionType;
 
   @Expose()
-  readonly amount: number;
+  declare readonly amount: number;
 
   @Expose()
-  readonly currency: CurrencyEnum;
+  declare readonly currency: CurrencyEnum;
 
   @Expose()
-  readonly note: string;
+  declare readonly note: string;
 
   @Expose()
-  readonly day: number;
+  declare readonly day: number;
 
   @Expose()
-  readonly month: MonthEnum;
+  declare readonly month: MonthEnum;
 
   @Expose()
-  readonly year: number;
+  declare readonly year: number;
 
   @Expose()
-  readonly exchangeRate: number;
+  declare readonly exchangeRate: number;
 
   @Expose()
-  readonly deletedAt: Date;
+  declare readonly deletedAt: Date;
 
   @Expose()
-  readonly userId: string;
+  declare readonly userId: string;
 
   @Type(() => UserDTO)
   @Expose()
-  readonly user: UserDTO;
+  declare readonly user: UserDTO;
 
   @Expose()
-  readonly categoryId: string;
+  declare readonly categoryId: string;
 
   @Type(() => CategoryDTO)
   @Expose()
-  readonly category: CategoryDTO;
+  declare readonly category: CategoryDTO;
+
   @Expose()
-  public goalId: string;
+  public declare goalId: string;
 
   @Type(() => FinancialGoalDTO)
   @Expose()
-  public financialGoal: FinancialGoalDTO;
+  public declare financialGoal: FinancialGoalDTO;
 }

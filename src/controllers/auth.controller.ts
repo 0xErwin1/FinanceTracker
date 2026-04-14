@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { validationHelper } from '../helpers';
 import { CustomResponse } from '../lib';
 import { authService } from '../services';
@@ -8,7 +8,11 @@ interface LoginRequest {
   password: string;
 }
 
-async function login(req: Request, res: Response, next: NextFunction) {
+async function login(
+  req: Request<Record<string, never>, unknown, LoginRequest>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
   try {
     validationHelper.checkValidation(req);
 
@@ -17,23 +21,24 @@ async function login(req: Request, res: Response, next: NextFunction) {
 
     const response = await authService.login(email, password, sessionID);
 
-    return res.send(new CustomResponse(true, response));
+    res.send(new CustomResponse(true, response));
   } catch (err) {
     next(err);
   }
 }
 
-async function logout(req: Request, res: Response, next: NextFunction) {
+async function logout(req: Request<Record<string, never>>, res: Response, next: NextFunction): Promise<void> {
   try {
     const { sessionID } = req;
 
     await authService.logout(sessionID);
 
-    return res.send(new CustomResponse(true));
+    res.send(new CustomResponse(true));
   } catch (err) {
     next(err);
   }
 }
+
 export const authController = {
   login,
   logout,

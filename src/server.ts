@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import { config } from './config';
 import { App } from './app';
+import { config } from './config';
 import { logger, umzug } from './lib';
 
 const port = config.port;

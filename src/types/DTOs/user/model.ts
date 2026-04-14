@@ -1,39 +1,39 @@
 import { Exclude, Expose, Type } from 'class-transformer';
-import { FinancialGoalDTO, TransactionDTO, SessionDTO, CategoryDTO } from '..';
+import { CategoryDTO, FinancialGoalDTO, SessionDTO, TransactionDTO } from '..';
 
 @Exclude()
 export class UserDTO {
   @Expose()
-  readonly userId: string;
+  declare readonly userId: string;
 
   @Expose()
-  readonly email: string;
+  declare readonly email: string;
 
   @Expose()
-  readonly firstName: string;
+  declare readonly firstName: string;
 
   @Expose()
-  readonly lastName: string;
+  declare readonly lastName: string;
 
   @Expose()
-  readonly password: string;
+  declare readonly password: string;
 
   @Expose()
-  readonly deletedAt: Date;
+  declare readonly deletedAt: Date;
 
   @Type(() => SessionDTO)
   @Expose()
-  readonly sessions: SessionDTO[];
+  declare readonly sessions: SessionDTO[];
 
   @Type(() => TransactionDTO)
   @Expose()
-  readonly trasactions: TransactionDTO[];
+  declare readonly trasactions: TransactionDTO[];
 
   @Type(() => CategoryDTO)
   @Expose()
-  readonly categories: CategoryDTO[];
+  declare readonly categories: CategoryDTO[];
 
   @Type(() => FinancialGoalDTO)
   @Expose()
-  readonly financialGoals: FinancialGoalDTO[];
+  declare readonly financialGoals: FinancialGoalDTO[];
 }

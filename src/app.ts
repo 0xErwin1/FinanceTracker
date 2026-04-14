@@ -1,18 +1,18 @@
 import 'reflect-metadata';
-import express, { NextFunction } from 'express';
-import session from 'express-session';
-import helmet from 'helmet';
-import { Request, Response } from 'express-serve-static-core';
 import * as bodyParser from 'body-parser';
 import cors from 'cors';
+import express, { type NextFunction, type Request, type Response } from 'express';
+import session from 'express-session';
+import helmet from 'helmet';
 import morgan from 'morgan';
 import { config } from './config';
-import { routerIndex } from './routes';
-import { sequelize } from './models';
 import { ApiError } from './enums';
-import { customErrors, CustomError, CustomResponse, logger } from './lib';
+import { CustomError, CustomResponse, customErrors, logger } from './lib';
+import { sequelize } from './models';
 import { redisKeyLifetime, redisStore } from './redis';
-import { connectMongoDatabase } from './mongo';
+import { routerIndex } from './routes';
+
+const env = config.env ?? '';
 
 const exceptionMiddleware = (err: Error, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof CustomError) {
@@ -24,8 +24,8 @@ const exceptionMiddleware = (err: Error, _req: Request, res: Response, _next: Ne
   logger.error({ err });
   res.status(500);
 
-  if (['TEST', 'QA', 'DEV'].includes(config.env)) {
-    return res.send(new CustomResponse(false, err));
+  if (['TEST', 'QA', 'DEV'].includes(env)) {
+    return res.send(new CustomResponse(false, err as unknown as Record<string, unknown>));
   }
 
   return res.send(new CustomResponse(false));
@@ -45,7 +45,6 @@ export class App {
   public async connectToDatabase() {
     try {
       await sequelize().authenticate();
-      await connectMongoDatabase();
     } catch (error) {
       logger.error(error, 'database_connection_failed');
       throw error;
@@ -64,10 +63,12 @@ export class App {
     this.server.use(bodyParser.json());
     this.server.use(bodyParser.urlencoded({ extended: true }));
     this.server.use(helmet());
-    this.server.use(cors({
-      origin: config.corsOrigins,
-      credentials: true
-    }));
+    this.server.use(
+      cors({
+        origin: config.corsOrigins,
+        credentials: true,
+      }),
+    );
 
     this.server.use(
       session({
@@ -77,7 +78,7 @@ export class App {
         secret: config.sessionSecret,
         name: 'sessionID',
         cookie: {
-          httpOnly: !['LOCAL', 'TEST'].includes(config.env),
+          httpOnly: !['LOCAL', 'TEST'].includes(env),
           maxAge: redisKeyLifetime,
         },
       }),

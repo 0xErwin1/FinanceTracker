@@ -1,14 +1,14 @@
-import pino from 'pino';
+import pino, { type TransportSingleOptions } from 'pino';
 import { config } from '../config';
 
-const transport = ['LOCAL', 'TEST'].includes(config.env)
+const transport: TransportSingleOptions | undefined = ['LOCAL', 'TEST'].includes(config.env ?? '')
   ? {
       target: 'pino-pretty',
       options: {
         colorize: true,
       },
     }
-  : null;
+  : undefined;
 
 export const logger = pino({
   level: 'trace',
@@ -17,7 +17,7 @@ export const logger = pino({
   nestedKey: 'data',
   serializers: {
     // Needed because errors don't get serialized when using nestedKey
-    // biome-ignore lint/suspicious/noExplicitAny: default
+    // biome-ignore lint/suspicious/noExplicitAny: pino serializer requires generic data input
     data: (data: any | Error) => {
       if (data instanceof Error) {
         return { err: pino.stdSerializers.err(data) };

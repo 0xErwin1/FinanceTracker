@@ -1,29 +1,29 @@
 import { Exclude, Expose, Type } from 'class-transformer';
-import { TransactionType } from '../../../enums/index';
 import { TransactionDTO, UserDTO } from '..';
+import type { TransactionType } from '../../../enums/index';
 
 @Exclude()
 export class CategoryDTO {
   @Expose()
-  readonly categoryId: string;
+  declare readonly categoryId: string;
 
   @Expose()
-  readonly type: TransactionType;
+  declare readonly type: TransactionType;
 
   @Expose()
-  readonly name: string;
+  declare readonly name: string;
 
   @Expose()
-  readonly note: string;
+  declare readonly note: string;
 
   @Expose()
-  readonly userId: string;
+  declare readonly userId: string;
 
   @Type(() => TransactionDTO)
   @Expose()
-  readonly trasactions: TransactionDTO[];
+  declare readonly trasactions: TransactionDTO[];
 
   @Type(() => UserDTO)
   @Expose()
-  readonly user: UserDTO[];
+  declare readonly user: UserDTO[];
 }

@@ -1,9 +1,9 @@
+import type { StatusCodes } from 'http-status-codes';
 import { customErrors } from '.';
-import { StatusCodes } from 'http-status-codes';
 
 export class CustomError<T extends object> extends Error {
   public errorCode: number;
-  public data: T;
+  public data: T | undefined;
   public message: string;
   public statusCode: StatusCodes;
 

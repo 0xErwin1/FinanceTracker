@@ -1,6 +1,6 @@
-import { CustomError } from '../types/generic';
-import { ApiError, FinancialGoalsType, TransactionType } from '../enums';
 import { StatusCodes } from 'http-status-codes';
+import { ApiError, FinancialGoalsType, TransactionType } from '../enums';
+import type { CustomError } from '../types/generic';
 
 const customErrors: CustomError[] = [];
 
@@ -74,7 +74,7 @@ customErrors[ApiError.Server.PARAMS_REQUIRED] = {
     EN: 'Some body parameters are missing or are incorrect',
     ES: 'Faltan o son incorrectos algunos parametros de la solicitud',
   },
-  HTTPStatusCode: StatusCodes.BAD_REQUEST,
+  HTTPStatusCode: StatusCodes.UNPROCESSABLE_ENTITY,
 };
 
 // User
@@ -176,24 +176,6 @@ customErrors[ApiError.FinancialGoal.FINANCIAL_GOAL_NOT_EXIST] = {
   showMessage: {
     EN: 'Financial goal not exist.',
     ES: 'El objetivo financiero no existe',
-  },
-  HTTPStatusCode: StatusCodes.NOT_FOUND,
-};
-
-customErrors[ApiError.ShoppingList.SHOPPING_LIST_ITEM_NOT_EXIST] = {
-  message: 'The item on the shopping list does not exist.',
-  showMessage: {
-    EN: 'The item on the shopping list does not exist.',
-    ES: 'El artículo de la lista de la compra no existe.',
-  },
-  HTTPStatusCode: StatusCodes.NOT_FOUND,
-};
-
-customErrors[ApiError.ShoppingList.SHOPPING_LIST_NOT_EXIST] = {
-  message: 'The shopping list does not exist.',
-  showMessage: {
-    EN: 'The shopping list does not exist.',
-    ES: 'La lista de la compra no existe.',
   },
   HTTPStatusCode: StatusCodes.NOT_FOUND,
 };
