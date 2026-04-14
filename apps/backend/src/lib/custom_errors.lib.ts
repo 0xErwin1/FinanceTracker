@@ -120,7 +120,7 @@ customErrors[ApiError.Transaction.TRANSACTION_AND_GOAL_NOT_SAME_TYPE] = {
   message: 'Transaction and goal are not of the same type.',
   showMessage: {
     EN: `Transaction and goal are not of the same type. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.INSTALLMENTS}|${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING}`,
-    ES: `La transacción y el objetivo no son del mismo tipo. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.INSTALLMENTS}|${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING}`,
+    ES: `La transacción y el objetivo no son del mismo tipo. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.INSTALLMENTS}|${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING})`,
   },
   HTTPStatusCode: StatusCodes.CONFLICT,
 };

@@ -11,16 +11,14 @@
     "baseUrl": "src",
     "paths": {
       "config/*": ["config/*"],
-      "controllers/*": ["controllers/*"],
       "enums/*": ["enums/*"],
       "helpers/*": ["helpers/*"],
       "lib/*": ["lib/*"],
       "models/*": ["models/*"],
-      "routes/*": ["routes/*"],
       "services/*": ["services/*"],
+      "trpc/*": ["trpc/*"],
       "types/*": ["types/*"],
       "utils/*": ["utils/*"],
-      "validations/*": ["validations/*"],
       "src/*": ["*"],
       "*": ["../node_modules/@types/*", "types/*"]
     }

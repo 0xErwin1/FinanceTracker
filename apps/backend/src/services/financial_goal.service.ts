@@ -1,22 +1,40 @@
-import { plainToInstance } from 'class-transformer';
 import type { IncludeOptions, WhereOptions } from 'sequelize';
 import { ApiError } from '../enums';
 import { CustomError } from '../lib';
 import { FinancialGoalModel } from '../models';
-import { FinancialGoalDTO } from '../types/DTOs';
-import type { CreateFinancialGoal, UpdateOptions } from '../types/request/financial_goal';
+import type { FinancialGoalDTO } from '../types/DTOs';
 
-async function createFinancialGoal(newGoal: CreateFinancialGoal): Promise<FinancialGoalDTO> {
-  // Sequelize .create() expects Optional<Model, Nullish> which includes model methods;
-  // our DTO only has plain fields, so a type assertion is needed here.
+interface CreateFinancialGoalInput {
+  type: string;
+  targetAmount: number;
+  currency: string;
+  note: string;
+  month: string;
+  year: number;
+  name: string;
+  userId: string;
+}
+
+interface UpdateGoalOptions {
+  type?: string;
+  targetAmount?: number;
+  currency?: string;
+  note?: string;
+  month?: string;
+  year?: number;
+  name?: string;
+  currentAmount?: number;
+}
+
+async function createFinancialGoal(newGoal: CreateFinancialGoalInput): Promise<FinancialGoalDTO> {
   // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
   const financialGoal = await FinancialGoalModel.create(newGoal as any);
 
-  return plainToInstance(FinancialGoalDTO, financialGoal);
+  return financialGoal.get({ plain: true }) as unknown as FinancialGoalDTO;
 }
 
 async function updateFinancialGoal(
-  newGoal: UpdateOptions,
+  newGoal: UpdateGoalOptions,
   where: WhereOptions<FinancialGoalModel>,
 ): Promise<FinancialGoalDTO> {
   const financialGoal = await FinancialGoalModel.findOne({
@@ -33,19 +51,21 @@ async function updateFinancialGoal(
     returning: true,
   });
 
-  return plainToInstance(FinancialGoalDTO, (updated as [number, FinancialGoalModel[]])[1][0]);
+  return (updated as [number, FinancialGoalModel[]])[1][0].get({
+    plain: true,
+  }) as unknown as FinancialGoalDTO;
 }
 
 async function getFinancialGoal(
   where: WhereOptions<FinancialGoalModel>,
   include: IncludeOptions[],
-): Promise<FinancialGoalDTO> {
+): Promise<FinancialGoalDTO | null> {
   const financialGoal = await FinancialGoalModel.findOne({
     where,
     include,
   });
 
-  return plainToInstance(FinancialGoalDTO, financialGoal);
+  return financialGoal ? (financialGoal.get({ plain: true }) as unknown as FinancialGoalDTO) : null;
 }
 
 async function getAllFinancialGoals(
@@ -57,7 +77,7 @@ async function getAllFinancialGoals(
     include,
   });
 
-  return plainToInstance(FinancialGoalDTO, financialGoals);
+  return financialGoals.map((g) => g.get({ plain: true }) as unknown as FinancialGoalDTO);
 }
 
 export const financialGoalService = {

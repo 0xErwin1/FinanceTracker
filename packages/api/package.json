@@ -9,7 +9,9 @@
     "lint": "pnpm biome check src/**/*.ts"
   },
   "dependencies": {
-    "class-transformer": "^0.5.1"
+    "@trpc/server": "^11",
+    "class-transformer": "^0.5.1",
+    "zod": "^3"
   },
   "devDependencies": {
     "typescript": "^5.8.3"

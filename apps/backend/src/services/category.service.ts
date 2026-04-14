@@ -1,10 +1,8 @@
-import { plainToInstance } from 'class-transformer';
 import { ApiError } from 'enums/api_error.enum';
 import type { IncludeOptions, Transaction, WhereOptions } from 'sequelize';
 import { CustomError, logger } from '../lib';
 import { CategoryModel, TransactionModel, sequelize } from '../models';
-import { CategoryDTO } from '../types/DTOs';
-import type { CreateCategoryRequest } from '../types/request/category';
+import type { CategoryDTO } from '../types/DTOs';
 
 interface Opt {
   transaction?: Transaction;
@@ -18,7 +16,7 @@ async function getAllCategories(userId: string): Promise<CategoryDTO[]> {
     },
   });
 
-  return plainToInstance(CategoryDTO, categories);
+  return categories.map((c) => c.get({ plain: true }) as unknown as CategoryDTO);
 }
 
 async function deleteCategory(
@@ -99,7 +97,7 @@ async function getCategory(
     transaction: undefined,
     commit: true,
   },
-): Promise<CategoryDTO> {
+): Promise<CategoryDTO | null> {
   if (!opt?.transaction) {
     opt.transaction = await sequelize().transaction();
   }
@@ -115,7 +113,7 @@ async function getCategory(
       opt.transaction.commit();
     }
 
-    return plainToInstance(CategoryDTO, category);
+    return category ? (category.get({ plain: true }) as unknown as CategoryDTO) : null;
   } catch (err) {
     if (opt?.commit) {
       opt.transaction.rollback();
@@ -125,8 +123,15 @@ async function getCategory(
   }
 }
 
+interface CreateCategoryInput {
+  type: string;
+  name: string;
+  note: string;
+  userId: string;
+}
+
 async function createCategory(
-  newCategory: CreateCategoryRequest,
+  newCategory: CreateCategoryInput,
   opt: Opt = { transaction: undefined, commit: true },
 ): Promise<CategoryDTO> {
   if (!opt.transaction) {
@@ -134,8 +139,6 @@ async function createCategory(
   }
 
   try {
-    // Sequelize .create() expects Optional<Model, Nullish> which includes model methods;
-    // our DTO only has plain fields, so a type assertion is needed here.
     // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
     const category = await CategoryModel.create(newCategory as any, {
       transaction: opt.transaction,
@@ -145,7 +148,7 @@ async function createCategory(
       opt.transaction.commit();
     }
 
-    return plainToInstance(CategoryDTO, category);
+    return category.get({ plain: true }) as unknown as CategoryDTO;
   } catch (err) {
     if (opt?.commit) {
       opt.transaction.rollback();

@@ -10,3 +10,9 @@ export { SessionDTO } from './types/session/model';
 export { CategoryDTO } from './types/category/model';
 export { TransactionDTO } from './types/transaction/model';
 export { FinancialGoalDTO } from './types/financial_goal/model';
+
+// tRPC
+export { t, publicProcedure, middleware } from './trpc';
+export type { Context } from './context';
+export { createContext } from './context';
+export { mapServiceError } from './errors';

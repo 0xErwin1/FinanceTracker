@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { umzug } from '../src/lib';
 import { sequelize } from '../src/models';
 

@@ -16,8 +16,6 @@
     "format": "pnpm biome format --write {src/,test/}**/*.ts"
   },
   "devDependencies": {
-    "@types/body-parser": "^1.19.6",
-    "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/express-session": "^1.18.2",
@@ -25,10 +23,8 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^22.15.0",
     "@types/pg": "^8.11.0",
-    "@types/supertest": "^6.0.3",
     "jest": "^29.7.0",
     "nodemon": "^3.1.10",
-    "supertest": "^7.1.0",
     "ts-jest": "^29.3.2",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
@@ -37,16 +33,14 @@
   },
   "dependencies": {
     "@expenses/api": "workspace:*",
+    "@trpc/server": "^11",
     "bcryptjs": "^3.0.3",
-    "class-transformer": "^0.5.1",
     "connect-redis": "^7.1.1",
-    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csv-parse": "^5.6.0",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
     "express-session": "^1.18.1",
-    "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
     "http-status-codes": "^2.3.0",
     "morgan": "^1.10.0",
@@ -61,6 +55,7 @@
     "sequelize-replace-enum-postgres": "^1.6.0",
     "sequelize-typescript": "^2.1.6",
     "umzug": "^3.8.2",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^3"
   }
 }

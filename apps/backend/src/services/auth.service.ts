@@ -7,7 +7,7 @@ import { comparePassword } from '../utils';
 
 async function login(email: string, password: string, sessionId: string): Promise<UserDTO> {
   logger.info(`Login email: ${email}`);
-  const user: UserDTO = await userService.getUser({ email });
+  const user: UserDTO | null = await userService.getUser({ email });
 
   if (!user) {
     logger.error('User does not exist');

@@ -1,14 +1,36 @@
-import { plainToInstance } from 'class-transformer';
 import type { IncludeOptions, Transaction, WhereOptions } from 'sequelize';
 import { categoryService, financialGoalService } from '.';
 import { ApiError, CurrencyEnum, FinancialGoalsType, MonthEnum, TransactionType } from '../enums';
 import { CustomError, logger } from '../lib';
 import { CategoryModel, FinancialGoalModel, TransactionModel, sequelize } from '../models';
 import { redisClient } from '../redis';
-import { type CategoryDTO, TransactionDTO } from '../types/DTOs';
+import type { CategoryDTO, TransactionDTO } from '../types/DTOs';
 import { type TransactionMetadata, TransactionsRedisMetadata } from '../types/redis_types';
-import type { CreateTransactionRequest } from '../types/request/trsactions';
 import type { Balances, TransactionBalances } from '../types/response/transactions';
+
+interface TransactionInput {
+  type: TransactionType;
+  amount: number;
+  day?: number;
+  month: MonthEnum;
+  year: number;
+  currency: CurrencyEnum;
+  note?: string;
+  exchangeRate?: number;
+  userId: string;
+  categoryId?: string;
+  category?: { type?: TransactionType; name?: string };
+  goalId?: string;
+}
+
+function toPlain(model: TransactionModel | null): TransactionDTO | null {
+  if (!model) return null;
+  return model.get({ plain: true }) as unknown as TransactionDTO;
+}
+
+function toPlainList(models: TransactionModel[]): TransactionDTO[] {
+  return models.map((m) => m.get({ plain: true }) as unknown as TransactionDTO);
+}
 
 async function deleteTransaction(transactionId: string): Promise<void> {
   const transaction = await getTrasaction(
@@ -54,7 +76,7 @@ async function deleteTransaction(transactionId: string): Promise<void> {
 }
 
 async function createTransactionByArray(
-  newTransaction: CreateTransactionRequest | CreateTransactionRequest[],
+  newTransaction: TransactionInput | TransactionInput[],
 ): Promise<TransactionDTO | TransactionDTO[]> {
   const t = await sequelize().transaction();
   try {
@@ -79,14 +101,14 @@ async function createTransactionByArray(
 }
 
 async function createTransaction(
-  newTransaction: CreateTransactionRequest,
+  newTransaction: TransactionInput,
   sequelizeTransaction: Transaction | undefined = undefined,
   commit = true,
 ): Promise<TransactionDTO> {
   const t = sequelizeTransaction ?? (await sequelize().transaction());
 
   try {
-    let category: CategoryDTO;
+    let category: CategoryDTO | null;
     if (newTransaction.categoryId) {
       category = await categoryService.getCategory(
         {
@@ -121,7 +143,9 @@ async function createTransaction(
           ...newTransaction.category,
           type,
           userId: newTransaction.userId,
-        } as unknown as import('../types/request/category').BodyRequest,
+          note: '',
+          name: newTransaction.category?.name ?? '',
+        },
         {
           transaction: t,
           commit: false,
@@ -135,21 +159,19 @@ async function createTransaction(
       categoryId: category.categoryId,
     };
 
-    // Sequelize .create() expects Optional<Model, Nullish> which includes model methods;
-    // our plain object only has data fields, so a type assertion is needed here.
     const transactionCreated: TransactionModel = await TransactionModel.create(
       {
         type: transactionData.type,
         amount: transactionData.amount,
-        day: transactionData.day,
+        day: transactionData.day ?? new Date().getDate(),
         month: transactionData.month,
         year: transactionData.year,
         currency: transactionData.currency,
-        note: transactionData.note,
+        note: transactionData.note ?? '',
         userId: transactionData.userId,
         categoryId: transactionData.categoryId,
         exchangeRate: transactionData.exchangeRate ?? null,
-        // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
+        // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch with plain data
       } as any,
       {
         include: [
@@ -165,7 +187,12 @@ async function createTransaction(
       await t.commit();
     }
 
-    return plainToInstance(TransactionDTO, transactionCreated);
+    const plainResult = toPlain(transactionCreated);
+    if (!plainResult) {
+      throw new Error('Failed to create transaction');
+    }
+
+    return plainResult;
   } catch (err) {
     if (commit) {
       await t.rollback();
@@ -263,19 +290,19 @@ async function getAllTrasactions(
     include,
   });
 
-  return plainToInstance(TransactionDTO, trasactions);
+  return toPlainList(trasactions);
 }
 
 async function getTrasaction(
   where: WhereOptions<TransactionModel>,
   include: IncludeOptions[] = [],
-): Promise<TransactionDTO> {
+): Promise<TransactionDTO | null> {
   const trasaction = await TransactionModel.findOne({
     where,
     include,
   });
 
-  return plainToInstance(TransactionDTO, trasaction);
+  return toPlain(trasaction);
 }
 
 type MonthByYear = Record<string, string[]>;
@@ -324,7 +351,7 @@ async function updateTransaction<T extends object>(
     returning: true,
   });
 
-  return plainToInstance(TransactionDTO, (updated as [number, TransactionModel[]])[1][0].get());
+  return (updated as [number, TransactionModel[]])[1][0].get({ plain: true }) as unknown as TransactionDTO;
 }
 
 async function setGoalIdInTransaction(transactionId: string, goalId: string, userId: string): Promise<void> {

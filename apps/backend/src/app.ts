@@ -1,35 +1,17 @@
 import 'reflect-metadata';
-import * as bodyParser from 'body-parser';
 import cors from 'cors';
-import express, { type NextFunction, type Request, type Response } from 'express';
+import express, { type Request, type Response } from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { config } from './config';
-import { ApiError } from './enums';
-import { CustomError, CustomResponse, customErrors, logger } from './lib';
+import { logger } from './lib';
 import { sequelize } from './models';
 import { redisKeyLifetime, redisStore } from './redis';
-import { routerIndex } from './routes';
+import { appRouter, createContext } from './trpc';
 
 const env = config.env ?? '';
-
-const exceptionMiddleware = (err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  if (err instanceof CustomError) {
-    logger.error({ err }, 'Exception Middleware');
-    const httpStatus = customErrors[err.errorCode] && customErrors[err.errorCode].HTTPStatusCode;
-    return res.status(httpStatus || 500).send(new CustomResponse(false, err.data, err.errorCode));
-  }
-
-  logger.error({ err });
-  res.status(500);
-
-  if (['TEST', 'QA', 'DEV'].includes(env)) {
-    return res.send(new CustomResponse(false, err as unknown as Record<string, unknown>));
-  }
-
-  return res.send(new CustomResponse(false));
-};
 
 export class App {
   public server: express.Application;
@@ -60,8 +42,6 @@ export class App {
   }
 
   private configureMiddleware() {
-    this.server.use(bodyParser.json());
-    this.server.use(bodyParser.urlencoded({ extended: true }));
     this.server.use(helmet());
     this.server.use(
       cors({
@@ -86,12 +66,16 @@ export class App {
   }
 
   private configureRoutes() {
-    this.server.use('/api', routerIndex);
-    this.server.use((_req: Request, res: Response) => {
-      const customError = customErrors[ApiError.Server.NOT_FOUND];
-      res.status(404);
-      res.send(new CustomResponse(false, customError));
+    this.server.get('/api/health', (_req: Request, res: Response) => {
+      res.send({ result: true, data: 'Up & running ;)!}' });
     });
-    this.server.use(exceptionMiddleware);
+
+    this.server.use(
+      '/trpc',
+      createExpressMiddleware({
+        router: appRouter,
+        createContext,
+      }),
+    );
   }
 }
