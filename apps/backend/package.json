@@ -1,8 +1,14 @@
 {
   "name": "@expenses/backend",
   "version": "0.2.0",
-  "main": "index.js",
+  "main": "dist/server.js",
+  "types": "dist/trpc/root.d.ts",
   "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/trpc/root.d.ts"
+    }
+  },
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=24.0.0"
@@ -10,7 +16,7 @@
   "scripts": {
     "build": "rm -rf dist/ && tsc",
     "dev": "nodemon",
-    "start": "NODE_PATH=dist/src/ node dist/src/server.js",
+    "start": "NODE_PATH=dist/ node dist/server.js",
     "test": "env $(cat .env.test | grep -v '#' | xargs) ENV=test jest --verbose --colors --coverage --detectOpenHandles --forceExit --runInBand",
     "lint": "pnpm biome check {src/,test/}/**/*.ts",
     "format": "pnpm biome format --write {src/,test/}**/*.ts"

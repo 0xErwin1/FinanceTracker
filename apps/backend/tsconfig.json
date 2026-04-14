@@ -4,7 +4,7 @@
   "include": ["src/**/*.ts"],
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "",
+    "rootDir": "src",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "typeRoots": ["node_modules/@types"],

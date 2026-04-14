@@ -1,0 +1,24 @@
+{
+  "name": "@expenses/frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "lint": "biome check src/**/*.ts"
+  },
+  "dependencies": {
+    "vue": "^3.5",
+    "@expenses/api": "workspace:*",
+    "@expenses/backend": "workspace:*",
+    "@trpc/client": "^11"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5",
+    "typescript": "^5.8",
+    "vite": "^6",
+    "vue-tsc": "^2"
+  }
+}

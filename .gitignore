@@ -21,6 +21,12 @@ packages/api/node_modules/
 
 dist
 
+# Compiled output that may leak into src/ if rootDir is misconfigured
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
+
 .postgres
 .redis
 .mongo
