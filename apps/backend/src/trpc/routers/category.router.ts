@@ -4,6 +4,7 @@ import { publicProcedure } from '@expenses/api';
 import { isAuthenticated } from '../protected';
 import { categoryService } from '../../services';
 import { mapServiceError } from '../errors';
+import { TRPCError } from '@trpc/server';
 
 const createCategorySchema = z.object({
   type: z.nativeEnum(TransactionType),
@@ -61,6 +62,10 @@ export const categoryRouter = {
           },
           [],
         );
+
+        if (!category) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Category not found' });
+        }
 
         return category;
       } catch (error) {

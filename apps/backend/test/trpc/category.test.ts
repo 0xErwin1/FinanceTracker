@@ -1,4 +1,5 @@
 import { TRPCError } from '@trpc/server';
+import { TransactionType } from '@expenses/api';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
@@ -22,21 +23,21 @@ describe('category router', () => {
   describe('create', () => {
     it('should create a category', async () => {
       const result = await caller.category.create({
-        type: 'EXPENSE',
+        type: TransactionType.EXPENSE,
         name: 'Food',
         note: 'Groceries',
       });
 
       expect(result).toBeDefined();
       expect(result.name).toBe('Food');
-      expect(result.type).toBe('EXPENSE');
+      expect(result.type).toBe(TransactionType.EXPENSE);
       expect(result.note).toBe('Groceries');
     });
 
     it('should reject invalid input (empty name)', async () => {
       await expect(
         caller.category.create({
-          type: 'EXPENSE',
+          type: TransactionType.EXPENSE,
           name: '',
         }),
       ).rejects.toThrow();
@@ -45,7 +46,7 @@ describe('category router', () => {
     it('should reject without authentication', async () => {
       await expect(
         publicCaller.category.create({
-          type: 'EXPENSE',
+          type: TransactionType.EXPENSE,
           name: 'Food',
         }),
       ).rejects.toThrow(TRPCError);
@@ -60,7 +61,7 @@ describe('category router', () => {
       const result = await caller.category.getAll();
 
       expect(result).toHaveLength(2);
-      expect(result.map((c) => c.name)).toEqual(expect.arrayContaining(['Food', 'Transport']));
+      expect(result.map((c: { name: string }) => c.name)).toEqual(expect.arrayContaining(['Food', 'Transport']));
     });
 
     it('should return empty array when no categories exist', async () => {
@@ -83,7 +84,7 @@ describe('category router', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.name).toBe('Food');
+      expect(result!.name).toBe('Food');
     });
 
     it('should throw NOT_FOUND for missing category', async () => {

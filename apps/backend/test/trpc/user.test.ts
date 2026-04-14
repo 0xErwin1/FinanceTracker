@@ -57,8 +57,8 @@ describe('user router', () => {
       const result = await caller.user.me();
 
       expect(result).toBeDefined();
-      expect(result.userId).toBe(user.userId);
-      expect(result.email).toBe('test@example.com');
+      expect(result!.userId).toBe(user.userId);
+      expect(result!.email).toBe('test@example.com');
     });
 
     it('should return UNAUTHORIZED without authentication', async () => {

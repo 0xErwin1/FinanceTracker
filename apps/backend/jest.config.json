@@ -1,6 +1,7 @@
 {
   "roots": ["<rootDir>"],
   "globalSetup": "./test/globalSetup.ts",
+  "setupFiles": ["reflect-metadata"],
   "transform": {
     "^.+\\.ts?$": "ts-jest"
   },

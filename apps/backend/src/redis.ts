@@ -7,7 +7,7 @@ const client: RedisClientType = createClient({
   url: config.redisUrl,
   name: 'expenses',
   socket: {
-    tls: true,
+    tls: config.redisTls,
   },
 });
 

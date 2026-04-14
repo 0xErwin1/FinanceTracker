@@ -1,8 +1,8 @@
-import { createCallerFactory } from '@trpc/server';
+import { t } from '@expenses/api';
 import { sequelize } from '../../src/models';
 import { appRouter } from '../../src/trpc/root';
 
-const createCaller = createCallerFactory(appRouter);
+const createCaller = t.createCallerFactory(appRouter);
 
 /**
  * Minimal mock req that satisfies the tRPC context shape.
@@ -88,6 +88,11 @@ export async function seedCategory(userId: string, overrides: Record<string, unk
 export async function seedTransaction(userId: string, overrides: Record<string, unknown> = {}) {
   const { TransactionModel } = await import('../../src/models');
 
+  if (!overrides.categoryId) {
+    const cat = await seedCategory(userId);
+    overrides.categoryId = cat.categoryId;
+  }
+
   const defaults = {
     type: 'EXPENSE',
     amount: 100,
@@ -116,7 +121,7 @@ export async function seedFinancialGoal(userId: string, overrides: Record<string
     name: 'Test Goal',
     note: '',
     month: 'JANUARY',
-    year: 2025,
+    year: 2026,
     userId,
   };
 

@@ -5,6 +5,7 @@ import { isAuthenticated } from '../protected';
 import { financialGoalService } from '../../services';
 import { TransactionModel } from '../../models';
 import { mapServiceError } from '../errors';
+import { TRPCError } from '@trpc/server';
 
 const createFinancialGoalSchema = z.object({
   type: z.nativeEnum(FinancialGoalsType),
@@ -45,6 +46,11 @@ export const financialGoalRouter = {
           { userId: ctx.userId, goalId: input.goalId },
           [{ model: TransactionModel }],
         );
+
+        if (!goal) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Financial goal not found' });
+        }
+
         return goal;
       } catch (error) {
         mapServiceError(error);

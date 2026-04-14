@@ -1,4 +1,5 @@
 import { TRPCError } from '@trpc/server';
+import { TransactionType, CurrencyEnum, MonthEnum } from '@expenses/api';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
@@ -27,35 +28,37 @@ describe('transaction router', () => {
       const result = await caller.transaction.create({
         mode: 'single',
         transaction: {
-          type: 'EXPENSE',
+          type: TransactionType.EXPENSE,
           amount: 100,
-          currency: 'USD',
-          month: 'JANUARY',
+          currency: CurrencyEnum.USD,
+          month: MonthEnum.JANUARY,
           year: 2025,
           categoryId: category.categoryId,
         },
       });
 
       expect(result).toBeDefined();
-      expect(result.amount).toBe(100);
-      expect(result.type).toBe('EXPENSE');
+      expect((result as any).amount).toBe(100);
+      expect((result as any).type).toBe(TransactionType.EXPENSE);
     });
 
     it('should create a transaction with inline category', async () => {
       const result = await caller.transaction.create({
         mode: 'single',
         transaction: {
-          type: 'EXPENSE',
+          type: TransactionType.EXPENSE,
           amount: 50,
-          currency: 'USD',
-          month: 'JANUARY',
+          currency: CurrencyEnum.USD,
+          month: MonthEnum.JANUARY,
           year: 2025,
           category: { name: 'Inline Cat' },
         },
       });
 
       expect(result).toBeDefined();
-      expect(result.amount).toBe(50);
+      expect((result as any).amount).toBe(50);
+
+      // Inline category was created and linked
     });
 
     it('should reject invalid input (negative amount)', async () => {
@@ -63,10 +66,10 @@ describe('transaction router', () => {
         caller.transaction.create({
           mode: 'single',
           transaction: {
-            type: 'EXPENSE',
+            type: TransactionType.EXPENSE,
             amount: -100,
-            currency: 'USD',
-            month: 'JANUARY',
+            currency: CurrencyEnum.USD,
+            month: MonthEnum.JANUARY,
             year: 2025,
           },
         }),
@@ -78,10 +81,10 @@ describe('transaction router', () => {
         publicCaller.transaction.create({
           mode: 'single',
           transaction: {
-            type: 'EXPENSE',
+            type: TransactionType.EXPENSE,
             amount: 100,
-            currency: 'USD',
-            month: 'JANUARY',
+            currency: CurrencyEnum.USD,
+            month: MonthEnum.JANUARY,
             year: 2025,
           },
         }),
@@ -95,17 +98,17 @@ describe('transaction router', () => {
         mode: 'batch',
         transactions: [
           {
-            type: 'EXPENSE',
+            type: TransactionType.EXPENSE,
             amount: 100,
-            currency: 'USD',
-            month: 'JANUARY',
+            currency: CurrencyEnum.USD,
+            month: MonthEnum.JANUARY,
             year: 2025,
           },
           {
-            type: 'INCOME',
+            type: TransactionType.INCOME,
             amount: 200,
-            currency: 'USD',
-            month: 'JANUARY',
+            currency: CurrencyEnum.USD,
+            month: MonthEnum.JANUARY,
             year: 2025,
           },
         ],
@@ -131,10 +134,10 @@ describe('transaction router', () => {
       await seedTransaction(userId, { type: 'EXPENSE', amount: 100 });
       await seedTransaction(userId, { type: 'INCOME', amount: 200 });
 
-      const result = await caller.transaction.getAll({ type: 'INCOME' });
+      const result = await caller.transaction.getAll({ type: TransactionType.INCOME });
 
       expect(result).toHaveLength(1);
-      expect(result[0].type).toBe('INCOME');
+      expect(result![0].type).toBe(TransactionType.INCOME);
     });
 
     it('should return empty array when no transactions exist', async () => {
@@ -153,7 +156,7 @@ describe('transaction router', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.amount).toBe(150);
+      expect(result!.amount).toBe(150);
     });
 
     it('should throw NOT_FOUND for missing transaction', async () => {

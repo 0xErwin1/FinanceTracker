@@ -14,7 +14,7 @@ const registerSchema = z.object({
 export const userRouter = {
   register: publicProcedure.input(registerSchema).mutation(async ({ input }) => {
     try {
-      const user = await userService.createUser(input);
+      const { password: _, ...user } = await userService.createUser(input);
       return user;
     } catch (error) {
       mapServiceError(error);

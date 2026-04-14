@@ -1,6 +1,6 @@
 import { Sequelize } from 'sequelize-typescript';
 import { config } from '../config';
-import { logger } from '../lib';
+import { logger } from '../lib/logger.lib';
 
 let sequelizeInstance: Sequelize;
 

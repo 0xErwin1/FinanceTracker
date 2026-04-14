@@ -5,6 +5,7 @@ import { isAuthenticated } from '../protected';
 import { transactionService } from '../../services';
 import { CategoryModel } from '../../models';
 import { mapServiceError } from '../errors';
+import { TRPCError } from '@trpc/server';
 import { dayHelper } from '../../helpers';
 
 const categoryInlineSchema = z.object({
@@ -14,7 +15,7 @@ const categoryInlineSchema = z.object({
 
 const singleTransactionSchema = z.object({
   type: z.nativeEnum(TransactionType),
-  amount: z.number(),
+  amount: z.number().min(0),
   currency: z.nativeEnum(CurrencyEnum),
   note: z.string().optional().default(''),
   day: z.number().int().min(1).max(31).optional(),
@@ -101,6 +102,10 @@ export const transactionRouter = {
           },
           [{ model: CategoryModel }],
         );
+
+        if (!transaction) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Transaction not found' });
+        }
 
         return transaction;
       } catch (error) {
