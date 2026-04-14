@@ -8,11 +8,11 @@ services:
     depends_on:
       - postgres
       - redis
-    env_file: ./.env.test
+    env_file: ./apps/backend/.env.test
     ports:
       - $PORT:$PORT
     volumes:
-      - .:/app
+      - ./apps/backend:/app
     working_dir: /app
 
   postgres:

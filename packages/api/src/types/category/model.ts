@@ -1,6 +1,6 @@
 import { Exclude, Expose, Type } from 'class-transformer';
 import { TransactionDTO, UserDTO } from '..';
-import type { TransactionType } from '../../../enums/index';
+import type { TransactionType } from '../../enums';
 
 @Exclude()
 export class CategoryDTO {

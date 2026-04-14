@@ -1,66 +1,17 @@
 {
   "name": "expenses-project",
-  "version": "0.2.0",
-  "main": "index.js",
-  "license": "MIT",
-  "packageManager": "pnpm@10.33.0",
-  "engines": {
-    "node": ">=24.0.0"
-  },
+  "private": true,
   "scripts": {
-    "build": "rm -rf dist/ && tsc",
-    "dev": "nodemon",
-    "start": "NODE_PATH=dist/src/ node dist/src/server.js",
-    "test": "env $(cat .env.test | grep -v '#' | xargs) ENV=test jest --verbose --colors --coverage --detectOpenHandles --forceExit --runInBand",
-    "lint": "pnpm biome check {src/,test/}/**/*.ts",
-    "format": "pnpm biome format --write {src/,test/}**/*.ts"
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "dev": "pnpm -r --parallel dev"
   },
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@types/body-parser": "^1.19.6",
-    "@types/cookie-parser": "^1.4.8",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^4.17.21",
-    "@types/express-session": "^1.18.2",
-    "@types/jest": "^29.5.14",
-    "@types/morgan": "^1.9.10",
-    "@types/node": "^22.15.0",
-    "@types/pg": "^8.11.0",
-    "@types/supertest": "^6.0.3",
-    "jest": "^29.7.0",
-    "nodemon": "^3.1.10",
-    "supertest": "^7.1.0",
-    "ts-jest": "^29.3.2",
-    "ts-loader": "^9.5.2",
-    "ts-node": "^10.9.2",
-    "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.8.3"
+    "@biomejs/biome": "1.9.4"
   },
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "class-transformer": "^0.5.1",
-    "connect-redis": "^7.1.1",
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.5",
-    "csv-parse": "^5.6.0",
-    "dotenv": "^16.5.0",
-    "express": "^4.21.2",
-    "express-session": "^1.18.1",
-    "express-validator": "^7.2.1",
-    "helmet": "^8.1.0",
-    "http-status-codes": "^2.3.0",
-    "morgan": "^1.10.0",
-    "pg": "^8.16.0",
-    "pg-hstore": "^2.3.4",
-    "pino": "^9.6.0",
-    "pino-pretty": "^13.0.0",
-    "redis": "^4.7.0",
-    "reflect-metadata": "^0.2.2",
-    "sequelize": "^6.37.7",
-    "sequelize-cli": "^6.6.2",
-    "sequelize-replace-enum-postgres": "^1.6.0",
-    "sequelize-typescript": "^2.1.6",
-    "umzug": "^3.8.2",
-    "uuid": "^11.1.0"
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=24"
   }
 }

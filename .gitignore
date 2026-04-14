@@ -5,6 +5,11 @@ pnpm-debug.log*
 
 node_modules/
 
+# Monorepo
+apps/backend/node_modules/
+apps/frontend/node_modules/
+packages/api/node_modules/
+
 .eslintcache
 
 *.tgz

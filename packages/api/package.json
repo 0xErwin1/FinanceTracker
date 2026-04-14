@@ -1,0 +1,17 @@
+{
+  "name": "@expenses/api",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "lint": "pnpm biome check src/**/*.ts"
+  },
+  "dependencies": {
+    "class-transformer": "^0.5.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}

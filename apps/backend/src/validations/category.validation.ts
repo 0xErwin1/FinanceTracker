@@ -1,5 +1,5 @@
-import { TransactionType } from 'enums/transaction_type.enum';
 import { check, param } from 'express-validator';
+import { TransactionType } from '../enums';
 
 const createCategory = [
   check('type', 'Please enter a type').notEmpty().trim().isIn(Object.values(TransactionType)),
