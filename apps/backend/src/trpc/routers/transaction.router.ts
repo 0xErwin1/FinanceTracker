@@ -15,7 +15,7 @@ const singleTransactionSchema = z.object({
   currency: z.nativeEnum(CurrencyEnum),
   note: z.string().optional().default(''),
   date: z.string(),
-  exchangeRate: z.number().optional(),
+  exchangeRate: z.number().positive().optional(),
   goalId: z.string().uuid().optional(),
   categoryId: z.string().uuid().optional(),
   category: categoryInlineSchema.optional(),

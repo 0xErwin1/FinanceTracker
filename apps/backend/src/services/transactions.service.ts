@@ -148,7 +148,8 @@ async function getBalance(userId: string, dateFrom?: string, dateTo?: string): P
 
 function calculateBalance(transaction: TransactionDTO, balances: Balances): void {
   const amount = Number.parseFloat(String(transaction.amount));
-  const rate = transaction.exchangeRate ? Number.parseFloat(String(transaction.exchangeRate)) : 1;
+  const rawRate = Number.parseFloat(String(transaction.exchangeRate));
+  const rate = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 1;
 
   switch (transaction.currency) {
     case CurrencyEnum.UYU:
