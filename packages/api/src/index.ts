@@ -2,7 +2,7 @@ export { TransactionType } from './enums/transaction_type.enum';
 export { CurrencyEnum } from './enums/currency.enum';
 export { FinancialGoalsType } from './enums/financial_goals.enum';
 
-export type { UserDTO } from './types/user/model';
+export type { UserDTO, UserWithPassword } from './types/user/model';
 export type { SessionDTO } from './types/session/model';
 export type { CategoryDTO } from './types/category/model';
 export type { TransactionDTO } from './types/transaction/model';

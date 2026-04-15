@@ -2,12 +2,11 @@ import { userService } from '.';
 import { ApiError } from '../enums';
 import { CustomError, logger } from '../lib';
 import { redisClient, redisKeyLifetime } from '../redis';
-import type { UserDTO } from '../types/DTOs';
 import { comparePassword } from '../utils';
 
-async function login(email: string, password: string, sessionId: string): Promise<UserDTO> {
+async function login(email: string, password: string, sessionId: string) {
   logger.info(`Login email: ${email}`);
-  const user: UserDTO | null = await userService.getUser({ email });
+  const user = await userService.getUser({ email });
 
   if (!user) {
     logger.error('User does not exist');
@@ -24,7 +23,8 @@ async function login(email: string, password: string, sessionId: string): Promis
 
   await redisClient.del(sessionId);
 
-  return user;
+  const { password: _, ...safeUser } = user;
+  return safeUser;
 }
 
 async function logout(token: string): Promise<void> {
