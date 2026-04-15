@@ -29,7 +29,7 @@ realClient.on('error', (error) => {
   logger.error({ err: error }, 'redis_error');
 });
 
-export const redisKeyLifetime: number = 30 * 24 * 60 * 60 * 1000;
+export const redisKeyLifetime: number = 30 * 24 * 60 * 60;
 
 export const redisStore = new RedisStore({
   client: realClient,
@@ -43,6 +43,9 @@ const noOpClient = {
   connect: () => Promise.resolve(),
   on: () => {},
   isOpen: true,
+  scanIterator: () => ({
+    async *[Symbol.asyncIterator]() {},
+  }),
 } as unknown as RedisClientType;
 
 export const redisClient: RedisClientType = isTest ? noOpClient : realClient;

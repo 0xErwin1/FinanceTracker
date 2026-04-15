@@ -3,7 +3,7 @@ import { categoryService, financialGoalService } from '.';
 import { AppDataSource } from '../data-source';
 import { Category, FinancialGoal, Transaction } from '../entities';
 import { ApiError, CurrencyEnum, FinancialGoalsType, TransactionType } from '../enums';
-import { CustomError, logger } from '../lib';
+import { CustomError, cacheGet, cacheInvalidateUser, cacheSet, logger } from '../lib';
 import type { CategoryDTO, TransactionDTO } from '../types/DTOs';
 import type { Balances, TransactionBalances } from '../types/response/transactions';
 
@@ -40,6 +40,8 @@ async function deleteTransaction(transactionId: string): Promise<void> {
   }
 
   await repo().softDelete(transactionId);
+
+  await cacheInvalidateUser((transaction as any).userId);
 }
 
 async function createTransactionByArray(
@@ -122,18 +124,26 @@ async function createTransactionWithManager(
 
   await em.save(transaction);
 
+  await cacheInvalidateUser(input.userId);
+
   return transaction;
 }
 
 async function getBalance(userId: string, dateFrom?: string, dateTo?: string): Promise<TransactionBalances> {
+  const cached = await cacheGet<TransactionBalances>(userId, 'balance', { dateFrom, dateTo });
+  if (cached) return cached;
+
   const where: any = { userId };
   if (dateFrom || dateTo) {
     where.date = Between(dateFrom ?? '1970-01-01', dateTo ?? '2999-12-31');
   }
 
   const transactions = await getAllTransactions(where);
+  const result = calculateBalances(transactions as TransactionDTO[]);
 
-  return calculateBalances(transactions as TransactionDTO[]);
+  await cacheSet(userId, 'balance', result, { dateFrom, dateTo });
+
+  return result;
 }
 
 function calculateBalance(transaction: TransactionDTO, balances: Balances): void {
@@ -188,11 +198,20 @@ async function getAllTransactions(
   where: Record<string, any> = {},
   relations: string[] = ['category'],
 ): Promise<TransactionDTO[]> {
-  return repo().find({
-    where,
-    relations,
-    order: { date: 'DESC' },
-  });
+  const userId = where.userId as string | undefined;
+
+  if (userId) {
+    const cached = await cacheGet<TransactionDTO[]>(userId, 'all', where);
+    if (cached) return cached;
+  }
+
+  const result = await repo().find({ where, relations, order: { date: 'DESC' } });
+
+  if (userId) {
+    await cacheSet(userId, 'all', result, where);
+  }
+
+  return result;
 }
 
 async function getTransaction(
@@ -221,6 +240,9 @@ async function getTransaction(
 type MonthByYear = Record<string, string[]>;
 
 async function getMonthsAndYears(userId: string): Promise<MonthByYear> {
+  const cached = await cacheGet<MonthByYear>(userId, 'months');
+  if (cached) return cached;
+
   const transactions = await repo().find({
     where: { userId },
     select: ['date'],
@@ -258,6 +280,8 @@ async function getMonthsAndYears(userId: string): Promise<MonthByYear> {
     monthByYear[yearKey].sort((a, b) => monthNames.indexOf(a) - monthNames.indexOf(b));
   }
 
+  await cacheSet(userId, 'months', monthByYear);
+
   return monthByYear;
 }
 
@@ -273,6 +297,8 @@ async function updateTransaction(
 
   Object.assign(transaction, data);
   await repo().save(transaction);
+
+  await cacheInvalidateUser(transaction.userId);
 
   return transaction;
 }
@@ -308,14 +334,23 @@ async function setGoalIdInTransaction(transactionId: string, goalId: string, use
     Number.parseFloat(String(financialGoal.currentAmount)) + Number.parseFloat(String(transaction.amount));
 
   await financialGoalService.updateFinancialGoal({ currentAmount }, { id: goalId });
+
+  await cacheInvalidateUser(userId);
 }
 
 async function getTotalSavings(userId: string): Promise<number> {
+  const cached = await cacheGet<number>(userId, 'savings');
+  if (cached !== null) return cached;
+
   const transactions = await repo().find({
     where: { userId, type: TransactionType.SAVING },
   });
 
-  return transactions.reduce((sum, t) => sum + Number.parseFloat(String(t.amount)), 0);
+  const result = transactions.reduce((sum, t) => sum + Number.parseFloat(String(t.amount)), 0);
+
+  await cacheSet(userId, 'savings', result);
+
+  return result;
 }
 
 export const transactionService = {
