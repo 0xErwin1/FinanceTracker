@@ -98,12 +98,16 @@ export class InitialSchema1744500000000 implements MigrationInterface {
         "user_id" uuid NOT NULL,
         "category_id" uuid,
         "goal_id" uuid,
+        "installment_plan_id" uuid,
+        "total_installments" integer,
+        "installment_number" integer,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
         "deleted_at" TIMESTAMP DEFAULT NULL,
         CONSTRAINT "PK_transactions" PRIMARY KEY ("id"),
         CONSTRAINT "FK_transactions_user" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION,
         CONSTRAINT "FK_transactions_category" FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON UPDATE NO ACTION,
-        CONSTRAINT "FK_transactions_goal" FOREIGN KEY ("goal_id") REFERENCES "financial_goals"("id") ON UPDATE NO ACTION
+        CONSTRAINT "FK_transactions_goal" FOREIGN KEY ("goal_id") REFERENCES "financial_goals"("id") ON UPDATE NO ACTION,
+        CONSTRAINT "FK_transactions_installment_plan" FOREIGN KEY ("installment_plan_id") REFERENCES "transactions"("id") ON DELETE CASCADE ON UPDATE NO ACTION
       )
     `);
 

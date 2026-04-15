@@ -28,10 +28,7 @@ export const financialGoalController = {
 
   async getById(input: { id: string }, userId: string) {
     try {
-      const goal = await financialGoalService.getFinancialGoal(
-        { userId, id: input.id },
-        ['transactions'],
-      );
+      const goal = await financialGoalService.getFinancialGoal({ userId, id: input.id }, ['transactions']);
 
       if (!goal) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Financial goal not found' });
@@ -45,10 +42,7 @@ export const financialGoalController = {
 
   async getAll(userId: string) {
     try {
-      return await financialGoalService.getAllFinancialGoals(
-        { userId },
-        ['transactions'],
-      );
+      return await financialGoalService.getAllFinancialGoals({ userId }, ['transactions']);
     } catch (error) {
       mapServiceError(error);
     }

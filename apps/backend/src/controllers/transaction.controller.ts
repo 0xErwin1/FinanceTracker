@@ -5,9 +5,7 @@ import { mapServiceError } from '../trpc/errors';
 
 export const transactionController = {
   async create(
-    input:
-      | { mode: 'single'; transaction: any }
-      | { mode: 'batch'; transactions: any[] },
+    input: { mode: 'single'; transaction: any } | { mode: 'batch'; transactions: any[] },
     userId: string,
   ) {
     try {
@@ -49,10 +47,7 @@ export const transactionController = {
     }
   },
 
-  async getAll(
-    input: { type?: any; dateFrom?: string; dateTo?: string },
-    userId: string,
-  ) {
+  async getAll(input: { type?: any; dateFrom?: string; dateTo?: string }, userId: string) {
     try {
       const where: Record<string, any> = { userId };
       if (input.type) where.type = input.type;
@@ -66,10 +61,7 @@ export const transactionController = {
     }
   },
 
-  async getBalance(
-    input: { dateFrom?: string; dateTo?: string },
-    userId: string,
-  ) {
+  async getBalance(input: { dateFrom?: string; dateTo?: string }, userId: string) {
     try {
       return await transactionService.getBalance(userId, input.dateFrom, input.dateTo);
     } catch (error) {
@@ -77,9 +69,9 @@ export const transactionController = {
     }
   },
 
-  async delete(input: { id: string }) {
+  async delete(input: { id: string }, userId: string) {
     try {
-      await transactionService.deleteTransaction(input.id);
+      await transactionService.deleteTransaction(input.id, userId);
       return { success: true };
     } catch (error) {
       mapServiceError(error);

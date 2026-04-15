@@ -13,6 +13,9 @@ export interface TransactionDTO {
   userId: string;
   categoryId: string | null;
   goalId: string | null;
+  installmentPlanId?: string | null;
+  totalInstallments?: number | null;
+  installmentNumber?: number | null;
   category?: CategoryDTO;
   financialGoal?: FinancialGoalDTO;
 }

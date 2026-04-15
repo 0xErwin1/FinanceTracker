@@ -6,9 +6,7 @@ const CACHE_PREFIX = 'tx:';
 const TX_CACHE_TTL = 1800;
 
 function buildKey(userId: string, operation: string, params?: Record<string, unknown>): string {
-  const hash = params
-    ? createHash('md5').update(JSON.stringify(params)).digest('hex').slice(0, 12)
-    : 'all';
+  const hash = params ? createHash('md5').update(JSON.stringify(params)).digest('hex').slice(0, 12) : 'all';
 
   return `${CACHE_PREFIX}${userId}:${operation}:${hash}`;
 }

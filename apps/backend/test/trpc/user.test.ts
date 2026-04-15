@@ -131,15 +131,11 @@ describe('user router', () => {
       const user = await seedUser({ email: 'other@example.com' });
       const caller = createAuthenticatedCaller(user.id);
 
-      await expect(
-        caller.user.updateProfile({ email: 'taken@example.com' }),
-      ).rejects.toThrow(TRPCError);
+      await expect(caller.user.updateProfile({ email: 'taken@example.com' })).rejects.toThrow(TRPCError);
     });
 
     it('should reject without authentication', async () => {
-      await expect(
-        publicCaller.user.updateProfile({ firstName: 'X' }),
-      ).rejects.toThrow(TRPCError);
+      await expect(publicCaller.user.updateProfile({ firstName: 'X' })).rejects.toThrow(TRPCError);
     });
   });
 

@@ -18,12 +18,13 @@ interface TransactionInput {
   categoryId?: string;
   category?: { type?: TransactionType; name?: string };
   goalId?: string;
+  totalInstallments?: number;
 }
 
 const repo = () => AppDataSource.getRepository(Transaction);
 
-async function deleteTransaction(transactionId: string): Promise<void> {
-  const transaction = await getTransaction({ id: transactionId }, ['financialGoal']);
+async function deleteTransaction(transactionId: string, userId: string): Promise<void> {
+  const transaction = await getTransaction({ id: transactionId, userId }, ['financialGoal']);
 
   if (!transaction) {
     throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
@@ -56,23 +57,77 @@ async function createTransactionByArray(
 
     for (const transactionData of newTransactions) {
       const result = await createTransactionWithManager(em, transactionData);
-      results.push(result);
+      if (Array.isArray(result)) {
+        results.push(...result);
+      } else {
+        results.push(result);
+      }
     }
 
     return results;
   });
 }
 
-async function createTransaction(input: TransactionInput): Promise<TransactionDTO> {
+async function createTransaction(input: TransactionInput): Promise<TransactionDTO | TransactionDTO[]> {
   return AppDataSource.transaction(async (em) => {
     return createTransactionWithManager(em, input);
   });
 }
 
+async function createInstallmentPlanWithManager(
+  em: EntityManager,
+  input: TransactionInput,
+): Promise<TransactionDTO[]> {
+  const { totalInstallments, amount, date, ...rest } = input;
+  const installmentAmount = Math.round((amount / totalInstallments!) * 100) / 100;
+  const startDate = new Date(date);
+
+  const parent = em.create(Transaction, {
+    ...rest,
+    amount,
+    date,
+    type: TransactionType.INSTALLMENTS,
+    totalInstallments,
+    installmentNumber: null,
+    installmentPlanId: null,
+  });
+
+  await em.save(parent);
+
+  const children: Transaction[] = [];
+
+  for (let i = 1; i <= totalInstallments!; i++) {
+    const childDate = new Date(startDate);
+    childDate.setMonth(childDate.getMonth() + (i - 1));
+
+    const child = em.create(Transaction, {
+      ...rest,
+      amount: installmentAmount,
+      date: childDate.toISOString().split('T')[0],
+      type: TransactionType.INSTALLMENTS,
+      totalInstallments: null,
+      installmentNumber: i,
+      installmentPlanId: parent.id,
+    });
+
+    children.push(child);
+  }
+
+  await em.save(children);
+
+  await cacheInvalidateUser(input.userId);
+
+  return [parent, ...children];
+}
+
 async function createTransactionWithManager(
   em: EntityManager,
   input: TransactionInput,
-): Promise<TransactionDTO> {
+): Promise<TransactionDTO | TransactionDTO[]> {
+  if (input.type === TransactionType.INSTALLMENTS && input.totalInstallments) {
+    return createInstallmentPlanWithManager(em, input);
+  }
+
   let category: CategoryDTO | null;
 
   if (input.categoryId) {
@@ -305,7 +360,7 @@ async function updateTransaction(
 }
 
 async function setGoalIdInTransaction(transactionId: string, goalId: string, userId: string): Promise<void> {
-  const transaction = await getTransaction({ id: transactionId, goalId: null as unknown as string });
+  const transaction = await getTransaction({ id: transactionId, userId });
 
   if (!transaction) {
     throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
@@ -357,6 +412,7 @@ async function getTotalSavings(userId: string): Promise<number> {
 export const transactionService = {
   deleteTransaction,
   createTransaction,
+  createInstallmentPlanWithManager,
   getTransaction,
   getAllTransactions,
   createTransactionByArray,

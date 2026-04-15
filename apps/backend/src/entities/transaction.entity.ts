@@ -1,5 +1,15 @@
 import { CurrencyEnum, TransactionType } from '@expenses/api';
-import { Column, CreateDateColumn, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  DeleteDateColumn,
+  Entity,
+  Index,
+  JoinColumn,
+  ManyToOne,
+  OneToMany,
+  PrimaryColumn,
+} from 'typeorm';
 import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
 import { User } from './user.entity';
@@ -43,6 +53,15 @@ export class Transaction {
   @Column({ type: 'uuid', nullable: true })
   goalId!: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  installmentPlanId!: string | null;
+
+  @Column({ type: 'integer', nullable: true })
+  totalInstallments!: number | null;
+
+  @Column({ type: 'integer', nullable: true })
+  installmentNumber!: number | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 
@@ -70,4 +89,17 @@ export class Transaction {
   )
   @JoinColumn({ name: 'goal_id' })
   financialGoal!: FinancialGoal;
+
+  @ManyToOne(
+    () => Transaction,
+    (transaction) => transaction.installmentChildren,
+  )
+  @JoinColumn({ name: 'installment_plan_id' })
+  installmentPlan!: Transaction;
+
+  @OneToMany(
+    () => Transaction,
+    (transaction) => transaction.installmentPlan,
+  )
+  installmentChildren!: Transaction[];
 }

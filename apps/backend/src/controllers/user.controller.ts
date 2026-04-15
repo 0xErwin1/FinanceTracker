@@ -31,10 +31,7 @@ export const userController = {
     }
   },
 
-  async updateProfile(
-    userId: string,
-    input: { firstName?: string; lastName?: string; email?: string },
-  ) {
+  async updateProfile(userId: string, input: { firstName?: string; lastName?: string; email?: string }) {
     try {
       const user = await userService.updateProfile(userId, input);
       return stripPassword(user);
@@ -43,10 +40,7 @@ export const userController = {
     }
   },
 
-  async changePassword(
-    userId: string,
-    input: { currentPassword: string; newPassword: string },
-  ) {
+  async changePassword(userId: string, input: { currentPassword: string; newPassword: string }) {
     try {
       await userService.changePassword(userId, input.currentPassword, input.newPassword);
       return { success: true };

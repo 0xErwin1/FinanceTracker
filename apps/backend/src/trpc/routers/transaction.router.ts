@@ -19,6 +19,7 @@ const singleTransactionSchema = z.object({
   goalId: z.string().uuid().optional(),
   categoryId: z.string().uuid().optional(),
   category: categoryInlineSchema.optional(),
+  totalInstallments: z.number().int().min(2).optional(),
 });
 
 const createTransactionSchema = z.discriminatedUnion('mode', [
@@ -84,8 +85,8 @@ export const transactionRouter = {
   delete: publicProcedure
     .use(isAuthenticated)
     .input(transactionIdSchema)
-    .mutation(({ input }) =>
-      transactionController.delete(input),
+    .mutation(({ input, ctx }) =>
+      transactionController.delete(input, ctx.userId),
     ),
 
   getMonthsAndYears: publicProcedure.use(isAuthenticated).query(({ ctx }) =>
