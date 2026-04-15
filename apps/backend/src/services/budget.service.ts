@@ -67,7 +67,7 @@ async function deleteBudget(id: string, userId: string): Promise<void> {
     throw new CustomError(ApiError.Budget.BUDGET_NOT_EXIST);
   }
 
-  await repo().delete(id);
+  await repo().softDelete(id);
 }
 
 async function getBudget(id: string, userId: string): Promise<BudgetDTO | null> {

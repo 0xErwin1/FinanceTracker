@@ -26,6 +26,7 @@ export class InitialSchema1744500000000 implements MigrationInterface {
         "last_name" character varying(128) NOT NULL,
         "password" character varying(255) NOT NULL,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
+        "deleted_at" TIMESTAMP DEFAULT NULL,
         CONSTRAINT "UQ_users_email" UNIQUE ("email"),
         CONSTRAINT "PK_users" PRIMARY KEY ("id")
       )
@@ -37,6 +38,7 @@ export class InitialSchema1744500000000 implements MigrationInterface {
         "token" character varying(500) NOT NULL,
         "user_id" uuid NOT NULL,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
+        "deleted_at" TIMESTAMP DEFAULT NULL,
         CONSTRAINT "PK_sessions" PRIMARY KEY ("id"),
         CONSTRAINT "FK_sessions_user" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
       )
@@ -52,6 +54,7 @@ export class InitialSchema1744500000000 implements MigrationInterface {
         "note" text,
         "user_id" uuid NOT NULL,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
+        "deleted_at" TIMESTAMP DEFAULT NULL,
         CONSTRAINT "PK_categories" PRIMARY KEY ("id"),
         CONSTRAINT "FK_categories_user" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
       )
@@ -73,6 +76,7 @@ export class InitialSchema1744500000000 implements MigrationInterface {
         "target_date" date NOT NULL,
         "user_id" uuid NOT NULL,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
+        "deleted_at" TIMESTAMP DEFAULT NULL,
         CONSTRAINT "PK_financial_goals" PRIMARY KEY ("id"),
         CONSTRAINT "FK_financial_goals_user" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION
       )
@@ -95,6 +99,7 @@ export class InitialSchema1744500000000 implements MigrationInterface {
         "category_id" uuid,
         "goal_id" uuid,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
+        "deleted_at" TIMESTAMP DEFAULT NULL,
         CONSTRAINT "PK_transactions" PRIMARY KEY ("id"),
         CONSTRAINT "FK_transactions_user" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION,
         CONSTRAINT "FK_transactions_category" FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON UPDATE NO ACTION,
@@ -119,6 +124,7 @@ export class InitialSchema1744500000000 implements MigrationInterface {
         "amount" numeric(15,2) NOT NULL,
         "alert_threshold" numeric(5,2) DEFAULT 80,
         "created_at" TIMESTAMP NOT NULL DEFAULT now(),
+        "deleted_at" TIMESTAMP DEFAULT NULL,
         CONSTRAINT "PK_budgets" PRIMARY KEY ("id"),
         CONSTRAINT "FK_budgets_category" FOREIGN KEY ("category_id") REFERENCES "categories"("id") ON DELETE CASCADE ON UPDATE NO ACTION,
         CONSTRAINT "FK_budgets_user" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE NO ACTION

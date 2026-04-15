@@ -2,6 +2,7 @@ import { CurrencyEnum, FinancialGoalsType } from '@expenses/api';
 import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   Index,
   JoinColumn,
@@ -49,6 +50,9 @@ export class FinancialGoal {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt!: Date;
 
   @ManyToOne(
     () => User,

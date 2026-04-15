@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, OneToMany, PrimaryColumn } from 'typeorm';
 import { Budget } from './budget.entity';
 import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
@@ -24,6 +24,9 @@ export class User {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt!: Date;
 
   @OneToMany(
     () => Session,

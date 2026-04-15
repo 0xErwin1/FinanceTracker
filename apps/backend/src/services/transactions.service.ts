@@ -39,7 +39,7 @@ async function deleteTransaction(transactionId: string): Promise<void> {
     await repo().update(transactionId, { goalId: null });
   }
 
-  await repo().delete(transactionId);
+  await repo().softDelete(transactionId);
 }
 
 async function createTransactionByArray(

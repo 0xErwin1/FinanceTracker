@@ -1,5 +1,5 @@
 import { CurrencyEnum, TransactionType } from '@expenses/api';
-import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, CreateDateColumn, DeleteDateColumn, Entity, Index, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
 import { User } from './user.entity';
@@ -45,6 +45,9 @@ export class Transaction {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt!: Date;
 
   @ManyToOne(
     () => User,

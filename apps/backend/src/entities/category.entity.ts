@@ -2,6 +2,7 @@ import { TransactionType } from '@expenses/api';
 import {
   Column,
   CreateDateColumn,
+  DeleteDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
@@ -39,6 +40,9 @@ export class Category {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @DeleteDateColumn()
+  deletedAt!: Date;
 
   @ManyToOne(
     () => User,

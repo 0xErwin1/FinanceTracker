@@ -69,12 +69,12 @@ async function deleteCategory(
     }
 
     if (deleteTransactions) {
-      await em.delete(Transaction, { categoryId, userId });
+      await em.softDelete(Transaction, { categoryId, userId });
     } else {
       await em.update(Transaction, { categoryId, userId }, { categoryId: null });
     }
 
-    await em.delete(Category, { id: categoryId, userId });
+    await em.softDelete(Category, { id: categoryId, userId });
   });
 }
 
