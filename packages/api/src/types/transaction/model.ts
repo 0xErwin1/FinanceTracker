@@ -16,6 +16,7 @@ export interface TransactionDTO {
   installmentPlanId?: string | null;
   totalInstallments?: number | null;
   installmentNumber?: number | null;
+  recurringTransactionId?: string | null;
   category?: CategoryDTO;
   financialGoal?: FinancialGoalDTO;
 }

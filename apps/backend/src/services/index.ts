@@ -5,3 +5,4 @@ export { transactionService } from './transactions.service';
 export { categoryService } from './category.service';
 export { financialGoalService } from './financial_goal.service';
 export { budgetService } from './budget.service';
+export { recurringService } from './recurring.service';

@@ -3,6 +3,7 @@ import { authRouter } from './routers/auth.router';
 import { budgetRouter } from './routers/budget.router';
 import { categoryRouter } from './routers/category.router';
 import { financialGoalRouter } from './routers/financial_goal.router';
+import { recurringRouter } from './routers/recurring.router';
 import { transactionRouter } from './routers/transaction.router';
 import { userRouter } from './routers/user.router';
 
@@ -13,6 +14,7 @@ export const appRouter = t.router({
   transaction: transactionRouter,
   financialGoal: financialGoalRouter,
   budget: budgetRouter,
+  recurring: recurringRouter,
 });
 
 export type AppRouter = typeof appRouter;

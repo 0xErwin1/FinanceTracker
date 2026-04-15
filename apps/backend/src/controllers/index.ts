@@ -4,3 +4,4 @@ export { categoryController } from './category.controller';
 export { transactionController } from './transaction.controller';
 export { financialGoalController } from './financial_goal.controller';
 export { budgetController } from './budget.controller';
+export { recurringController } from './recurring.controller';

@@ -1,6 +1,6 @@
 {
   "files": {
-    "ignore": ["**/*.d.ts", "**/*.d.ts.map", "**/*.js.map", "dist/", "coverage/"]
+    "includes": ["**", "!**/*.d.ts", "!**/*.d.ts.map", "!**/*.js.map", "!**/dist/", "!**/coverage/"]
   },
   "linter": {
     "enabled": true,

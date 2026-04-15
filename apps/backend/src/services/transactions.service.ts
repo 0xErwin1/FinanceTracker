@@ -19,6 +19,7 @@ interface TransactionInput {
   category?: { type?: TransactionType; name?: string };
   goalId?: string;
   totalInstallments?: number;
+  recurringTransactionId?: string;
 }
 
 const repo = () => AppDataSource.getRepository(Transaction);
@@ -175,6 +176,7 @@ async function createTransactionWithManager(
     userId: input.userId,
     categoryId: category.id,
     goalId: input.goalId ?? null,
+    recurringTransactionId: input.recurringTransactionId ?? null,
   });
 
   await em.save(transaction);

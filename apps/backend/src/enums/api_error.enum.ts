@@ -47,4 +47,11 @@ export namespace ApiError {
     export const BUDGET_ALREADY_EXISTS = 7002;
     export const CATEGORY_NOT_FOUND = 7003;
   }
+
+  export namespace RecurringTransaction {
+    export const GENERIC = 8000;
+    export const NOT_EXIST = 8001;
+    export const INVALID_DAY_OF_MONTH = 8002;
+    export const CATEGORY_NOT_FOUND = 8003;
+  }
 }

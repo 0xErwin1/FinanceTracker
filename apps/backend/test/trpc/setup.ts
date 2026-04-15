@@ -1,7 +1,7 @@
 import { t } from '@expenses/api';
 import { CurrencyEnum, FinancialGoalsType, TransactionType } from '@expenses/api';
 import { AppDataSource } from '../../src/data-source';
-import { Budget, Category, FinancialGoal, Transaction, User } from '../../src/entities';
+import { Budget, Category, FinancialGoal, RecurringTransaction, Transaction, User } from '../../src/entities';
 import { appRouter } from '../../src/trpc/root';
 import { hashPassword } from '../../src/utils/password.util';
 
@@ -36,7 +36,15 @@ export function createAuthenticatedCaller(userId: string) {
 }
 
 export async function truncateAllTables(): Promise<void> {
-  const tables = ['transactions', 'financial_goals', 'budgets', 'categories', 'sessions', 'users'];
+  const tables = [
+    'transactions',
+    'recurring_transactions',
+    'financial_goals',
+    'budgets',
+    'categories',
+    'sessions',
+    'users',
+  ];
   for (const table of tables) {
     await AppDataSource.query(`TRUNCATE public."${table}" CASCADE`);
   }
@@ -132,4 +140,25 @@ export async function seedBudget(userId: string, overrides: Record<string, unkno
   const repo = AppDataSource.getRepository(Budget);
   const budget = repo.create({ ...defaults, ...overrides } as any);
   return (await repo.save(budget)) as unknown as Budget;
+}
+
+export async function seedRecurring(
+  userId: string,
+  overrides: Record<string, unknown> = {},
+): Promise<RecurringTransaction> {
+  const defaults = {
+    userId,
+    type: TransactionType.EXPENSE,
+    amount: 100,
+    currency: CurrencyEnum.USD,
+    dayOfMonth: 15,
+    active: true,
+    startDate: '2025-01-01',
+    note: null,
+    exchangeRate: null,
+  };
+
+  const repo = AppDataSource.getRepository(RecurringTransaction);
+  const recurring = repo.create({ ...defaults, ...overrides } as any);
+  return (await repo.save(recurring)) as unknown as RecurringTransaction;
 }

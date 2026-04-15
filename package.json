@@ -9,7 +9,8 @@
     "format": "pnpm -r format"
   },
   "devDependencies": {
-    "@biomejs/biome": "1.9.4"
+    "@biomejs/biome": "2.0.6",
+    "expenses-project": "link:"
   },
   "packageManager": "pnpm@10.33.0",
   "engines": {

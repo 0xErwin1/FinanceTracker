@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, DeleteDateColumn, Entity, OneToMany, PrimaryC
 import { Budget } from './budget.entity';
 import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
+import { RecurringTransaction } from './recurring_transaction.entity';
 import { Session } from './session.entity';
 import { Transaction } from './transaction.entity';
 
@@ -57,4 +58,10 @@ export class User {
     (budget) => budget.user,
   )
   budgets!: Budget[];
+
+  @OneToMany(
+    () => RecurringTransaction,
+    (recurringTransaction) => recurringTransaction.user,
+  )
+  recurringTransactions!: RecurringTransaction[];
 }

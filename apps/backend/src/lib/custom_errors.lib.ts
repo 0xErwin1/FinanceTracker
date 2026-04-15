@@ -208,4 +208,32 @@ customErrors[ApiError.Budget.CATEGORY_NOT_FOUND] = {
   HTTPStatusCode: StatusCodes.NOT_FOUND,
 };
 
+// RecurringTransaction
+customErrors[ApiError.RecurringTransaction.NOT_EXIST] = {
+  message: 'Recurring transaction not exist',
+  showMessage: {
+    EN: 'Recurring transaction not exist',
+    ES: 'La transacción recurrente no existe',
+  },
+  HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+customErrors[ApiError.RecurringTransaction.INVALID_DAY_OF_MONTH] = {
+  message: 'Day of month must be between 1 and 31',
+  showMessage: {
+    EN: 'Day of month must be between 1 and 31',
+    ES: 'El día del mes debe estar entre 1 y 31',
+  },
+  HTTPStatusCode: StatusCodes.BAD_REQUEST,
+};
+
+customErrors[ApiError.RecurringTransaction.CATEGORY_NOT_FOUND] = {
+  message: 'Category not found',
+  showMessage: {
+    EN: 'Category not found',
+    ES: 'Categoría no encontrada',
+  },
+  HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
 export { customErrors };

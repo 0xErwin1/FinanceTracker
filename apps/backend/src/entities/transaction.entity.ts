@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
+import { RecurringTransaction } from './recurring_transaction.entity';
 import { User } from './user.entity';
 
 const decimalTransformer = {
@@ -56,6 +57,9 @@ export class Transaction {
   @Column({ type: 'uuid', nullable: true })
   installmentPlanId!: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  recurringTransactionId!: string | null;
+
   @Column({ type: 'integer', nullable: true })
   totalInstallments!: number | null;
 
@@ -92,10 +96,17 @@ export class Transaction {
 
   @ManyToOne(
     () => Transaction,
-    (transaction) => transaction.installmentChildren,
+    (transaction) => transaction.installmentPlan,
   )
   @JoinColumn({ name: 'installment_plan_id' })
   installmentPlan!: Transaction;
+
+  @ManyToOne(
+    () => RecurringTransaction,
+    (recurringTransaction) => recurringTransaction.generatedTransactions,
+  )
+  @JoinColumn({ name: 'recurring_transaction_id' })
+  recurringTransaction!: RecurringTransaction;
 
   @OneToMany(
     () => Transaction,
