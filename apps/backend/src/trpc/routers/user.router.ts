@@ -1,7 +1,6 @@
 import { publicProcedure } from '@expenses/api';
 import { z } from 'zod';
-import { userService } from '../../services';
-import { mapServiceError } from '../errors';
+import { userController } from '../../controllers';
 import { isAuthenticated } from '../protected';
 
 const passwordSchema = z
@@ -28,51 +27,20 @@ const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
-/** Strip password hash from the user entity before returning via API. */
-function stripPassword(user: { password: string; [k: string]: any }) {
-  const { password: _, ...safe } = user;
-  return safe;
-}
-
 export const userRouter = {
-  register: publicProcedure.input(registerSchema).mutation(async ({ input }) => {
-    try {
-      const user = await userService.createUser(input);
-      return stripPassword(user);
-    } catch (error) {
-      mapServiceError(error);
-    }
-  }),
+  register: publicProcedure.input(registerSchema).mutation(({ input }) =>
+    userController.register(input),
+  ),
 
-  me: publicProcedure.use(isAuthenticated).query(async ({ ctx }) => {
-    try {
-      const user = await userService.getUser({ id: ctx.userId });
+  me: publicProcedure.use(isAuthenticated).query(({ ctx }) =>
+    userController.me(ctx.userId),
+  ),
 
-      if (!user) {
-        throw new Error('User not found');
-      }
+  updateProfile: publicProcedure.use(isAuthenticated).input(updateProfileSchema).mutation(({ input, ctx }) =>
+    userController.updateProfile(ctx.userId, input),
+  ),
 
-      return stripPassword(user);
-    } catch (error) {
-      mapServiceError(error);
-    }
-  }),
-
-  updateProfile: publicProcedure.use(isAuthenticated).input(updateProfileSchema).mutation(async ({ input, ctx }) => {
-    try {
-      const user = await userService.updateProfile(ctx.userId, input);
-      return stripPassword(user);
-    } catch (error) {
-      mapServiceError(error);
-    }
-  }),
-
-  changePassword: publicProcedure.use(isAuthenticated).input(changePasswordSchema).mutation(async ({ input, ctx }) => {
-    try {
-      await userService.changePassword(ctx.userId, input.currentPassword, input.newPassword);
-      return { success: true };
-    } catch (error) {
-      mapServiceError(error);
-    }
-  }),
+  changePassword: publicProcedure.use(isAuthenticated).input(changePasswordSchema).mutation(({ input, ctx }) =>
+    userController.changePassword(ctx.userId, input),
+  ),
 };

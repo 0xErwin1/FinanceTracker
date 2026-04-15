@@ -1,8 +1,6 @@
 import { publicProcedure } from '@expenses/api';
-import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { budgetService } from '../../services';
-import { mapServiceError } from '../errors';
+import { budgetController } from '../../controllers';
 import { isAuthenticated } from '../protected';
 
 const createBudgetSchema = z.object({
@@ -34,70 +32,42 @@ export const budgetRouter = {
   create: publicProcedure
     .use(isAuthenticated)
     .input(createBudgetSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        return await budgetService.createBudget({ ...input, userId: ctx.userId });
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .mutation(({ input, ctx }) =>
+      budgetController.create(input, ctx.userId),
+    ),
 
   update: publicProcedure
     .use(isAuthenticated)
     .input(updateBudgetSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        const { id, ...data } = input;
-        return await budgetService.updateBudget(id, ctx.userId, data);
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .mutation(({ input, ctx }) =>
+      budgetController.update(input, ctx.userId),
+    ),
 
   delete: publicProcedure
     .use(isAuthenticated)
     .input(budgetIdSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        await budgetService.deleteBudget(input.id, ctx.userId);
-        return { success: true };
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .mutation(({ input, ctx }) =>
+      budgetController.delete(input, ctx.userId),
+    ),
 
   getById: publicProcedure
     .use(isAuthenticated)
     .input(budgetIdSchema)
-    .query(async ({ input, ctx }) => {
-      try {
-        const budget = await budgetService.getBudget(input.id, ctx.userId);
-        if (!budget) throw new TRPCError({ code: 'NOT_FOUND', message: 'Budget not found' });
-        return budget;
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .query(({ input, ctx }) =>
+      budgetController.getById(input, ctx.userId),
+    ),
 
   getAll: publicProcedure
     .use(isAuthenticated)
     .input(getBudgetsSchema)
-    .query(async ({ input, ctx }) => {
-      try {
-        return await budgetService.getAllBudgets(ctx.userId, input.month);
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .query(({ input, ctx }) =>
+      budgetController.getAll(input, ctx.userId),
+    ),
 
   getAlerts: publicProcedure
     .use(isAuthenticated)
     .input(getAlertsSchema)
-    .query(async ({ input, ctx }) => {
-      try {
-        return await budgetService.getBudgetAlerts(ctx.userId, input.month);
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .query(({ input, ctx }) =>
+      budgetController.getAlerts(input, ctx.userId),
+    ),
 };

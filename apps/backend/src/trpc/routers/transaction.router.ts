@@ -1,9 +1,7 @@
 import { publicProcedure } from '@expenses/api';
-import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { CurrencyEnum, TransactionType } from '../../enums';
-import { transactionService } from '../../services';
-import { mapServiceError } from '../errors';
+import { transactionController } from '../../controllers';
 import { isAuthenticated } from '../protected';
 
 const categoryInlineSchema = z.object({
@@ -58,116 +56,50 @@ export const transactionRouter = {
   create: publicProcedure
     .use(isAuthenticated)
     .input(createTransactionSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        if (input.mode === 'single') {
-          return await transactionService.createTransaction({
-            ...input.transaction,
-            userId: ctx.userId,
-          });
-        }
-
-        return await transactionService.createTransactionByArray(
-          input.transactions.map((tx) => ({
-            ...tx,
-            userId: ctx.userId,
-          })),
-        );
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .mutation(({ input, ctx }) =>
+      transactionController.create(input, ctx.userId),
+    ),
 
   getById: publicProcedure
     .use(isAuthenticated)
     .input(transactionIdSchema)
-    .query(async ({ input, ctx }) => {
-      try {
-        const transaction = await transactionService.getTransaction(
-          {
-            id: input.id,
-            userId: ctx.userId,
-          },
-          ['category'],
-        );
-
-        if (!transaction) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Transaction not found' });
-        }
-
-        return transaction;
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .query(({ input, ctx }) =>
+      transactionController.getById(input, ctx.userId),
+    ),
 
   getAll: publicProcedure
     .use(isAuthenticated)
     .input(getTransactionsSchema)
-    .query(async ({ input, ctx }) => {
-      try {
-        const where: Record<string, any> = { userId: ctx.userId };
-        if (input.type) where.type = input.type;
-        if (input.dateFrom || input.dateTo) {
-          const { Between } = await import('typeorm');
-          where.date = Between(input.dateFrom ?? '1970-01-01', input.dateTo ?? '2999-12-31');
-        }
-
-        return await transactionService.getAllTransactions(where);
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .query(({ input, ctx }) =>
+      transactionController.getAll(input, ctx.userId),
+    ),
 
   getBalance: publicProcedure
     .use(isAuthenticated)
     .input(getBalanceSchema)
-    .query(async ({ input, ctx }) => {
-      try {
-        return await transactionService.getBalance(ctx.userId, input.dateFrom, input.dateTo);
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .query(({ input, ctx }) =>
+      transactionController.getBalance(input, ctx.userId),
+    ),
 
   delete: publicProcedure
     .use(isAuthenticated)
     .input(transactionIdSchema)
-    .mutation(async ({ input }) => {
-      try {
-        await transactionService.deleteTransaction(input.id);
-        return { success: true };
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .mutation(({ input }) =>
+      transactionController.delete(input),
+    ),
 
-  getMonthsAndYears: publicProcedure.use(isAuthenticated).query(async ({ ctx }) => {
-    try {
-      return await transactionService.getMonthsAndYears(ctx.userId);
-    } catch (error) {
-      mapServiceError(error);
-    }
-  }),
+  getMonthsAndYears: publicProcedure.use(isAuthenticated).query(({ ctx }) =>
+    transactionController.getMonthsAndYears(ctx.userId),
+  ),
 
-  getTotalSavings: publicProcedure.use(isAuthenticated).query(async ({ ctx }) => {
-    try {
-      const totalSavings = await transactionService.getTotalSavings(ctx.userId);
-      return { totalSavings };
-    } catch (error) {
-      mapServiceError(error);
-    }
-  }),
+  getTotalSavings: publicProcedure.use(isAuthenticated).query(({ ctx }) =>
+    transactionController.getTotalSavings(ctx.userId),
+  ),
 
   setGoal: publicProcedure
     .use(isAuthenticated)
     .input(setGoalSchema)
-    .mutation(async ({ input, ctx }) => {
-      try {
-        await transactionService.setGoalIdInTransaction(input.id, input.goalId, ctx.userId);
-        return { success: true };
-      } catch (error) {
-        mapServiceError(error);
-      }
-    }),
+    .mutation(({ input, ctx }) =>
+      transactionController.setGoal(input, ctx.userId),
+    ),
 };

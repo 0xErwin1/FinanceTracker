@@ -1,7 +1,6 @@
 import { publicProcedure } from '@expenses/api';
 import { z } from 'zod';
-import { authService } from '../../services';
-import { mapServiceError } from '../errors';
+import { authController } from '../../controllers';
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -9,21 +8,11 @@ const loginSchema = z.object({
 });
 
 export const authRouter = {
-  login: publicProcedure.input(loginSchema).mutation(async ({ input, ctx }) => {
-    try {
-      const user = await authService.login(input.email, input.password, ctx.req.sessionID!);
-      return user;
-    } catch (error) {
-      mapServiceError(error);
-    }
-  }),
+  login: publicProcedure.input(loginSchema).mutation(({ input, ctx }) =>
+    authController.login(input.email, input.password, ctx.req.sessionID!),
+  ),
 
-  logout: publicProcedure.mutation(async ({ ctx }) => {
-    try {
-      await authService.logout(ctx.req.sessionID!);
-      return { success: true };
-    } catch (error) {
-      mapServiceError(error);
-    }
-  }),
+  logout: publicProcedure.mutation(({ ctx }) =>
+    authController.logout(ctx.req.sessionID!),
+  ),
 };
