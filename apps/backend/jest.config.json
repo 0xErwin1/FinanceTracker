@@ -2,6 +2,7 @@
   "roots": ["<rootDir>"],
   "globalSetup": "./test/globalSetup.ts",
   "setupFiles": ["reflect-metadata"],
+  "setupFilesAfterEnv": ["./test/setupAfterEnv.ts"],
   "transform": {
     "^.+\\.ts?$": "ts-jest"
   },
@@ -10,7 +11,7 @@
   "moduleNameMapper": {
     "^services/(.*)$": "<rootDir>/src/services/$1",
     "^enums/(.*)$": "<rootDir>/src/enums/$1",
-    "^models/(.*)$": "<rootDir>/src/models/$1",
+    "^entities/(.*)$": "<rootDir>/src/entities/$1",
     "^src/(.*)$": "<rootDir>/src/$1"
   },
   "testEnvironment": "node"

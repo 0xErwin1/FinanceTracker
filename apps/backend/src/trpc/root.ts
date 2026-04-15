@@ -1,5 +1,6 @@
 import { t } from '@expenses/api';
 import { authRouter } from './routers/auth.router';
+import { budgetRouter } from './routers/budget.router';
 import { categoryRouter } from './routers/category.router';
 import { financialGoalRouter } from './routers/financial_goal.router';
 import { transactionRouter } from './routers/transaction.router';
@@ -11,6 +12,7 @@ export const appRouter = t.router({
   category: categoryRouter,
   transaction: transactionRouter,
   financialGoal: financialGoalRouter,
+  budget: budgetRouter,
 });
 
 export type AppRouter = typeof appRouter;

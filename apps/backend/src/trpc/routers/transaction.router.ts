@@ -1,12 +1,10 @@
-import { z } from 'zod';
-import { CurrencyEnum, MonthEnum, TransactionType } from '../../enums';
 import { publicProcedure } from '@expenses/api';
-import { isAuthenticated } from '../protected';
-import { transactionService } from '../../services';
-import { CategoryModel } from '../../models';
-import { mapServiceError } from '../errors';
 import { TRPCError } from '@trpc/server';
-import { dayHelper } from '../../helpers';
+import { z } from 'zod';
+import { CurrencyEnum, TransactionType } from '../../enums';
+import { transactionService } from '../../services';
+import { mapServiceError } from '../errors';
+import { isAuthenticated } from '../protected';
 
 const categoryInlineSchema = z.object({
   type: z.nativeEnum(TransactionType).optional(),
@@ -18,9 +16,7 @@ const singleTransactionSchema = z.object({
   amount: z.number().min(0),
   currency: z.nativeEnum(CurrencyEnum),
   note: z.string().optional().default(''),
-  day: z.number().int().min(1).max(31).optional(),
-  month: z.nativeEnum(MonthEnum),
-  year: z.number().int().min(2000),
+  date: z.string(),
   exchangeRate: z.number().optional(),
   goalId: z.string().uuid().optional(),
   categoryId: z.string().uuid().optional(),
@@ -40,21 +36,21 @@ const createTransactionSchema = z.discriminatedUnion('mode', [
 
 const getTransactionsSchema = z.object({
   type: z.nativeEnum(TransactionType).optional(),
-  month: z.nativeEnum(MonthEnum).optional(),
-  day: z.number().int().min(1).max(31).optional(),
-  year: z.number().int().min(2000).optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
 });
 
 const getBalanceSchema = z.object({
-  month: z.nativeEnum(MonthEnum).optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
 });
 
 const transactionIdSchema = z.object({
-  transactionId: z.string().uuid(),
+  id: z.string().uuid(),
 });
 
 const setGoalSchema = z.object({
-  transactionId: z.string().uuid(),
+  id: z.string().uuid(),
   goalId: z.string().uuid(),
 });
 
@@ -65,26 +61,18 @@ export const transactionRouter = {
     .mutation(async ({ input, ctx }) => {
       try {
         if (input.mode === 'single') {
-          const transaction = await transactionService.createTransaction({
+          return await transactionService.createTransaction({
             ...input.transaction,
             userId: ctx.userId,
           });
-
-          await invalidateRedisCaches(ctx.userId);
-
-          return transaction;
         }
 
-        const transactions = await transactionService.createTransactionByArray(
+        return await transactionService.createTransactionByArray(
           input.transactions.map((tx) => ({
             ...tx,
             userId: ctx.userId,
           })),
         );
-
-        await invalidateRedisCaches(ctx.userId);
-
-        return transactions;
       } catch (error) {
         mapServiceError(error);
       }
@@ -95,12 +83,12 @@ export const transactionRouter = {
     .input(transactionIdSchema)
     .query(async ({ input, ctx }) => {
       try {
-        const transaction = await transactionService.getTrasaction(
+        const transaction = await transactionService.getTransaction(
           {
-            transactionId: input.transactionId,
+            id: input.id,
             userId: ctx.userId,
           },
-          [{ model: CategoryModel }],
+          ['category'],
         );
 
         if (!transaction) {
@@ -118,22 +106,14 @@ export const transactionRouter = {
     .input(getTransactionsSchema)
     .query(async ({ input, ctx }) => {
       try {
-        const where = {
-          userId: ctx.userId,
-          ...input,
-        };
-
-        const cached = await transactionService.getTransactionsInRedis(ctx.userId);
-
-        if (cached && queryMatches(cached.metadata, where)) {
-          return cached.object;
+        const where: Record<string, any> = { userId: ctx.userId };
+        if (input.type) where.type = input.type;
+        if (input.dateFrom || input.dateTo) {
+          const { Between } = await import('typeorm');
+          where.date = Between(input.dateFrom ?? '1970-01-01', input.dateTo ?? '2999-12-31');
         }
 
-        const transactions = await transactionService.getAllTrasactions(where, [{ model: CategoryModel }]);
-
-        await transactionService.setTransactionsInRedis(transactions, ctx.userId, where);
-
-        return transactions;
+        return await transactionService.getAllTransactions(where);
       } catch (error) {
         mapServiceError(error);
       }
@@ -144,22 +124,7 @@ export const transactionRouter = {
     .input(getBalanceSchema)
     .query(async ({ input, ctx }) => {
       try {
-        const where = {
-          userId: ctx.userId,
-          ...input,
-        };
-
-        const cached = await transactionService.getBalanceTransactionInRedis(ctx.userId);
-
-        if (cached && queryMatches(cached.metadata, where)) {
-          return cached.object;
-        }
-
-        const balances = await transactionService.getBalance(input.month);
-
-        await transactionService.setBalanceTransactionInRedis(balances, ctx.userId, where);
-
-        return balances;
+        return await transactionService.getBalance(ctx.userId, input.dateFrom, input.dateTo);
       } catch (error) {
         mapServiceError(error);
       }
@@ -170,7 +135,7 @@ export const transactionRouter = {
     .input(transactionIdSchema)
     .mutation(async ({ input }) => {
       try {
-        await transactionService.deleteTransaction(input.transactionId);
+        await transactionService.deleteTransaction(input.id);
         return { success: true };
       } catch (error) {
         mapServiceError(error);
@@ -187,12 +152,7 @@ export const transactionRouter = {
 
   getTotalSavings: publicProcedure.use(isAuthenticated).query(async ({ ctx }) => {
     try {
-      const transactions = await transactionService.getAllTrasactions({
-        userId: ctx.userId,
-        type: TransactionType.SAVING,
-      });
-
-      const totalSavings = transactions.reduce((acc, t) => acc + t.amount, 0);
+      const totalSavings = await transactionService.getTotalSavings(ctx.userId);
       return { totalSavings };
     } catch (error) {
       mapServiceError(error);
@@ -204,28 +164,10 @@ export const transactionRouter = {
     .input(setGoalSchema)
     .mutation(async ({ input, ctx }) => {
       try {
-        await transactionService.setGoalIdInTransaction(input.transactionId, input.goalId, ctx.userId);
+        await transactionService.setGoalIdInTransaction(input.id, input.goalId, ctx.userId);
         return { success: true };
       } catch (error) {
         mapServiceError(error);
       }
     }),
 };
-
-function queryMatches(
-  metadata: { type?: string; day?: number; month?: string; year?: number } | undefined,
-  where: { type?: string; day?: number; month?: string; year?: number },
-): boolean {
-  if (!metadata) return false;
-  return (
-    metadata.type === where.type &&
-    metadata.day === where.day &&
-    metadata.month === where.month &&
-    metadata.year === where.year
-  );
-}
-
-async function invalidateRedisCaches(userId: string): Promise<void> {
-  await transactionService.deleteTransactionsInRedis(userId);
-  await transactionService.deleteBalanceTransactionInRedis(userId);
-}

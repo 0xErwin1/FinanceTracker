@@ -1,13 +1,12 @@
 import 'reflect-metadata';
+import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { createExpressMiddleware } from '@trpc/server/adapters/express';
 import { config } from './config';
 import { logger } from './lib';
-import { sequelize } from './models';
 import { redisKeyLifetime, redisStore } from './redis';
 import { appRouter, createContext } from './trpc';
 
@@ -26,7 +25,8 @@ export class App {
 
   public async connectToDatabase() {
     try {
-      await sequelize().authenticate();
+      const { AppDataSource } = await import('./data-source');
+      await AppDataSource.initialize();
     } catch (error) {
       logger.error(error, 'database_connection_failed');
       throw error;

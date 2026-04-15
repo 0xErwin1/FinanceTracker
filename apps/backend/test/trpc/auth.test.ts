@@ -19,7 +19,7 @@ describe('auth router', () => {
 
       expect(result).toBeDefined();
       expect(result.email).toBe('test@example.com');
-      expect(result.userId).toBe(user.userId);
+      expect(result.id).toBe(user.id);
     });
 
     it('should fail with non-existent email', async () => {

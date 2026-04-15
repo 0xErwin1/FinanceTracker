@@ -1,8 +1,8 @@
-import { z } from 'zod';
 import { publicProcedure } from '@expenses/api';
-import { isAuthenticated } from '../protected';
+import { z } from 'zod';
 import { userService } from '../../services';
 import { mapServiceError } from '../errors';
+import { isAuthenticated } from '../protected';
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -23,7 +23,7 @@ export const userRouter = {
 
   me: publicProcedure.use(isAuthenticated).query(async ({ ctx }) => {
     try {
-      const user = await userService.getUser({ userId: ctx.userId });
+      const user = await userService.getUser({ id: ctx.userId });
       return user;
     } catch (error) {
       mapServiceError(error);

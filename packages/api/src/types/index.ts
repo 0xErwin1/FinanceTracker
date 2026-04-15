@@ -1,5 +1,6 @@
-export { UserDTO } from './user/model';
-export { SessionDTO } from './session/model';
-export { CategoryDTO } from './category/model';
-export { TransactionDTO } from './transaction/model';
-export { FinancialGoalDTO } from './financial_goal/model';
+export type { UserDTO } from './user/model';
+export type { SessionDTO } from './session/model';
+export type { CategoryDTO } from './category/model';
+export type { TransactionDTO } from './transaction/model';
+export type { FinancialGoalDTO } from './financial_goal/model';
+export type { BudgetDTO, BudgetAlert } from './budget/model';

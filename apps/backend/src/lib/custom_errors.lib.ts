@@ -78,7 +78,6 @@ customErrors[ApiError.Server.PARAMS_REQUIRED] = {
 };
 
 // User
-
 customErrors[ApiError.User.USER_DOES_NOT_EXIST] = {
   message: 'User does not exist',
   showMessage: {
@@ -119,7 +118,7 @@ customErrors[ApiError.User.USER_ALREADY_EXISTS] = {
 customErrors[ApiError.Transaction.TRANSACTION_AND_GOAL_NOT_SAME_TYPE] = {
   message: 'Transaction and goal are not of the same type.',
   showMessage: {
-    EN: `Transaction and goal are not of the same type. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.INSTALLMENTS}|${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING}`,
+    EN: `Transaction and goal are not of the same type. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.INSTALLMENTS}|${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING})`,
     ES: `La transacción y el objetivo no son del mismo tipo. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.INSTALLMENTS}|${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING})`,
   },
   HTTPStatusCode: StatusCodes.CONFLICT,
@@ -152,7 +151,7 @@ customErrors[ApiError.Transaction.TRANSACTION_NOT_EXIST] = {
   HTTPStatusCode: StatusCodes.NOT_FOUND,
 };
 
-// category
+// Category
 customErrors[ApiError.Category.CATEGORY_NOT_EXIST] = {
   message: 'Category not exist',
   showMessage: {
@@ -162,20 +161,49 @@ customErrors[ApiError.Category.CATEGORY_NOT_EXIST] = {
   HTTPStatusCode: StatusCodes.NOT_FOUND,
 };
 
-customErrors[ApiError.Category.CANNOT_DELETE_CATEGORY_TRASACTIONS] = {
-  message: 'Cannot delete a category with trasactions',
+customErrors[ApiError.Category.CANNOT_DELETE_CATEGORY_TRANSACTIONS] = {
+  message: 'Cannot delete a category with transactions',
   showMessage: {
-    EN: 'Cannot delete a category with trasactions, try with the query `?deleteTransactions=true` to delete all transactions.',
+    EN: 'Cannot delete a category with transactions, try with the query `?deleteTransactions=true` to delete all transactions.',
     ES: 'No se puede eliminar una categoría con transacciones, pruebe con la query `?deleteTransactions=true` para eliminar todas las transacciones',
   },
   HTTPStatusCode: StatusCodes.UNAUTHORIZED,
 };
 
+// Financial Goal
 customErrors[ApiError.FinancialGoal.FINANCIAL_GOAL_NOT_EXIST] = {
   message: 'Financial goal not exist.',
   showMessage: {
     EN: 'Financial goal not exist.',
     ES: 'El objetivo financiero no existe',
+  },
+  HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+// Budget
+customErrors[ApiError.Budget.BUDGET_NOT_EXIST] = {
+  message: 'Budget not exist',
+  showMessage: {
+    EN: 'Budget not exist',
+    ES: 'El presupuesto no existe',
+  },
+  HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+customErrors[ApiError.Budget.BUDGET_ALREADY_EXISTS] = {
+  message: 'Budget already exists for this category and month',
+  showMessage: {
+    EN: 'Budget already exists for this category and month',
+    ES: 'Ya existe un presupuesto para esta categoría y mes',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
+};
+
+customErrors[ApiError.Budget.CATEGORY_NOT_FOUND] = {
+  message: 'Category not found',
+  showMessage: {
+    EN: 'Category not found',
+    ES: 'Categoría no encontrada',
   },
   HTTPStatusCode: StatusCodes.NOT_FOUND,
 };

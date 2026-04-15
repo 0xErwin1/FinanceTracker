@@ -1,13 +1,12 @@
 import { t } from '@expenses/api';
-import { sequelize } from '../../src/models';
+import { CurrencyEnum, FinancialGoalsType, TransactionType } from '@expenses/api';
+import { AppDataSource } from '../../src/data-source';
+import { Budget, Category, FinancialGoal, Transaction, User } from '../../src/entities';
 import { appRouter } from '../../src/trpc/root';
+import { hashPassword } from '../../src/utils/password.util';
 
 const createCaller = t.createCallerFactory(appRouter);
 
-/**
- * Minimal mock req that satisfies the tRPC context shape.
- * Express-session adds `sessionID` at runtime; we provide it explicitly.
- */
 function createMockReq(overrides: Record<string, unknown> = {}) {
   return {
     sessionID: 'test-session-id',
@@ -20,7 +19,6 @@ function createMockRes() {
   return {};
 }
 
-/** Unauthenticated caller (no userId). */
 export function createPublicCaller() {
   return createCaller({
     req: createMockReq(),
@@ -29,7 +27,6 @@ export function createPublicCaller() {
   });
 }
 
-/** Authenticated caller with an explicit userId. */
 export function createAuthenticatedCaller(userId: string) {
   return createCaller({
     req: createMockReq(),
@@ -38,24 +35,14 @@ export function createAuthenticatedCaller(userId: string) {
   });
 }
 
-/** Truncate all data tables (order matters for FK constraints). */
 export async function truncateAllTables(): Promise<void> {
-  await sequelize().query(`
-    TRUNCATE public."transactions" CASCADE;
-    TRUNCATE public."financial_goals" CASCADE;
-    TRUNCATE public."categories" CASCADE;
-    TRUNCATE public."users" CASCADE;
-  `);
+  const tables = ['transactions', 'financial_goals', 'budgets', 'categories', 'sessions', 'users'];
+  for (const table of tables) {
+    await AppDataSource.query(`TRUNCATE public."${table}" CASCADE`);
+  }
 }
 
-/**
- * Seed a user directly into the DB and return the plain object.
- * The password is hashed via bcrypt so that login comparisons work.
- */
-export async function seedUser(overrides: Record<string, unknown> = {}) {
-  const { hashPassword } = await import('../../src/utils/password.util');
-  const { UserModel } = await import('../../src/models');
-
+export async function seedUser(overrides: Record<string, unknown> = {}): Promise<User> {
   const defaults = {
     email: 'test@example.com',
     firstName: 'Test',
@@ -63,69 +50,86 @@ export async function seedUser(overrides: Record<string, unknown> = {}) {
     password: await hashPassword('password123'),
   };
 
-  // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
-  const user = await UserModel.create({ ...defaults, ...overrides } as any);
-  return user.get({ plain: true });
+  const repo = AppDataSource.getRepository(User);
+  const user = repo.create({ ...defaults, ...overrides } as any);
+  return (await repo.save(user)) as unknown as User;
 }
 
-/** Seed a category directly into the DB. */
-export async function seedCategory(userId: string, overrides: Record<string, unknown> = {}) {
-  const { CategoryModel } = await import('../../src/models');
+let _seedCounter = 0;
 
+export async function seedCategory(
+  userId: string,
+  overrides: Record<string, unknown> = {},
+): Promise<Category> {
   const defaults = {
-    type: 'EXPENSE',
-    name: 'Test Category',
+    type: TransactionType.EXPENSE,
+    name: `Test Category ${++_seedCounter}`,
     note: '',
     userId,
   };
 
-  // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
-  const category = await CategoryModel.create({ ...defaults, ...overrides } as any);
-  return category.get({ plain: true });
+  const repo = AppDataSource.getRepository(Category);
+  const category = repo.create({ ...defaults, ...overrides } as any);
+  return (await repo.save(category)) as unknown as Category;
 }
 
-/** Seed a transaction directly into the DB. */
-export async function seedTransaction(userId: string, overrides: Record<string, unknown> = {}) {
-  const { TransactionModel } = await import('../../src/models');
-
+export async function seedTransaction(
+  userId: string,
+  overrides: Record<string, unknown> = {},
+): Promise<Transaction> {
   if (!overrides.categoryId) {
     const cat = await seedCategory(userId);
-    overrides.categoryId = cat.categoryId;
+    overrides.categoryId = cat.id;
   }
 
   const defaults = {
-    type: 'EXPENSE',
+    type: TransactionType.EXPENSE,
     amount: 100,
-    currency: 'USD',
+    currency: CurrencyEnum.USD,
     note: '',
-    day: 1,
-    month: 'JANUARY',
-    year: 2025,
+    date: '2025-01-01',
     userId,
     exchangeRate: null,
   };
 
-  // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
-  const transaction = await TransactionModel.create({ ...defaults, ...overrides } as any);
-  return transaction.get({ plain: true });
+  const repo = AppDataSource.getRepository(Transaction);
+  const tx = repo.create({ ...defaults, ...overrides } as any);
+  return (await repo.save(tx)) as unknown as Transaction;
 }
 
-/** Seed a financial goal directly into the DB. */
-export async function seedFinancialGoal(userId: string, overrides: Record<string, unknown> = {}) {
-  const { FinancialGoalModel } = await import('../../src/models');
-
+export async function seedFinancialGoal(
+  userId: string,
+  overrides: Record<string, unknown> = {},
+): Promise<FinancialGoal> {
   const defaults = {
-    type: 'SPEND_LESS',
+    type: FinancialGoalsType.SPEND_LESS,
     targetAmount: 1000,
-    currency: 'USD',
+    currency: CurrencyEnum.USD,
     name: 'Test Goal',
     note: '',
-    month: 'JANUARY',
-    year: 2026,
+    targetDate: '2026-01-01',
     userId,
   };
 
-  // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
-  const goal = await FinancialGoalModel.create({ ...defaults, ...overrides } as any);
-  return goal.get({ plain: true });
+  const repo = AppDataSource.getRepository(FinancialGoal);
+  const goal = repo.create({ ...defaults, ...overrides } as any);
+  return (await repo.save(goal)) as unknown as FinancialGoal;
+}
+
+export async function seedBudget(userId: string, overrides: Record<string, unknown> = {}): Promise<Budget> {
+  if (!overrides.categoryId) {
+    const cat = await seedCategory(userId);
+    overrides.categoryId = cat.id;
+  }
+
+  const defaults = {
+    userId,
+    month: '2025-01-01',
+    amount: 500,
+    alertThreshold: 80,
+  };
+
+  const repo = AppDataSource.getRepository(Budget);
+  const budget = repo.create({ ...defaults, ...overrides } as any);
+  return (await repo.save(budget)) as unknown as Budget;
 }

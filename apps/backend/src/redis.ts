@@ -3,7 +3,9 @@ import { type RedisClientType, createClient } from 'redis';
 import { config } from './config';
 import { logger } from './lib';
 
-const client: RedisClientType = createClient({
+const isTest = config.env === 'TEST';
+
+const realClient: RedisClientType = createClient({
   url: config.redisUrl,
   name: 'expenses',
   socket: {
@@ -11,27 +13,36 @@ const client: RedisClientType = createClient({
   },
 });
 
-if (!client.isOpen) {
-  client.connect();
+if (!isTest && !realClient.isOpen) {
+  realClient.connect();
 }
 
-client.on('ready', () => {
+realClient.on('ready', () => {
   logger.info('redis_ready');
 });
 
-client.on('reconnecting', () => {
+realClient.on('reconnecting', () => {
   logger.warn('reconnecting_redis');
 });
 
-client.on('error', (error) => {
+realClient.on('error', (error) => {
   logger.error({ err: error }, 'redis_error');
 });
 
-export const redisKeyLifetime: number = 30 * 24 * 60 * 60 * 1000; // 30 days
+export const redisKeyLifetime: number = 30 * 24 * 60 * 60 * 1000;
 
 export const redisStore = new RedisStore({
-  client: client,
+  client: realClient,
   prefix: 'session:',
 });
 
-export const redisClient: RedisClientType = client;
+const noOpClient = {
+  set: () => Promise.resolve('OK'),
+  get: () => Promise.resolve(null),
+  del: () => Promise.resolve(1),
+  connect: () => Promise.resolve(),
+  on: () => {},
+  isOpen: true,
+} as unknown as RedisClientType;
+
+export const redisClient: RedisClientType = isTest ? noOpClient : realClient;

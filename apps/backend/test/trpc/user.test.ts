@@ -52,13 +52,13 @@ describe('user router', () => {
   describe('me', () => {
     it('should return the current authenticated user', async () => {
       const user = await seedUser();
-      const caller = createAuthenticatedCaller(user.userId);
+      const caller = createAuthenticatedCaller(user.id);
 
       const result = await caller.user.me();
 
       expect(result).toBeDefined();
-      expect(result!.userId).toBe(user.userId);
-      expect(result!.email).toBe('test@example.com');
+      expect(result?.id).toBe(user.id);
+      expect(result?.email).toBe('test@example.com');
     });
 
     it('should return UNAUTHORIZED without authentication', async () => {

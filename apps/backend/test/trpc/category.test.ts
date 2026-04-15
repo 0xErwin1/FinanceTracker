@@ -1,9 +1,10 @@
-import { TRPCError } from '@trpc/server';
 import { TransactionType } from '@expenses/api';
+import { TRPCError } from '@trpc/server';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
   seedCategory,
+  seedTransaction,
   seedUser,
   truncateAllTables,
 } from './setup';
@@ -16,7 +17,7 @@ describe('category router', () => {
   beforeEach(async () => {
     await truncateAllTables();
     const user = await seedUser();
-    userId = user.userId;
+    userId = user.id;
     caller = createAuthenticatedCaller(userId);
   });
 
@@ -32,6 +33,20 @@ describe('category router', () => {
       expect(result.name).toBe('Food');
       expect(result.type).toBe(TransactionType.EXPENSE);
       expect(result.note).toBe('Groceries');
+    });
+
+    it('should create a category with icon and color', async () => {
+      const result = await caller.category.create({
+        type: TransactionType.EXPENSE,
+        name: 'Food',
+        icon: '🍔',
+        color: '#FF5733',
+      });
+
+      expect(result).toBeDefined();
+      expect(result.name).toBe('Food');
+      expect(result.icon).toBe('🍔');
+      expect(result.color).toBe('#FF5733');
     });
 
     it('should reject invalid input (empty name)', async () => {
@@ -61,7 +76,9 @@ describe('category router', () => {
       const result = await caller.category.getAll();
 
       expect(result).toHaveLength(2);
-      expect(result.map((c: { name: string }) => c.name)).toEqual(expect.arrayContaining(['Food', 'Transport']));
+      expect(result.map((c: { name: string }) => c.name)).toEqual(
+        expect.arrayContaining(['Food', 'Transport']),
+      );
     });
 
     it('should return empty array when no categories exist', async () => {
@@ -80,11 +97,11 @@ describe('category router', () => {
       const category = await seedCategory(userId, { name: 'Food' });
 
       const result = await caller.category.getById({
-        categoryId: category.categoryId,
+        id: category.id,
       });
 
       expect(result).toBeDefined();
-      expect(result!.name).toBe('Food');
+      expect(result?.name).toBe('Food');
     });
 
     it('should throw NOT_FOUND for missing category', async () => {
@@ -92,7 +109,7 @@ describe('category router', () => {
 
       await expect(
         caller.category.getById({
-          categoryId: uuidv4(),
+          id: uuidv4(),
         }),
       ).rejects.toThrow(TRPCError);
     });
@@ -100,7 +117,7 @@ describe('category router', () => {
     it('should reject invalid input (non-uuid)', async () => {
       await expect(
         caller.category.getById({
-          categoryId: 'not-a-uuid',
+          id: 'not-a-uuid',
         }),
       ).rejects.toThrow();
     });
@@ -111,7 +128,7 @@ describe('category router', () => {
       const category = await seedCategory(userId);
 
       const result = await caller.category.delete({
-        categoryId: category.categoryId,
+        id: category.id,
       });
 
       expect(result).toEqual({ success: true });
@@ -119,26 +136,13 @@ describe('category router', () => {
 
     it('should delete a category with transactions when deleteTransactions=true', async () => {
       const category = await seedCategory(userId);
-      const { TransactionModel } = await import('../../src/models');
 
-      const txData = {
-        type: 'EXPENSE',
-        amount: 50,
-        currency: 'USD',
-        note: '',
-        day: 1,
-        month: 'JANUARY',
-        year: 2025,
-        userId,
-        categoryId: category.categoryId,
-        exchangeRate: null,
-      };
-
-      // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
-      await TransactionModel.create(txData as any);
+      await seedTransaction(userId, {
+        categoryId: category.id,
+      });
 
       const result = await caller.category.delete({
-        categoryId: category.categoryId,
+        id: category.id,
         deleteTransactions: true,
       });
 
@@ -150,7 +154,7 @@ describe('category router', () => {
 
       await expect(
         publicCaller.category.delete({
-          categoryId: uuidv4(),
+          id: uuidv4(),
         }),
       ).rejects.toThrow(TRPCError);
     });

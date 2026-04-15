@@ -3,30 +3,26 @@ dotenv.config();
 
 import { App } from './app';
 import { config } from './config';
-import { logger, umzug } from './lib';
+import { AppDataSource } from './data-source';
+import { logger } from './lib';
 
 const port = config.port;
 const app = new App();
 
-app.server.listen(port, () => logger.info(`Server running on port ${port}`));
+const start = async () => {
+  try {
+    await AppDataSource.initialize();
+    logger.info('DataSource initialized');
 
-const handleDisconnect = () => {
-  app
-    .connectToDatabase()
-    .then(async () => {
-      logger.info('Connected to database ...');
-      try {
-        await umzug.up();
-      } catch (err) {
-        logger.info('ERROR WITH UMZUG');
-        logger.error(err);
-      }
-    })
-    .catch((err) => {
-      logger.error(err, 'CONNECTION ERROR');
-      logger.info('Trying to connect again');
-      setTimeout(handleDisconnect, 10000);
-    });
+    await AppDataSource.runMigrations();
+    logger.info('Migrations applied');
+
+    app.server.listen(port, () => logger.info(`Server running on port ${port}`));
+  } catch (err) {
+    logger.error(err, 'Startup failed');
+    logger.info('Retrying in 10 seconds...');
+    setTimeout(start, 10000);
+  }
 };
 
-handleDisconnect();
+start();

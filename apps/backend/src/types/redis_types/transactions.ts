@@ -1,11 +1,10 @@
 import type { RedisMetadata } from '.';
-import type { MonthEnum, TransactionType } from '../../enums';
+import type { TransactionType } from '../../enums';
 
 export interface TransactionMetadata {
   type?: TransactionType;
-  day?: number;
-  month?: MonthEnum;
-  year?: number;
+  dateFrom?: string;
+  dateTo?: string;
   userId?: string;
 }
 

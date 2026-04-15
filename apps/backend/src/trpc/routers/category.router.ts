@@ -1,24 +1,29 @@
+import { publicProcedure } from '@expenses/api';
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { TransactionType } from '../../enums';
-import { publicProcedure } from '@expenses/api';
-import { isAuthenticated } from '../protected';
 import { categoryService } from '../../services';
 import { mapServiceError } from '../errors';
-import { TRPCError } from '@trpc/server';
+import { isAuthenticated } from '../protected';
 
 const createCategorySchema = z.object({
   type: z.nativeEnum(TransactionType),
   name: z.string().min(1),
   note: z.string().optional().default(''),
+  icon: z.string().max(100).optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/)
+    .optional(),
 });
 
 const deleteCategorySchema = z.object({
-  categoryId: z.string().uuid(),
+  id: z.string().uuid(),
   deleteTransactions: z.boolean().optional().default(false),
 });
 
 const getCategorySchema = z.object({
-  categoryId: z.string().uuid(),
+  id: z.string().uuid(),
 });
 
 export const categoryRouter = {
@@ -43,7 +48,7 @@ export const categoryRouter = {
     .input(deleteCategorySchema)
     .mutation(async ({ input, ctx }) => {
       try {
-        await categoryService.deleteCategory(input.categoryId, ctx.userId, input.deleteTransactions);
+        await categoryService.deleteCategory(input.id, ctx.userId, input.deleteTransactions);
         return { success: true };
       } catch (error) {
         mapServiceError(error);
@@ -55,13 +60,10 @@ export const categoryRouter = {
     .input(getCategorySchema)
     .query(async ({ input, ctx }) => {
       try {
-        const category = await categoryService.getCategory(
-          {
-            categoryId: input.categoryId,
-            userId: ctx.userId,
-          },
-          [],
-        );
+        const category = await categoryService.getCategory({
+          id: input.id,
+          userId: ctx.userId,
+        });
 
         if (!category) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Category not found' });

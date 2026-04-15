@@ -1,9 +1,11 @@
-import type { IncludeOptions, WhereOptions } from 'sequelize';
+import { AppDataSource } from '../data-source';
+import { User } from '../entities';
 import { ApiError } from '../enums';
 import { CustomError } from '../lib';
-import { UserModel } from '../models';
 import type { UserDTO } from '../types/DTOs';
 import { hashPassword } from '../utils';
+
+const repo = () => AppDataSource.getRepository(User);
 
 interface CreateUserInput {
   email: string;
@@ -12,12 +14,9 @@ interface CreateUserInput {
   password: string;
 }
 
-async function getUser(
-  where: WhereOptions<UserModel>,
-  include: IncludeOptions[] = [],
-): Promise<UserDTO | null> {
-  const user = await UserModel.findOne({ where, include });
-  return user ? (user.get({ plain: true }) as unknown as UserDTO) : null;
+async function getUser(where: Partial<Pick<User, 'email' | 'id'>>): Promise<UserDTO | null> {
+  const user = await repo().findOne({ where: where as any });
+  return user ?? null;
 }
 
 async function createUser(newUser: CreateUserInput): Promise<UserDTO> {
@@ -27,10 +26,10 @@ async function createUser(newUser: CreateUserInput): Promise<UserDTO> {
 
   newUser.password = await hashPassword(newUser.password);
 
-  // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
-  const user = await UserModel.create(newUser as any);
+  const user = repo().create(newUser);
+  await repo().save(user);
 
-  return user.get({ plain: true }) as unknown as UserDTO;
+  return user;
 }
 
 export const userService = {

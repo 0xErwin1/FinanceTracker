@@ -1,21 +1,18 @@
-import type { IncludeOptions, Transaction, WhereOptions } from 'sequelize';
+import { Between, type EntityManager } from 'typeorm';
 import { categoryService, financialGoalService } from '.';
-import { ApiError, CurrencyEnum, FinancialGoalsType, MonthEnum, TransactionType } from '../enums';
+import { AppDataSource } from '../data-source';
+import { Category, FinancialGoal, Transaction } from '../entities';
+import { ApiError, CurrencyEnum, FinancialGoalsType, TransactionType } from '../enums';
 import { CustomError, logger } from '../lib';
-import { CategoryModel, FinancialGoalModel, TransactionModel, sequelize } from '../models';
-import { redisClient } from '../redis';
 import type { CategoryDTO, TransactionDTO } from '../types/DTOs';
-import { type TransactionMetadata, TransactionsRedisMetadata } from '../types/redis_types';
 import type { Balances, TransactionBalances } from '../types/response/transactions';
 
 interface TransactionInput {
   type: TransactionType;
   amount: number;
-  day?: number;
-  month: MonthEnum;
-  year: number;
   currency: CurrencyEnum;
   note?: string;
+  date: string;
   exchangeRate?: number;
   userId: string;
   categoryId?: string;
@@ -23,211 +20,138 @@ interface TransactionInput {
   goalId?: string;
 }
 
-function toPlain(model: TransactionModel | null): TransactionDTO | null {
-  if (!model) return null;
-  return model.get({ plain: true }) as unknown as TransactionDTO;
-}
-
-function toPlainList(models: TransactionModel[]): TransactionDTO[] {
-  return models.map((m) => m.get({ plain: true }) as unknown as TransactionDTO);
-}
+const repo = () => AppDataSource.getRepository(Transaction);
 
 async function deleteTransaction(transactionId: string): Promise<void> {
-  const transaction = await getTrasaction(
-    {
-      transactionId,
-    },
-    [
-      {
-        model: FinancialGoalModel,
-      },
-    ],
-  );
+  const transaction = await getTransaction({ id: transactionId }, ['financialGoal']);
 
   if (!transaction) {
     throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
   }
 
-  if (transaction?.goalId) {
-    await financialGoalService.updateFinancialGoal(
-      {
-        currentAmount: transaction.financialGoal.currentAmount - transaction.amount,
-      },
-      {
-        goalId: transaction.goalId,
-      },
-    );
+  if (transaction.goalId) {
+    const currentAmount =
+      Number.parseFloat(String(transaction.financialGoal?.currentAmount)) -
+      Number.parseFloat(String(transaction.amount));
 
-    await updateTransaction(
-      {
-        goalId: null as unknown as string,
-      },
-      {
-        transactionId,
-      },
-    );
+    await financialGoalService.updateFinancialGoal({ currentAmount }, { id: transaction.goalId });
+
+    await repo().update(transactionId, { goalId: null });
   }
 
-  await TransactionModel.destroy({
-    where: {
-      transactionId,
-    },
-  });
+  await repo().delete(transactionId);
 }
 
 async function createTransactionByArray(
-  newTransaction: TransactionInput | TransactionInput[],
+  newTransactions: TransactionInput | TransactionInput[],
 ): Promise<TransactionDTO | TransactionDTO[]> {
-  const t = await sequelize().transaction();
-  try {
-    if (Array.isArray(newTransaction)) {
-      const transactionCreated: TransactionDTO[] = [];
-
-      for (const transactionData of newTransaction) {
-        const data = await createTransaction(transactionData, t, false);
-
-        transactionCreated.push(data);
-      }
-
-      await t.commit();
-
-      return transactionCreated;
-    }
-    return await createTransaction(newTransaction);
-  } catch (err) {
-    t.rollback();
-    throw err;
+  if (!Array.isArray(newTransactions)) {
+    return createTransaction(newTransactions);
   }
+
+  return AppDataSource.transaction(async (em) => {
+    const results: TransactionDTO[] = [];
+
+    for (const transactionData of newTransactions) {
+      const result = await createTransactionWithManager(em, transactionData);
+      results.push(result);
+    }
+
+    return results;
+  });
 }
 
-async function createTransaction(
-  newTransaction: TransactionInput,
-  sequelizeTransaction: Transaction | undefined = undefined,
-  commit = true,
+async function createTransaction(input: TransactionInput): Promise<TransactionDTO> {
+  return AppDataSource.transaction(async (em) => {
+    return createTransactionWithManager(em, input);
+  });
+}
+
+async function createTransactionWithManager(
+  em: EntityManager,
+  input: TransactionInput,
 ): Promise<TransactionDTO> {
-  const t = sequelizeTransaction ?? (await sequelize().transaction());
+  let category: CategoryDTO | null;
 
-  try {
-    let category: CategoryDTO | null;
-    if (newTransaction.categoryId) {
-      category = await categoryService.getCategory(
-        {
-          categoryId: newTransaction.categoryId,
-          type: newTransaction.type,
-          userId: newTransaction.userId,
-        },
-        [],
-        { transaction: t },
-      );
+  if (input.categoryId) {
+    category = await categoryService.getCategory({
+      id: input.categoryId,
+      type: input.type,
+      userId: input.userId,
+    });
 
-      logger.debug({
-        category,
-      });
+    logger.debug({ category });
 
-      if (!category) {
-        throw new CustomError(ApiError.Category.CATEGORY_NOT_EXIST);
-      }
-
-      if (category.type !== newTransaction.type) {
-        throw new CustomError(ApiError.Transaction.TRANSACTION_AND_CATEGORY_NOT_SAME_TYPE);
-      }
-    } else {
-      if (newTransaction.category?.type && newTransaction.category.type !== newTransaction.type) {
-        throw new CustomError(ApiError.Transaction.TRANSACTION_AND_CATEGORY_NOT_SAME_TYPE);
-      }
-
-      const type = newTransaction.category?.type ? newTransaction.category.type : newTransaction.type;
-
-      category = await categoryService.createCategory(
-        {
-          ...newTransaction.category,
-          type,
-          userId: newTransaction.userId,
-          note: '',
-          name: newTransaction.category?.name ?? '',
-        },
-        {
-          transaction: t,
-          commit: false,
-        },
-      );
+    if (!category) {
+      throw new CustomError(ApiError.Category.CATEGORY_NOT_EXIST);
     }
 
-    const transactionData = {
-      ...newTransaction,
-      category: undefined,
-      categoryId: category.categoryId,
-    };
+    if (category.type !== input.type) {
+      throw new CustomError(ApiError.Transaction.TRANSACTION_AND_CATEGORY_NOT_SAME_TYPE);
+    }
+  } else {
+    if (input.category?.type && input.category.type !== input.type) {
+      throw new CustomError(ApiError.Transaction.TRANSACTION_AND_CATEGORY_NOT_SAME_TYPE);
+    }
 
-    const transactionCreated: TransactionModel = await TransactionModel.create(
+    const type = input.category?.type ?? input.type;
+
+    category = await categoryService.createCategory(
       {
-        type: transactionData.type,
-        amount: transactionData.amount,
-        day: transactionData.day ?? new Date().getDate(),
-        month: transactionData.month,
-        year: transactionData.year,
-        currency: transactionData.currency,
-        note: transactionData.note ?? '',
-        userId: transactionData.userId,
-        categoryId: transactionData.categoryId,
-        exchangeRate: transactionData.exchangeRate ?? null,
-        // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch with plain data
-      } as any,
-      {
-        include: [
-          {
-            model: CategoryModel,
-          },
-        ],
-        transaction: t,
+        ...input.category,
+        type,
+        userId: input.userId,
+        note: '',
+        name: input.category?.name ?? '',
       },
+      { entityManager: em },
     );
-
-    if (commit) {
-      await t.commit();
-    }
-
-    const plainResult = toPlain(transactionCreated);
-    if (!plainResult) {
-      throw new Error('Failed to create transaction');
-    }
-
-    return plainResult;
-  } catch (err) {
-    if (commit) {
-      await t.rollback();
-    }
-
-    throw err;
   }
+
+  const transaction = em.create(Transaction, {
+    type: input.type,
+    amount: input.amount,
+    currency: input.currency,
+    note: input.note ?? '',
+    date: input.date,
+    exchangeRate: input.exchangeRate ?? null,
+    userId: input.userId,
+    categoryId: category.id,
+    goalId: input.goalId ?? null,
+  });
+
+  await em.save(transaction);
+
+  return transaction;
 }
 
-async function getBalance(month: MonthEnum | undefined): Promise<TransactionBalances> {
-  const transactions = await getAllTrasactions(
-    month
-      ? {
-          month,
-        }
-      : {},
-    [],
-  );
+async function getBalance(userId: string, dateFrom?: string, dateTo?: string): Promise<TransactionBalances> {
+  const where: any = { userId };
+  if (dateFrom || dateTo) {
+    where.date = Between(dateFrom ?? '1970-01-01', dateTo ?? '2999-12-31');
+  }
 
-  return calculateBalances(transactions);
+  const transactions = await getAllTransactions(where);
+
+  return calculateBalances(transactions as TransactionDTO[]);
 }
 
 function calculateBalance(transaction: TransactionDTO, balances: Balances): void {
+  const amount = Number.parseFloat(String(transaction.amount));
+  const rate = transaction.exchangeRate ? Number.parseFloat(String(transaction.exchangeRate)) : 1;
+
   switch (transaction.currency) {
     case CurrencyEnum.UYU:
-      balances.uyu += transaction.amount;
-      balances.total += transaction.amount;
+      balances.uyu += amount;
+      balances.total += amount;
       break;
     case CurrencyEnum.USD:
-      balances.usd += transaction.amount;
-      balances.total += transaction.amount * transaction.exchangeRate;
+      balances.usd += amount;
+      balances.total += amount * rate;
       break;
     case CurrencyEnum.EUR:
-      balances.eur += transaction.amount;
-      balances.total += transaction.amount * transaction.exchangeRate;
+      balances.eur += amount;
+      balances.total += amount * rate;
       break;
   }
 
@@ -238,26 +162,9 @@ function calculateBalance(transaction: TransactionDTO, balances: Balances): void
 }
 
 function calculateBalances(transactions: TransactionDTO[]): TransactionBalances {
-  const expenses: Balances = {
-    total: 0,
-    eur: 0,
-    usd: 0,
-    uyu: 0,
-  };
-
-  const incomes: Balances = {
-    total: 0,
-    eur: 0,
-    usd: 0,
-    uyu: 0,
-  };
-
-  const savings: Balances = {
-    total: 0,
-    eur: 0,
-    usd: 0,
-    uyu: 0,
-  };
+  const expenses: Balances = { total: 0, eur: 0, usd: 0, uyu: 0 };
+  const incomes: Balances = { total: 0, eur: 0, usd: 0, uyu: 0 };
+  const savings: Balances = { total: 0, eur: 0, usd: 0, uyu: 0 };
 
   for (const transaction of transactions) {
     switch (transaction.type) {
@@ -274,106 +181,110 @@ function calculateBalances(transactions: TransactionDTO[]): TransactionBalances 
     }
   }
 
-  return {
-    expenses,
-    incomes,
-    savings,
-  };
+  return { expenses, incomes, savings };
 }
 
-async function getAllTrasactions(
-  where: WhereOptions<TransactionModel>,
-  include: IncludeOptions[] = [],
+async function getAllTransactions(
+  where: Record<string, any> = {},
+  relations: string[] = ['category'],
 ): Promise<TransactionDTO[]> {
-  const trasactions = await TransactionModel.findAll({
+  return repo().find({
     where,
-    include,
+    relations,
+    order: { date: 'DESC' },
   });
-
-  return toPlainList(trasactions);
 }
 
-async function getTrasaction(
-  where: WhereOptions<TransactionModel>,
-  include: IncludeOptions[] = [],
+async function getTransaction(
+  where: Partial<Pick<Transaction, 'id' | 'userId' | 'goalId'>>,
+  relations: string[] = [],
 ): Promise<TransactionDTO | null> {
-  const trasaction = await TransactionModel.findOne({
-    where,
-    include,
-  });
+  let qb = repo().createQueryBuilder('transaction');
 
-  return toPlain(trasaction);
+  if (where.id) qb = qb.andWhere('transaction.id = :id', { id: where.id });
+  if (where.userId) qb = qb.andWhere('transaction.userId = :userId', { userId: where.userId });
+  if (where.goalId !== undefined) {
+    if (where.goalId === null) {
+      qb = qb.andWhere('transaction.goalId IS NULL');
+    } else {
+      qb = qb.andWhere('transaction.goalId = :goalId', { goalId: where.goalId });
+    }
+  }
+
+  for (const relation of relations) {
+    qb = qb.leftJoinAndSelect(`transaction.${relation}`, relation);
+  }
+
+  return qb.getOne() ?? null;
 }
 
 type MonthByYear = Record<string, string[]>;
 
 async function getMonthsAndYears(userId: string): Promise<MonthByYear> {
-  const transactions = await TransactionModel.findAll({
-    where: {
-      userId,
-    },
-    attributes: ['month', 'year'],
+  const transactions = await repo().find({
+    where: { userId },
+    select: ['date'],
   });
 
   const monthByYear: MonthByYear = {};
+  const monthNames = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
 
-  for (const value of transactions) {
-    const yearKey = String(value.year);
+  for (const t of transactions) {
+    const d = new Date(t.date);
+    const yearKey = String(d.getFullYear());
+    const monthName = monthNames[d.getMonth()];
+
     if (!Object.prototype.hasOwnProperty.call(monthByYear, yearKey)) {
       monthByYear[yearKey] = [];
     }
 
-    if (!monthByYear[yearKey].includes(value.month)) {
-      monthByYear[yearKey].push(value.month);
+    if (!monthByYear[yearKey].includes(monthName)) {
+      monthByYear[yearKey].push(monthName);
     }
 
-    monthByYear[yearKey].sort(
-      (a: string, b: string) =>
-        Object.values(MonthEnum).indexOf(a as MonthEnum) - Object.values(MonthEnum).indexOf(b as MonthEnum),
-    );
+    monthByYear[yearKey].sort((a, b) => monthNames.indexOf(a) - monthNames.indexOf(b));
   }
 
   return monthByYear;
 }
 
-async function updateTransaction<T extends object>(
-  newTransaction: T,
-  where: WhereOptions<TransactionModel>,
+async function updateTransaction(
+  data: Partial<Transaction>,
+  where: Partial<Pick<Transaction, 'id' | 'userId'>>,
 ): Promise<TransactionDTO> {
-  const transactions = await getAllTrasactions(where, []);
-
-  if (!transactions) {
-    throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
-  }
-
-  const updated = await TransactionModel.update(newTransaction as Partial<TransactionModel>, {
-    where,
-    returning: true,
-  });
-
-  return (updated as [number, TransactionModel[]])[1][0].get({ plain: true }) as unknown as TransactionDTO;
-}
-
-async function setGoalIdInTransaction(transactionId: string, goalId: string, userId: string): Promise<void> {
-  const transaction = await getTrasaction(
-    {
-      transactionId,
-      goalId: null as unknown as string,
-    },
-    [],
-  );
+  const transaction = await repo().findOne({ where: where as any });
 
   if (!transaction) {
     throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
   }
 
-  const financialGoal = await financialGoalService.getFinancialGoal(
-    {
-      goalId,
-      userId,
-    },
-    [],
-  );
+  Object.assign(transaction, data);
+  await repo().save(transaction);
+
+  return transaction;
+}
+
+async function setGoalIdInTransaction(transactionId: string, goalId: string, userId: string): Promise<void> {
+  const transaction = await getTransaction({ id: transactionId, goalId: null as unknown as string });
+
+  if (!transaction) {
+    throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
+  }
+
+  const financialGoal = await financialGoalService.getFinancialGoal({ id: goalId, userId });
 
   if (!financialGoal) {
     throw new CustomError(ApiError.FinancialGoal.FINANCIAL_GOAL_NOT_EXIST);
@@ -391,87 +302,27 @@ async function setGoalIdInTransaction(transactionId: string, goalId: string, use
     throw new CustomError(ApiError.Transaction.TRANSACTION_AND_GOAL_NOT_SAME_TYPE);
   }
 
-  await TransactionModel.update(
-    {
-      goalId,
-    },
-    {
-      where: {
-        userId,
-        transactionId,
-      },
-    },
-  );
+  await repo().update(transactionId, { goalId });
 
-  const currentAmount = financialGoal.currentAmount + transaction.amount;
+  const currentAmount =
+    Number.parseFloat(String(financialGoal.currentAmount)) + Number.parseFloat(String(transaction.amount));
 
-  await financialGoalService.updateFinancialGoal(
-    {
-      currentAmount,
-    },
-    {
-      goalId,
-    },
-  );
+  await financialGoalService.updateFinancialGoal({ currentAmount }, { id: goalId });
 }
 
-async function getTransactionsInRedis(
-  userId: string,
-): Promise<TransactionsRedisMetadata<TransactionDTO[]> | null> {
-  const transactions: string | null = await redisClient.get(`transactions:${userId}`);
+async function getTotalSavings(userId: string): Promise<number> {
+  const transactions = await repo().find({
+    where: { userId, type: TransactionType.SAVING },
+  });
 
-  return transactions ? JSON.parse(transactions) : null;
-}
-
-async function setTransactionsInRedis(
-  transactions: TransactionDTO[],
-  userId: string,
-  metadata: TransactionMetadata,
-): Promise<void> {
-  await redisClient.set(
-    `transactions:${userId}`,
-    JSON.stringify(new TransactionsRedisMetadata(transactions, metadata)),
-    {
-      EX: 30 * 60 * 1000, // 30 min
-    },
-  );
-}
-
-async function getBalanceTransactionInRedis(
-  userId: string,
-): Promise<TransactionsRedisMetadata<TransactionBalances> | null> {
-  const balance: string | null = await redisClient.get(`balances:${userId}`);
-
-  return balance ? JSON.parse(balance) : null;
-}
-
-async function setBalanceTransactionInRedis(
-  transactions: TransactionBalances,
-  userId: string,
-  metadata: TransactionMetadata,
-): Promise<void> {
-  await redisClient.set(
-    `balances:${userId}`,
-    JSON.stringify(new TransactionsRedisMetadata(transactions, metadata)),
-    {
-      EX: 30 * 60 * 1000, // 30 min
-    },
-  );
-}
-
-async function deleteTransactionsInRedis(userId: string): Promise<void> {
-  await redisClient.del(`transactions:${userId}`);
-}
-
-async function deleteBalanceTransactionInRedis(userId: string): Promise<void> {
-  await redisClient.del(`balances:${userId}`);
+  return transactions.reduce((sum, t) => sum + Number.parseFloat(String(t.amount)), 0);
 }
 
 export const transactionService = {
   deleteTransaction,
   createTransaction,
-  getTrasaction,
-  getAllTrasactions,
+  getTransaction,
+  getAllTransactions,
   createTransactionByArray,
   getMonthsAndYears,
   calculateBalance,
@@ -479,10 +330,5 @@ export const transactionService = {
   updateTransaction,
   getBalance,
   setGoalIdInTransaction,
-  getTransactionsInRedis,
-  setTransactionsInRedis,
-  getBalanceTransactionInRedis,
-  setBalanceTransactionInRedis,
-  deleteTransactionsInRedis,
-  deleteBalanceTransactionInRedis,
+  getTotalSavings,
 };

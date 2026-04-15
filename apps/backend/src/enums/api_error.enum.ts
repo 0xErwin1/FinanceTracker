@@ -34,11 +34,17 @@ export namespace ApiError {
   export enum Category {
     GENERIC = 5000,
     CATEGORY_NOT_EXIST = 5001,
-    CANNOT_DELETE_CATEGORY_TRASACTIONS = 5002,
+    CANNOT_DELETE_CATEGORY_TRANSACTIONS = 5002,
   }
 
   export enum FinancialGoal {
     GENERIC = 6000,
     FINANCIAL_GOAL_NOT_EXIST = 6001,
+  }
+
+  export namespace Budget {
+    export const BUDGET_NOT_EXIST = 7001;
+    export const BUDGET_ALREADY_EXISTS = 7002;
+    export const CATEGORY_NOT_FOUND = 7003;
   }
 }

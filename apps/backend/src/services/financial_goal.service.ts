@@ -1,83 +1,66 @@
-import type { IncludeOptions, WhereOptions } from 'sequelize';
-import { ApiError } from '../enums';
+import { AppDataSource } from '../data-source';
+import { FinancialGoal } from '../entities';
+import { ApiError, type CurrencyEnum, type FinancialGoalsType } from '../enums';
 import { CustomError } from '../lib';
-import { FinancialGoalModel } from '../models';
 import type { FinancialGoalDTO } from '../types/DTOs';
 
+const repo = () => AppDataSource.getRepository(FinancialGoal);
+
 interface CreateFinancialGoalInput {
-  type: string;
+  type: FinancialGoalsType;
   targetAmount: number;
-  currency: string;
+  currency: CurrencyEnum;
   note: string;
-  month: string;
-  year: number;
+  targetDate: string;
   name: string;
   userId: string;
 }
 
 interface UpdateGoalOptions {
-  type?: string;
+  type?: FinancialGoalsType;
   targetAmount?: number;
-  currency?: string;
+  currency?: CurrencyEnum;
   note?: string;
-  month?: string;
-  year?: number;
+  targetDate?: string;
   name?: string;
   currentAmount?: number;
 }
 
-async function createFinancialGoal(newGoal: CreateFinancialGoalInput): Promise<FinancialGoalDTO> {
-  // biome-ignore lint/suspicious/noExplicitAny: Sequelize create() type mismatch
-  const financialGoal = await FinancialGoalModel.create(newGoal as any);
-
-  return financialGoal.get({ plain: true }) as unknown as FinancialGoalDTO;
+async function createFinancialGoal(input: CreateFinancialGoalInput): Promise<FinancialGoalDTO> {
+  const goal = repo().create(input);
+  await repo().save(goal);
+  return goal;
 }
 
 async function updateFinancialGoal(
-  newGoal: UpdateGoalOptions,
-  where: WhereOptions<FinancialGoalModel>,
+  data: UpdateGoalOptions,
+  where: Partial<Pick<FinancialGoal, 'id' | 'userId'>>,
 ): Promise<FinancialGoalDTO> {
-  const financialGoal = await FinancialGoalModel.findOne({
-    where,
-  });
+  const goal = await repo().findOne({ where: where as any });
 
-  if (!financialGoal) {
+  if (!goal) {
     throw new CustomError(ApiError.FinancialGoal.FINANCIAL_GOAL_NOT_EXIST);
   }
 
-  // biome-ignore lint/suspicious/noExplicitAny: Sequelize update() type mismatch
-  const updated = await FinancialGoalModel.update(newGoal as any, {
-    where,
-    returning: true,
-  });
+  Object.assign(goal, data);
+  await repo().save(goal);
 
-  return (updated as [number, FinancialGoalModel[]])[1][0].get({
-    plain: true,
-  }) as unknown as FinancialGoalDTO;
+  return goal;
 }
 
 async function getFinancialGoal(
-  where: WhereOptions<FinancialGoalModel>,
-  include: IncludeOptions[],
+  where: Partial<Pick<FinancialGoal, 'id' | 'userId'>>,
+  relations: string[] = [],
 ): Promise<FinancialGoalDTO | null> {
-  const financialGoal = await FinancialGoalModel.findOne({
-    where,
-    include,
-  });
-
-  return financialGoal ? (financialGoal.get({ plain: true }) as unknown as FinancialGoalDTO) : null;
+  const goal = await repo().findOne({ where: where as any, relations });
+  return goal ?? null;
 }
 
 async function getAllFinancialGoals(
-  where: WhereOptions<FinancialGoalModel>,
-  include: IncludeOptions[],
+  where: Partial<Pick<FinancialGoal, 'userId'>>,
+  relations: string[] = [],
 ): Promise<FinancialGoalDTO[]> {
-  const financialGoals = await FinancialGoalModel.findAll({
-    where,
-    include,
-  });
-
-  return financialGoals.map((g) => g.get({ plain: true }) as unknown as FinancialGoalDTO);
+  return repo().find({ where: where as any, relations });
 }
 
 export const financialGoalService = {

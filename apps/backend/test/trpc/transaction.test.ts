@@ -1,5 +1,5 @@
+import { CurrencyEnum, TransactionType } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
-import { TransactionType, CurrencyEnum, MonthEnum } from '@expenses/api';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
@@ -17,7 +17,7 @@ describe('transaction router', () => {
   beforeEach(async () => {
     await truncateAllTables();
     const user = await seedUser();
-    userId = user.userId;
+    userId = user.id;
     caller = createAuthenticatedCaller(userId);
   });
 
@@ -31,9 +31,8 @@ describe('transaction router', () => {
           type: TransactionType.EXPENSE,
           amount: 100,
           currency: CurrencyEnum.USD,
-          month: MonthEnum.JANUARY,
-          year: 2025,
-          categoryId: category.categoryId,
+          date: '2025-01-15',
+          categoryId: category.id,
         },
       });
 
@@ -49,16 +48,13 @@ describe('transaction router', () => {
           type: TransactionType.EXPENSE,
           amount: 50,
           currency: CurrencyEnum.USD,
-          month: MonthEnum.JANUARY,
-          year: 2025,
+          date: '2025-01-15',
           category: { name: 'Inline Cat' },
         },
       });
 
       expect(result).toBeDefined();
       expect((result as any).amount).toBe(50);
-
-      // Inline category was created and linked
     });
 
     it('should reject invalid input (negative amount)', async () => {
@@ -69,8 +65,7 @@ describe('transaction router', () => {
             type: TransactionType.EXPENSE,
             amount: -100,
             currency: CurrencyEnum.USD,
-            month: MonthEnum.JANUARY,
-            year: 2025,
+            date: '2025-01-15',
           },
         }),
       ).rejects.toThrow();
@@ -84,8 +79,7 @@ describe('transaction router', () => {
             type: TransactionType.EXPENSE,
             amount: 100,
             currency: CurrencyEnum.USD,
-            month: MonthEnum.JANUARY,
-            year: 2025,
+            date: '2025-01-15',
           },
         }),
       ).rejects.toThrow(TRPCError);
@@ -101,15 +95,13 @@ describe('transaction router', () => {
             type: TransactionType.EXPENSE,
             amount: 100,
             currency: CurrencyEnum.USD,
-            month: MonthEnum.JANUARY,
-            year: 2025,
+            date: '2025-01-15',
           },
           {
             type: TransactionType.INCOME,
             amount: 200,
             currency: CurrencyEnum.USD,
-            month: MonthEnum.JANUARY,
-            year: 2025,
+            date: '2025-01-15',
           },
         ],
       });
@@ -137,7 +129,7 @@ describe('transaction router', () => {
       const result = await caller.transaction.getAll({ type: TransactionType.INCOME });
 
       expect(result).toHaveLength(1);
-      expect(result![0].type).toBe(TransactionType.INCOME);
+      expect(result?.[0].type).toBe(TransactionType.INCOME);
     });
 
     it('should return empty array when no transactions exist', async () => {
@@ -152,11 +144,11 @@ describe('transaction router', () => {
       const transaction = await seedTransaction(userId, { amount: 150 });
 
       const result = await caller.transaction.getById({
-        transactionId: transaction.transactionId,
+        id: transaction.id,
       });
 
       expect(result).toBeDefined();
-      expect(result!.amount).toBe(150);
+      expect(result?.amount).toBe(150);
     });
 
     it('should throw NOT_FOUND for missing transaction', async () => {
@@ -164,7 +156,7 @@ describe('transaction router', () => {
 
       await expect(
         caller.transaction.getById({
-          transactionId: uuidv4(),
+          id: uuidv4(),
         }),
       ).rejects.toThrow(TRPCError);
     });
@@ -189,7 +181,7 @@ describe('transaction router', () => {
       const transaction = await seedTransaction(userId);
 
       const result = await caller.transaction.delete({
-        transactionId: transaction.transactionId,
+        id: transaction.id,
       });
 
       expect(result).toEqual({ success: true });
@@ -200,7 +192,7 @@ describe('transaction router', () => {
 
       await expect(
         caller.transaction.delete({
-          transactionId: uuidv4(),
+          id: uuidv4(),
         }),
       ).rejects.toThrow(TRPCError);
     });

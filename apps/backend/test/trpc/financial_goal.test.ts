@@ -1,5 +1,5 @@
+import { CurrencyEnum, FinancialGoalsType } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
-import { FinancialGoalsType, CurrencyEnum, MonthEnum } from '@expenses/api';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
@@ -16,7 +16,7 @@ describe('financialGoal router', () => {
   beforeEach(async () => {
     await truncateAllTables();
     const user = await seedUser();
-    userId = user.userId;
+    userId = user.id;
     caller = createAuthenticatedCaller(userId);
   });
 
@@ -27,26 +27,24 @@ describe('financialGoal router', () => {
         targetAmount: 1000,
         currency: CurrencyEnum.USD,
         name: 'Save on food',
-        month: MonthEnum.JANUARY,
-        year: 2026,
+        targetDate: '2026-01-01',
       });
 
       expect(result).toBeDefined();
-      expect(result!.name).toBe('Save on food');
-      expect(result!.type).toBe(FinancialGoalsType.SPEND_LESS);
-      expect(result!.targetAmount).toBe(1000);
-      expect(result!.currency).toBe(CurrencyEnum.USD);
+      expect(result?.name).toBe('Save on food');
+      expect(result?.type).toBe(FinancialGoalsType.SPEND_LESS);
+      expect(result?.targetAmount).toBe(1000);
+      expect(result?.currency).toBe(CurrencyEnum.USD);
     });
 
-    it('should reject invalid input (zero targetAmount)', async () => {
+    it('should reject invalid input (negative targetAmount)', async () => {
       await expect(
         caller.financialGoal.create({
           type: FinancialGoalsType.SPEND_LESS,
           targetAmount: -1,
           currency: CurrencyEnum.USD,
           name: 'Invalid',
-          month: MonthEnum.JANUARY,
-          year: 2026,
+          targetDate: '2026-01-01',
         }),
       ).rejects.toThrow();
     });
@@ -58,8 +56,7 @@ describe('financialGoal router', () => {
           targetAmount: 1000,
           currency: CurrencyEnum.USD,
           name: 'Save on food',
-          month: MonthEnum.JANUARY,
-          year: 2026,
+          targetDate: '2026-01-01',
         }),
       ).rejects.toThrow(TRPCError);
     });
@@ -73,7 +70,9 @@ describe('financialGoal router', () => {
       const result = await caller.financialGoal.getAll();
 
       expect(result).toHaveLength(2);
-      expect(result.map((g: { name: string }) => g.name)).toEqual(expect.arrayContaining(['Goal 1', 'Goal 2']));
+      expect(result.map((g: { name: string }) => g.name)).toEqual(
+        expect.arrayContaining(['Goal 1', 'Goal 2']),
+      );
     });
 
     it('should return empty array when no goals exist', async () => {
@@ -88,11 +87,11 @@ describe('financialGoal router', () => {
       const goal = await seedFinancialGoal(userId, { name: 'My Goal' });
 
       const result = await caller.financialGoal.getById({
-        goalId: goal.goalId,
+        id: goal.id,
       });
 
       expect(result).toBeDefined();
-      expect(result!.name).toBe('My Goal');
+      expect(result?.name).toBe('My Goal');
     });
 
     it('should throw for missing goal', async () => {
@@ -100,7 +99,7 @@ describe('financialGoal router', () => {
 
       await expect(
         caller.financialGoal.getById({
-          goalId: uuidv4(),
+          id: uuidv4(),
         }),
       ).rejects.toThrow();
     });
