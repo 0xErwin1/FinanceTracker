@@ -18,8 +18,8 @@ interface TransactionInput {
   categoryId?: string;
   category?: { type?: TransactionType; name?: string };
   goalId?: string;
-  totalInstallments?: number;
   recurringTransactionId?: string;
+  obligationId?: string;
 }
 
 const repo = () => AppDataSource.getRepository(Transaction);
@@ -75,60 +75,10 @@ async function createTransaction(input: TransactionInput): Promise<TransactionDT
   });
 }
 
-async function createInstallmentPlanWithManager(
-  em: EntityManager,
-  input: TransactionInput,
-): Promise<TransactionDTO[]> {
-  const { totalInstallments, amount, date, ...rest } = input;
-  const installmentAmount = Math.round((amount / totalInstallments!) * 100) / 100;
-  const startDate = new Date(date);
-
-  const parent = em.create(Transaction, {
-    ...rest,
-    amount,
-    date,
-    type: TransactionType.INSTALLMENTS,
-    totalInstallments,
-    installmentNumber: null,
-    installmentPlanId: null,
-  });
-
-  await em.save(parent);
-
-  const children: Transaction[] = [];
-
-  for (let i = 1; i <= totalInstallments!; i++) {
-    const childDate = new Date(startDate);
-    childDate.setMonth(childDate.getMonth() + (i - 1));
-
-    const child = em.create(Transaction, {
-      ...rest,
-      amount: installmentAmount,
-      date: childDate.toISOString().split('T')[0],
-      type: TransactionType.INSTALLMENTS,
-      totalInstallments: null,
-      installmentNumber: i,
-      installmentPlanId: parent.id,
-    });
-
-    children.push(child);
-  }
-
-  await em.save(children);
-
-  await cacheInvalidateUser(input.userId);
-
-  return [parent, ...children];
-}
-
 async function createTransactionWithManager(
   em: EntityManager,
   input: TransactionInput,
-): Promise<TransactionDTO | TransactionDTO[]> {
-  if (input.type === TransactionType.INSTALLMENTS && input.totalInstallments) {
-    return createInstallmentPlanWithManager(em, input);
-  }
-
+): Promise<TransactionDTO> {
   let category: CategoryDTO | null;
 
   if (input.categoryId) {
@@ -178,6 +128,7 @@ async function createTransactionWithManager(
     categoryId: category.id,
     goalId: input.goalId ?? null,
     recurringTransactionId: input.recurringTransactionId ?? null,
+    obligationId: input.obligationId ?? null,
   });
 
   await em.save(transaction);
@@ -238,7 +189,6 @@ function calculateBalances(transactions: TransactionDTO[]): TransactionBalances 
   for (const transaction of transactions) {
     switch (transaction.type) {
       case TransactionType.EXPENSE:
-      case TransactionType.INSTALLMENTS:
         calculateBalance(transaction, expenses);
         break;
       case TransactionType.INCOME:
@@ -380,9 +330,8 @@ async function setGoalIdInTransaction(transactionId: string, goalId: string, use
   }
 
   if (
-    (financialGoal.type === FinancialGoalsType.SPEND_LESS &&
-      ![TransactionType.EXPENSE, TransactionType.INSTALLMENTS].includes(transaction.type)) ||
-    (financialGoal.type === FinancialGoalsType.SAVING && ![TransactionType.SAVING].includes(transaction.type))
+    (financialGoal.type === FinancialGoalsType.SPEND_LESS && transaction.type !== TransactionType.EXPENSE) ||
+    (financialGoal.type === FinancialGoalsType.SAVING && transaction.type !== TransactionType.SAVING)
   ) {
     throw new CustomError(ApiError.Transaction.TRANSACTION_AND_GOAL_NOT_SAME_TYPE);
   }
@@ -415,7 +364,7 @@ async function getTotalSavings(userId: string): Promise<number> {
 export const transactionService = {
   deleteTransaction,
   createTransaction,
-  createInstallmentPlanWithManager,
+  createTransactionWithManager,
   getTransaction,
   getAllTransactions,
   createTransactionByArray,

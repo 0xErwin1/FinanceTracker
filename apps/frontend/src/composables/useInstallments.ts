@@ -1,79 +1,60 @@
-import { computed, type ComputedRef, type Ref } from 'vue';
-import type { trpc } from '@/api/trpc';
-import type { InstallmentPlan } from '@/types';
-import { groupBy } from '@/utils/groupBy';
+import { ref, computed, type ComputedRef, type Ref } from 'vue';
+import { trpc } from '@/api/trpc';
+import type { InstallmentPlanDTO, InstallmentObligationDTO } from '@expenses/api';
 
-type TransactionItem = Awaited<ReturnType<typeof trpc.transaction.getAll.query>>[number];
+type PlanResult = Awaited<ReturnType<typeof trpc.installment.getAllPlans.query>>;
 
 interface InstallmentResult {
-  /** Grouped installment plans. */
-  plans: ComputedRef<InstallmentPlan[]>;
+  /** Plans fetched directly from the installment API. */
+  plans: Ref<PlanResult>;
   /** Total active plans count. */
   totalActivePlans: ComputedRef<number>;
-  /** Total remaining debt across all plans. */
+  /** Total remaining debt across all active plans (sum of PENDING obligations). */
   totalRemaining: ComputedRef<number>;
+  /** Loading state. */
+  loading: ComputedRef<boolean>;
+  /** Refetch plans from the API. */
+  refetch: () => Promise<void>;
 }
 
 /**
- * Groups transactions by installmentPlanId and computes
- * progress per plan (paid/total) and timeline entries.
- * Takes a reactive transactions array as input.
+ * Fetches installment plans with obligations from the dedicated
+ * installment tRPC router. No transaction filtering or date heuristics.
  */
-export function useInstallments(transactions: Ref<TransactionItem[]>): InstallmentResult {
-  const plans = computed<InstallmentPlan[]>(() => {
-    const installments = transactions.value.filter((t) => t.type === 'INSTALLMENTS' && t.installmentPlanId);
+export function useInstallments(): InstallmentResult {
+  const plans = ref<PlanResult>([] as unknown as PlanResult);
+  const loading = ref(true);
 
-    const grouped = groupBy(installments, (t) => t.installmentPlanId as string);
+  async function fetch() {
+    loading.value = true;
 
-    return Object.entries(grouped).map(([planId, txs]) => {
-      const sorted = [...txs].sort((a, b) => (a.installmentNumber ?? 0) - (b.installmentNumber ?? 0));
+    try {
+      plans.value = await trpc.installment.getAllPlans.query({});
+    } catch (err) {
+      console.error('Failed to fetch installment plans:', err);
+    } finally {
+      loading.value = false;
+    }
+  }
 
-      const totalInstallments = sorted[0]?.totalInstallments ?? 0;
-
-      // An installment is "paid" if its date is today or in the past.
-      // Future-dated installments are considered pending.
-      const today = new Date().toISOString().split('T')[0];
-      const paidInstallments = sorted.filter((t) => t.date && t.date.split('T')[0] <= today).length;
-
-      const totalAmount = sorted.reduce((sum, t) => sum + Number(t.amount), 0);
-
-      return {
-        planId,
-        description: sorted[0]?.note ?? `Plan ${planId.slice(0, 8)}`,
-        totalAmount,
-        currency: sorted[0]?.currency ?? 'USD',
-        paidInstallments,
-        totalInstallments,
-        nextPaymentDate: null,
-        transactions: sorted.map((t) => ({
-          id: t.id,
-          description: t.note ?? '',
-          category: (t.category as { name: string } | null)?.name ?? '',
-          amount: Number(t.amount),
-          currency: t.currency,
-          date: t.date,
-          type: t.type,
-          installmentPlanId: t.installmentPlanId,
-          installmentNumber: t.installmentNumber,
-          totalInstallments: t.totalInstallments,
-        })),
-      };
-    });
-  });
+  fetch();
 
   const totalActivePlans = computed(() => plans.value.length);
 
   const totalRemaining = computed(() =>
-    plans.value.reduce(
-      (sum, plan) =>
-        sum + plan.totalAmount * (1 - plan.paidInstallments / Math.max(plan.totalInstallments, 1)),
-      0,
-    ),
+    plans.value.reduce((sum, plan) => {
+      const pending = (plan.obligations ?? []).filter(
+        (o: InstallmentObligationDTO) => o.status === 'PENDING',
+      );
+      return sum + pending.reduce((s, o: InstallmentObligationDTO) => s + Number(o.amount), 0);
+    }, 0),
   );
 
   return {
-    plans,
+    plans: computed(() => plans.value),
     totalActivePlans,
     totalRemaining,
+    loading: computed(() => loading.value),
+    refetch: fetch,
   };
 }

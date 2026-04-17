@@ -56,4 +56,13 @@ export namespace ApiError {
     export const INVALID_DAY_OF_MONTH = 8002;
     export const CATEGORY_NOT_FOUND = 8003;
   }
+
+  export namespace Installment {
+    export const GENERIC = 9000;
+    export const NOT_EXIST = 9001;
+    export const INVALID_INSTALLMENTS_COUNT = 9002;
+    export const OBLIGATION_ALREADY_PAID = 9003;
+    export const OBLIGATION_NOT_FOUND = 9004;
+    export const OBLIGATION_NOT_PENDING = 9005;
+  }
 }

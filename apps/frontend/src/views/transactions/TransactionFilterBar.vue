@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { Search } from 'lucide-vue-next';
+
 interface CategoryOption {
   id: string;
   name: string;
 }
 
 interface Props {
+  searchFilter: string;
   typeFilter: string;
   categoryFilter: string;
   dateFrom: string;
@@ -15,6 +18,7 @@ interface Props {
 defineProps<Props>();
 
 const emit = defineEmits<{
+  'update:searchFilter': [value: string];
   'update:typeFilter': [value: string];
   'update:categoryFilter': [value: string];
   'update:dateFrom': [value: string];
@@ -37,6 +41,27 @@ const selectClass =
   <div
     class="flex items-end gap-4 rounded-base border border-border-default bg-bg-card p-4"
   >
+    <!-- Search -->
+    <div class="flex flex-col gap-1.5">
+      <label for="filter-search" class="text-xs font-medium text-text-muted">
+        Search
+      </label>
+
+      <div
+        class="flex items-center gap-2 rounded-base border border-border-default bg-bg-primary px-3 py-1.5"
+      >
+        <Search :size="16" class="text-text-muted" />
+        <input
+          id="filter-search"
+          :value="searchFilter"
+          type="text"
+          placeholder="Search note or category..."
+          class="w-56 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
+          @input="emit('update:searchFilter', ($event.target as HTMLInputElement).value)"
+        />
+      </div>
+    </div>
+
     <!-- Operation Type -->
     <div class="flex flex-col gap-1.5">
       <label for="filter-type" class="text-xs font-medium text-text-muted">

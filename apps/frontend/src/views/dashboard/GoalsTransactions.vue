@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import DataTable from '@/components/base/DataTable.vue';
 import Badge from '@/components/base/Badge.vue';
 import ProgressBar from '@/components/base/ProgressBar.vue';
@@ -35,6 +36,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const router = useRouter();
 
 const columns = [
   { key: 'date', label: 'Date' },
@@ -63,15 +65,10 @@ const recentRows = computed(() =>
 
 /** Top 3 goals with computed percentage. */
 const topGoals = computed(() =>
-  props.goals
-    .slice(0, 3)
-    .map((g) => ({
-      ...g,
-      percentage:
-        g.targetAmount > 0
-          ? Math.round((g.currentAmount / g.targetAmount) * 100)
-          : 0,
-    })),
+  props.goals.slice(0, 3).map((g) => ({
+    ...g,
+    percentage: g.targetAmount > 0 ? Math.round((g.currentAmount / g.targetAmount) * 100) : 0,
+  })),
 );
 
 function badgeVariant(pct: number): 'success' | 'warning' | 'info' {
@@ -107,7 +104,8 @@ function badgeVariant(pct: number): 'success' | 'warning' | 'info' {
     <template v-else>
       <!-- Left card: Recent Transactions -->
       <div
-        class="rounded-base border border-border-default bg-bg-card p-5"
+        class="cursor-pointer rounded-base border border-border-default bg-bg-card p-5 transition-colors hover:bg-bg-card-hover"
+        @click="router.push('/transactions')"
       >
         <div class="mb-3 flex items-center justify-between">
           <h3 class="text-sm font-medium text-text-primary">
@@ -166,11 +164,15 @@ function badgeVariant(pct: number): 'success' | 'warning' | 'info' {
 
       <!-- Right card: Goals Progress -->
       <div
-        class="rounded-base border border-border-default bg-bg-card p-5"
+        class="cursor-pointer rounded-base border border-border-default bg-bg-card p-5 transition-colors hover:bg-bg-card-hover"
+        @click="router.push('/goals')"
       >
-        <h3 class="mb-4 text-sm font-medium text-text-primary">
-          Goals Progress
-        </h3>
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="text-sm font-medium text-text-primary">
+            Goals Progress
+          </h3>
+          <span class="text-text-muted">&#8250;</span>
+        </div>
 
         <div
           v-if="topGoals.length === 0"

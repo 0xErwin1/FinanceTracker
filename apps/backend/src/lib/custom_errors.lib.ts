@@ -118,8 +118,8 @@ customErrors[ApiError.User.USER_ALREADY_EXISTS] = {
 customErrors[ApiError.Transaction.TRANSACTION_AND_GOAL_NOT_SAME_TYPE] = {
   message: 'Transaction and goal are not of the same type.',
   showMessage: {
-    EN: `Transaction and goal are not of the same type. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.INSTALLMENTS}|${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING})`,
-    ES: `La transacción y el objetivo no son del mismo tipo. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.INSTALLMENTS}|${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING})`,
+    EN: `Transaction and goal are not of the same type. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING})`,
+    ES: `La transacción y el objetivo no son del mismo tipo. (${FinancialGoalsType.SPEND_LESS} == ${TransactionType.EXPENSE} || ${FinancialGoalsType.SAVING} == ${TransactionType.SAVING})`,
   },
   HTTPStatusCode: StatusCodes.CONFLICT,
 };
@@ -252,6 +252,52 @@ customErrors[ApiError.RecurringTransaction.CATEGORY_NOT_FOUND] = {
     ES: 'Categoría no encontrada',
   },
   HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+// Installment
+customErrors[ApiError.Installment.NOT_EXIST] = {
+  message: 'Installment plan not exist',
+  showMessage: {
+    EN: 'Installment plan not exist',
+    ES: 'El plan de cuotas no existe',
+  },
+  HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+customErrors[ApiError.Installment.INVALID_INSTALLMENTS_COUNT] = {
+  message: 'Installments count must be at least 2',
+  showMessage: {
+    EN: 'Installments count must be at least 2',
+    ES: 'La cantidad de cuotas debe ser al menos 2',
+  },
+  HTTPStatusCode: StatusCodes.BAD_REQUEST,
+};
+
+customErrors[ApiError.Installment.OBLIGATION_ALREADY_PAID] = {
+  message: 'Obligation is already paid',
+  showMessage: {
+    EN: 'Obligation is already paid',
+    ES: 'La obligación ya está paga',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
+};
+
+customErrors[ApiError.Installment.OBLIGATION_NOT_FOUND] = {
+  message: 'Obligation not found',
+  showMessage: {
+    EN: 'Obligation not found',
+    ES: 'Obligación no encontrada',
+  },
+  HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+customErrors[ApiError.Installment.OBLIGATION_NOT_PENDING] = {
+  message: 'Obligation is not in PENDING status',
+  showMessage: {
+    EN: 'Obligation is not in PENDING status',
+    ES: 'La obligación no está en estado PENDIENTE',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
 };
 
 export { customErrors };

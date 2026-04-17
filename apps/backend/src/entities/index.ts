@@ -5,3 +5,5 @@ export { Transaction } from './transaction.entity';
 export { FinancialGoal } from './financial_goal.entity';
 export { Budget } from './budget.entity';
 export { RecurringTransaction } from './recurring_transaction.entity';
+export { InstallmentPlan } from './installment_plan.entity';
+export { InstallmentObligation } from './installment_obligation.entity';

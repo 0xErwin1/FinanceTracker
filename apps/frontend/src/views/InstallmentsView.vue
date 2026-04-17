@@ -1,39 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { trpc } from '@/api/trpc';
-import { useTransactions } from '@/composables/useTransactions';
 import { useInstallments } from '@/composables/useInstallments';
 import PageHeader from './installments/PageHeader.vue';
 import PlanCards from './installments/PlanCards.vue';
 import TimelineSection from './installments/TimelineSection.vue';
 import BottomMetrics from './installments/BottomMetrics.vue';
 
-const { transactions, loading, refetch } = useTransactions();
-
-const { plans, totalActivePlans, totalRemaining } = useInstallments(transactions);
+const { plans, totalRemaining, loading, refetch } = useInstallments();
 
 const isLoading = computed(() => loading.value);
 
-async function handlePay(transactionId: string) {
-  const today = new Date().toISOString().split('T')[0];
-
+async function handlePay(obligationId: string) {
   try {
-    await trpc.transaction.update.mutate({
-      id: transactionId,
-      date: today,
-    });
+    await trpc.installment.payObligation.mutate({ obligationId });
     await refetch();
   } catch (err) {
-    console.error('Failed to mark installment as paid:', err);
+    console.error('Failed to pay obligation:', err);
   }
 }
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <!-- Section 1: Page Header -->
     <PageHeader
-      :total-active-plans="totalActivePlans"
       :loading="isLoading"
     />
 
@@ -43,18 +34,18 @@ async function handlePay(transactionId: string) {
       :loading="isLoading"
     />
 
-    <!-- Section 3: Detailed Timeline -->
-    <TimelineSection
-      :plans="plans"
-      :loading="isLoading"
-      @pay="handlePay"
-    />
-
-    <!-- Section 4: Bottom Metrics -->
+    <!-- Section 3: Summary Metrics (promoted above timeline) -->
     <BottomMetrics
       :plans="plans"
       :total-remaining="totalRemaining"
       :loading="isLoading"
+    />
+
+    <!-- Section 4: Detailed Timeline -->
+    <TimelineSection
+      :plans="plans"
+      :loading="isLoading"
+      @pay="handlePay"
     />
   </div>
 </template>

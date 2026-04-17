@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useRouter } from 'vue-router';
 import type { CategorySplit, BudgetCategory } from '@/types';
 import ProgressBar from '@/components/base/ProgressBar.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
@@ -13,6 +14,7 @@ interface Props {
 }
 
 const props = defineProps<Props>();
+const router = useRouter();
 
 /** Top 3 budget items by percentage spent. */
 const topBudgets = computed(() =>
@@ -56,11 +58,15 @@ function barColor(pct: number): string {
     <template v-else>
       <!-- Left card: Budget Alerts -->
       <div
-        class="rounded-base border border-border-default bg-bg-card p-5"
+        class="cursor-pointer rounded-base border border-border-default bg-bg-card p-5 transition-colors hover:bg-bg-card-hover"
+        @click="router.push('/budgets')"
       >
-        <p class="mb-4 text-xs font-medium tracking-wider text-text-muted">
-          BUDGET CONSTRAINTS
-        </p>
+        <div class="mb-4 flex items-center justify-between">
+          <p class="text-xs font-medium tracking-wider text-text-muted">
+            BUDGET CONSTRAINTS
+          </p>
+          <span class="text-text-muted">&#8250;</span>
+        </div>
 
         <div v-if="topBudgets.length === 0" class="py-4 text-center text-xs text-text-muted">
           No budget data available

@@ -27,46 +27,23 @@ interface AggregationResult {
 }
 
 /**
- * Returns true for transactions that behave as expenses in dashboard
- * aggregations: EXPENSE type, and paid INSTALLMENTS (date <= today).
- * Future-dated installments are excluded since they are not yet realized.
- */
-function isExpenseLike(t: TransactionItem): boolean {
-  if (t.type === 'EXPENSE') return true;
-  if (t.type === 'INSTALLMENTS') {
-    const today = new Date().toISOString().split('T')[0];
-    const d = (t.date as string)?.split('T')[0] ?? '';
-    return d <= today;
-  }
-  return false;
-}
-
-/**
- * Returns true for transactions that count as income.
- * Currently only INCOME type. SAVING is a transfer, not income.
- */
-function isIncomeLike(t: TransactionItem): boolean {
-  return t.type === 'INCOME';
-}
-
-/**
  * Pure computation composable that derives dashboard metrics
  * from an array of transactions. No API calls -- takes a Ref
  * of transactions as input.
  */
 export function useAggregations(transactions: Ref<TransactionItem[]>): AggregationResult {
   const totalIncome = computed(() =>
-    transactions.value.filter(isIncomeLike).reduce((sum, t) => sum + Number(t.amount), 0),
+    transactions.value.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + Number(t.amount), 0),
   );
 
   const totalExpenses = computed(() =>
-    transactions.value.filter(isExpenseLike).reduce((sum, t) => sum + Number(t.amount), 0),
+    transactions.value.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0),
   );
 
   const netSavings = computed(() => totalIncome.value - totalExpenses.value);
 
   const monthlyVelocity = computed<ChartDataPoint[]>(() => {
-    const expenses = transactions.value.filter(isExpenseLike);
+    const expenses = transactions.value.filter((t) => t.type === 'EXPENSE');
     const grouped = groupBy(expenses, (t) => {
       const d = new Date(t.date);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -89,8 +66,14 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     };
 
-    const incomesByMonth = groupBy(transactions.value.filter(isIncomeLike), monthKey);
-    const expensesByMonth = groupBy(transactions.value.filter(isExpenseLike), monthKey);
+    const incomesByMonth = groupBy(
+      transactions.value.filter((t) => t.type === 'INCOME'),
+      monthKey,
+    );
+    const expensesByMonth = groupBy(
+      transactions.value.filter((t) => t.type === 'EXPENSE'),
+      monthKey,
+    );
 
     const allMonths = new Set([...Object.keys(incomesByMonth), ...Object.keys(expensesByMonth)]);
 
@@ -118,11 +101,13 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
 
     const currentMonthTx = transactions.value.filter((t) => (t.date as string).startsWith(monthPrefix));
 
-    const incomesByDay = groupBy(currentMonthTx.filter(isIncomeLike), (t) =>
-      String(new Date(t.date).getDate()),
+    const incomesByDay = groupBy(
+      currentMonthTx.filter((t) => t.type === 'INCOME'),
+      (t) => String(new Date(t.date).getDate()),
     );
-    const expensesByDay = groupBy(currentMonthTx.filter(isExpenseLike), (t) =>
-      String(new Date(t.date).getDate()),
+    const expensesByDay = groupBy(
+      currentMonthTx.filter((t) => t.type === 'EXPENSE'),
+      (t) => String(new Date(t.date).getDate()),
     );
 
     let runningBalance = 0;
@@ -153,28 +138,25 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
   });
 
   const spendingByCategory = computed<CategorySplit[]>(() => {
-    const expenses = transactions.value.filter(isExpenseLike);
+    const expenses = transactions.value.filter((t) => t.type === 'EXPENSE');
     const grouped = groupBy(
       expenses,
       (t) => (t.category as { name: string } | null)?.name ?? 'Uncategorized',
     );
 
-    const palette = ['#e8c468', '#564338', '#8b6914', '#d4a843', '#3d2e1f', '#4ade80', '#60a5fa', '#f87171'];
     const entries = Object.entries(grouped).map(([cat, txs]) => ({
       category: cat,
       amount: txs.reduce((sum, t) => sum + Number(t.amount), 0),
+      color:
+        txs.find((t) => (t.category as { color?: string | null } | null)?.color)?.category?.color ??
+        '#64748b',
     }));
 
-    return entries
-      .sort((a, b) => b.amount - a.amount)
-      .map((entry, i) => ({
-        ...entry,
-        color: palette[i % palette.length],
-      }));
+    return entries.sort((a, b) => b.amount - a.amount);
   });
 
   const heatmapData = computed<HeatmapDay[]>(() => {
-    const expenses = transactions.value.filter(isExpenseLike);
+    const expenses = transactions.value.filter((t) => t.type === 'EXPENSE');
     const grouped = groupBy(expenses, (t) => {
       const d = new Date(t.date);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -193,12 +175,12 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
       const code = t.currency ?? 'USD';
       const amount = Number(t.amount);
 
-      if (isIncomeLike(t)) {
+      if (t.type === 'INCOME') {
         result[code] = (result[code] ?? 0) + amount;
-      } else if (isExpenseLike(t)) {
+      } else if (t.type === 'EXPENSE') {
         result[code] = (result[code] ?? 0) - amount;
       }
-      // SAVING and future INSTALLMENTS are neutral for currency totals
+      // SAVING is neutral for currency totals
     }
 
     return result;

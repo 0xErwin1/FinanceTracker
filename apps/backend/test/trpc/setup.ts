@@ -1,7 +1,22 @@
 import { t } from '@expenses/api';
-import { CurrencyEnum, FinancialGoalsType, TransactionType } from '@expenses/api';
+import {
+  CurrencyEnum,
+  FinancialGoalsType,
+  ObligationStatus,
+  PlanStatus,
+  TransactionType,
+} from '@expenses/api';
 import { AppDataSource } from '../../src/data-source';
-import { Budget, Category, FinancialGoal, RecurringTransaction, Transaction, User } from '../../src/entities';
+import {
+  Budget,
+  Category,
+  FinancialGoal,
+  InstallmentObligation,
+  InstallmentPlan,
+  RecurringTransaction,
+  Transaction,
+  User,
+} from '../../src/entities';
 import { appRouter } from '../../src/trpc/root';
 import { hashPassword } from '../../src/utils/password.util';
 
@@ -38,6 +53,8 @@ export function createAuthenticatedCaller(userId: string) {
 export async function truncateAllTables(): Promise<void> {
   const tables = [
     'transactions',
+    'installment_obligations',
+    'installment_plans',
     'recurring_transactions',
     'financial_goals',
     'budgets',
@@ -161,4 +178,42 @@ export async function seedRecurring(
   const repo = AppDataSource.getRepository(RecurringTransaction);
   const recurring = repo.create({ ...defaults, ...overrides } as any);
   return (await repo.save(recurring)) as unknown as RecurringTransaction;
+}
+
+export async function seedInstallmentPlan(
+  userId: string,
+  overrides: Record<string, unknown> = {},
+): Promise<InstallmentPlan> {
+  const defaults = {
+    userId,
+    totalAmount: 300,
+    currency: CurrencyEnum.USD,
+    installmentsCount: 3,
+    categoryId: null,
+    note: null,
+    status: PlanStatus.ACTIVE,
+  };
+
+  const repo = AppDataSource.getRepository(InstallmentPlan);
+  const plan = repo.create({ ...defaults, ...overrides } as any);
+  return (await repo.save(plan)) as unknown as InstallmentPlan;
+}
+
+export async function seedInstallmentObligation(
+  planId: string,
+  overrides: Record<string, unknown> = {},
+): Promise<InstallmentObligation> {
+  const defaults = {
+    planId,
+    installmentNumber: 1,
+    amount: 100,
+    dueDate: '2026-01-01',
+    status: ObligationStatus.PENDING,
+    transactionId: null,
+    paidAt: null,
+  };
+
+  const repo = AppDataSource.getRepository(InstallmentObligation);
+  const obligation = repo.create({ ...defaults, ...overrides } as any);
+  return (await repo.save(obligation)) as unknown as InstallmentObligation;
 }

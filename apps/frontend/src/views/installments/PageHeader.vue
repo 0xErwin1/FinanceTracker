@@ -1,8 +1,5 @@
 <script setup lang="ts">
-import StatCard from '@/components/base/StatCard.vue';
-
 interface Props {
-  totalActivePlans: number;
   loading: boolean;
 }
 
@@ -11,25 +8,20 @@ defineProps<Props>();
 
 <template>
   <div class="flex items-start justify-between">
-    <!-- Left: subtitle + heading -->
     <div>
       <p class="text-sm font-medium tracking-wider text-text-muted">
         PAYMENT TRACKING
       </p>
+
       <h1 class="mt-1 text-2xl font-bold text-text-primary">
         Installment Plans
       </h1>
+
+      <p class="mt-1 text-sm text-text-secondary">
+        Track upcoming obligations and realized payments.
+      </p>
     </div>
 
-    <!-- Right: insight stat card -->
-    <div v-if="loading" class="animate-pulse">
-      <div class="h-20 w-52 rounded-base border border-border-default bg-bg-card" />
-    </div>
-    <StatCard
-      v-else
-      title="Active Plans"
-      :value="String(totalActivePlans)"
-      subtitle="tracked installment plans"
-    />
+    <div v-if="loading" class="h-6 w-24 animate-pulse rounded bg-bg-card" />
   </div>
 </template>

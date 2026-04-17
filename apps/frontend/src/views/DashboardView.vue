@@ -10,7 +10,6 @@ import type { BudgetCategory } from '@/types';
 import HeroBalance from './dashboard/HeroBalance.vue';
 import BudgetsSpending from './dashboard/BudgetsSpending.vue';
 import GoalsTransactions from './dashboard/GoalsTransactions.vue';
-import SpendingHeatMap from './dashboard/SpendingHeatMap.vue';
 
 const { transactions, loading: txLoading } = useTransactions();
 
@@ -31,7 +30,6 @@ const {
   monthlyIncomeExpenses,
   currentMonthDaily,
   spendingByCategory,
-  heatmapData,
 } = useAggregations(transactions);
 
 /** Category name lookup by ID. */
@@ -120,10 +118,5 @@ const isLoading = computed(
       :loading="isLoading"
     />
 
-    <!-- Section 4: Spending Heat Map (compact) -->
-    <SpendingHeatMap
-      :heatmap-data="heatmapData"
-      :loading="isLoading"
-    />
   </div>
 </template>

@@ -43,9 +43,6 @@ export interface TransactionRow {
   currency: string;
   date: string;
   type: string;
-  installmentPlanId?: string | null;
-  installmentNumber?: number | null;
-  totalInstallments?: number | null;
 }
 
 /** Financial goal with progress tracking. */
@@ -68,14 +65,4 @@ export interface BudgetCategory {
   currency: string;
 }
 
-/** Installment plan derived from grouped transactions. */
-export interface InstallmentPlan {
-  planId: string;
-  description: string;
-  totalAmount: number;
-  currency: string;
-  paidInstallments: number;
-  totalInstallments: number;
-  nextPaymentDate?: string | null;
-  transactions: TransactionRow[];
-}
+export type { InstallmentPlanDTO, InstallmentObligationDTO } from '@expenses/api';

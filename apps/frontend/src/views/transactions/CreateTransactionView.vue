@@ -18,7 +18,6 @@ interface TransactionFormRow {
   categoryId: string;
   date: string;
   note: string;
-  totalInstallments: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -58,7 +57,6 @@ function makeDefaultRow(): TransactionFormRow {
     categoryId: '',
     date: new Date().toISOString().split('T')[0],
     note: '',
-    totalInstallments: '',
   };
 }
 
@@ -111,10 +109,6 @@ function buildPayload() {
     date: r.date,
     note: r.note || undefined,
     categoryId: r.categoryId || undefined,
-    totalInstallments:
-      r.type === TransactionType.INSTALLMENTS && r.totalInstallments
-        ? Number(r.totalInstallments)
-        : undefined,
   }));
 }
 
@@ -126,9 +120,6 @@ function validate(transactions: ReturnType<typeof buildPayload>): string | null 
     }
     if (!t.date) {
       return `Row ${i + 1}: Date is required.`;
-    }
-    if (t.type === TransactionType.INSTALLMENTS && (!t.totalInstallments || t.totalInstallments < 2)) {
-      return `Row ${i + 1}: Total installments must be at least 2.`;
     }
   }
   return null;
@@ -241,7 +232,6 @@ async function createAndAddAnother() {
               <option :value="TransactionType.EXPENSE">Expense</option>
               <option :value="TransactionType.INCOME">Income</option>
               <option :value="TransactionType.SAVING">Saving</option>
-              <option :value="TransactionType.INSTALLMENTS">Installments</option>
             </select>
           </div>
 
@@ -304,21 +294,6 @@ async function createAndAddAnother() {
               v-model="row.date"
               type="date"
               class="rounded-base border border-border-default bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:border-accent-gold transition-colors [color-scheme:dark]"
-            />
-          </div>
-
-          <!-- Total Installments (only for INSTALLMENTS type) -->
-          <div v-if="row.type === TransactionType.INSTALLMENTS" class="flex flex-col gap-1">
-            <label class="text-[10px] font-medium text-text-muted uppercase tracking-wide">
-              Installments
-            </label>
-            <input
-              v-model="row.totalInstallments"
-              type="number"
-              min="2"
-              step="1"
-              placeholder="e.g. 12"
-              class="w-24 rounded-base border border-border-default bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:border-accent-gold transition-colors [color-scheme:dark]"
             />
           </div>
 

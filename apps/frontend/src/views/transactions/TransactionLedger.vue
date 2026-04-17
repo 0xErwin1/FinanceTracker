@@ -68,8 +68,6 @@ function typeBadgeVariant(type: string): 'success' | 'danger' | 'info' | 'warnin
       return 'danger';
     case 'SAVING':
       return 'info';
-    case 'INSTALLMENTS':
-      return 'warning';
     default:
       return 'default';
   }

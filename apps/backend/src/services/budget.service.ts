@@ -113,17 +113,7 @@ async function getBudgetAlerts(userId: string, month: string): Promise<BudgetAle
       },
     });
 
-    const installments = await AppDataSource.getRepository(Transaction).find({
-      where: {
-        userId,
-        categoryId: budget.categoryId,
-        type: TransactionType.INSTALLMENTS as any,
-        date: Between(startDate, endDate),
-      },
-    });
-
-    const allSpending = [...transactions, ...installments];
-    const spent = allSpending.reduce((sum, t) => sum + Number.parseFloat(String(t.amount)), 0);
+    const spent = transactions.reduce((sum, t) => sum + Number.parseFloat(String(t.amount)), 0);
     const budgetAmount = Number.parseFloat(String(budget.amount));
     const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
 

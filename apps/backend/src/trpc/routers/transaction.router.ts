@@ -19,7 +19,6 @@ const singleTransactionSchema = z.object({
   goalId: z.string().uuid().optional(),
   categoryId: z.string().uuid().optional(),
   category: categoryInlineSchema.optional(),
-  totalInstallments: z.number().int().min(2).optional(),
 });
 
 const createTransactionSchema = z.discriminatedUnion('mode', [

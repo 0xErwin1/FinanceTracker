@@ -7,11 +7,11 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
-  OneToMany,
   PrimaryColumn,
 } from 'typeorm';
 import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
+import { InstallmentObligation } from './installment_obligation.entity';
 import { RecurringTransaction } from './recurring_transaction.entity';
 import { User } from './user.entity';
 
@@ -55,16 +55,10 @@ export class Transaction {
   goalId!: string | null;
 
   @Column({ type: 'uuid', nullable: true })
-  installmentPlanId!: string | null;
-
-  @Column({ type: 'uuid', nullable: true })
   recurringTransactionId!: string | null;
 
-  @Column({ type: 'integer', nullable: true })
-  totalInstallments!: number | null;
-
-  @Column({ type: 'integer', nullable: true })
-  installmentNumber!: number | null;
+  @Column({ type: 'uuid', nullable: true })
+  obligationId!: string | null;
 
   @CreateDateColumn()
   createdAt!: Date;
@@ -95,22 +89,13 @@ export class Transaction {
   financialGoal!: FinancialGoal;
 
   @ManyToOne(
-    () => Transaction,
-    (transaction) => transaction.installmentPlan,
-  )
-  @JoinColumn({ name: 'installment_plan_id' })
-  installmentPlan!: Transaction;
-
-  @ManyToOne(
     () => RecurringTransaction,
     (recurringTransaction) => recurringTransaction.generatedTransactions,
   )
   @JoinColumn({ name: 'recurring_transaction_id' })
   recurringTransaction!: RecurringTransaction;
 
-  @OneToMany(
-    () => Transaction,
-    (transaction) => transaction.installmentPlan,
-  )
-  installmentChildren!: Transaction[];
+  @ManyToOne(() => InstallmentObligation)
+  @JoinColumn({ name: 'obligation_id' })
+  obligation!: InstallmentObligation | null;
 }
