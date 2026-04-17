@@ -134,7 +134,6 @@ async function createTransactionWithManager(
   if (input.categoryId) {
     category = await categoryService.getCategory({
       id: input.categoryId,
-      type: input.type,
       userId: input.userId,
     });
 
@@ -145,7 +144,9 @@ async function createTransactionWithManager(
     }
 
     if (category.type !== input.type) {
-      throw new CustomError(ApiError.Transaction.TRANSACTION_AND_CATEGORY_NOT_SAME_TYPE);
+      const error = new CustomError(ApiError.Category.CATEGORY_TYPE_MISMATCH);
+      error.message = `Category '${category.name}' is for ${category.type} transactions, not ${input.type}`;
+      throw error;
     }
   } else {
     if (input.category?.type && input.category.type !== input.type) {

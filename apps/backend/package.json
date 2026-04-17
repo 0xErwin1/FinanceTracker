@@ -19,7 +19,8 @@
     "start": "NODE_PATH=dist/ node dist/server.js",
     "test": "env $(cat .env.test | grep -v '#' | xargs) ENV=test jest --verbose --colors --coverage --detectOpenHandles --forceExit --runInBand",
     "lint": "pnpm biome check {src/,test/}/**/*.ts",
-    "format": "pnpm biome format --write {src/,test/}**/*.ts"
+    "format": "pnpm biome format --write {src/,test/}**/*.ts",
+    "seed": "ts-node src/seed.ts"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

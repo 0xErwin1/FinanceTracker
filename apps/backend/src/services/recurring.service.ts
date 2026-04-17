@@ -5,6 +5,7 @@ import { ApiError } from '../enums';
 import { CustomError, cacheInvalidateUser } from '../lib';
 import { scheduleRecurringJob, unscheduleRecurringJob } from '../queues';
 import type { RecurringTransactionDTO } from '../types/DTOs';
+import { categoryService } from '.';
 
 const repo = () => AppDataSource.getRepository(RecurringTransaction);
 
@@ -40,6 +41,23 @@ async function createRecurring(input: CreateRecurringInput): Promise<RecurringTr
     throw new CustomError(ApiError.RecurringTransaction.INVALID_DAY_OF_MONTH);
   }
 
+  if (input.categoryId) {
+    const category = await categoryService.getCategory({
+      id: input.categoryId,
+      userId: input.userId,
+    });
+
+    if (!category) {
+      throw new CustomError(ApiError.RecurringTransaction.CATEGORY_NOT_FOUND);
+    }
+
+    if (category.type !== input.type) {
+      const error = new CustomError(ApiError.Category.CATEGORY_TYPE_MISMATCH);
+      error.message = `Category '${category.name}' is for ${category.type} transactions, not ${input.type}`;
+      throw error;
+    }
+  }
+
   const template = repo().create({
     ...input,
     active: true,
@@ -72,6 +90,24 @@ async function updateRecurring(
 
   if (data.dayOfMonth !== undefined && (data.dayOfMonth < 1 || data.dayOfMonth > 31)) {
     throw new CustomError(ApiError.RecurringTransaction.INVALID_DAY_OF_MONTH);
+  }
+
+  if (data.categoryId !== undefined && data.categoryId !== null) {
+    const effectiveType = data.type ?? template.type;
+    const category = await categoryService.getCategory({
+      id: data.categoryId,
+      userId,
+    });
+
+    if (!category) {
+      throw new CustomError(ApiError.RecurringTransaction.CATEGORY_NOT_FOUND);
+    }
+
+    if (category.type !== effectiveType) {
+      const error = new CustomError(ApiError.Category.CATEGORY_TYPE_MISMATCH);
+      error.message = `Category '${category.name}' is for ${category.type} transactions, not ${effectiveType}`;
+      throw error;
+    }
   }
 
   Object.assign(template, data);

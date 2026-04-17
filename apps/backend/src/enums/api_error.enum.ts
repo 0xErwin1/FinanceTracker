@@ -35,11 +35,13 @@ export namespace ApiError {
     GENERIC = 5000,
     CATEGORY_NOT_EXIST = 5001,
     CANNOT_DELETE_CATEGORY_TRANSACTIONS = 5002,
+    CATEGORY_TYPE_MISMATCH = 5003,
   }
 
   export enum FinancialGoal {
     GENERIC = 6000,
     FINANCIAL_GOAL_NOT_EXIST = 6001,
+    CANNOT_DELETE_GOAL_WITH_TRANSACTIONS = 6002,
   }
 
   export namespace Budget {

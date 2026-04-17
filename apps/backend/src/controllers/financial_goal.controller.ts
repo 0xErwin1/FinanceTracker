@@ -26,6 +26,36 @@ export const financialGoalController = {
     }
   },
 
+  async update(
+    input: {
+      id: string;
+      type?: any;
+      targetAmount?: number;
+      currency?: any;
+      note?: string | null;
+      name?: string;
+      targetDate?: string;
+      currentAmount?: number;
+    },
+    userId: string,
+  ) {
+    try {
+      const { id, ...data } = input;
+      return await financialGoalService.updateFinancialGoal(data, { id, userId });
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
+
+  async delete(input: { id: string }, userId: string) {
+    try {
+      await financialGoalService.deleteFinancialGoal(input.id, userId);
+      return { success: true };
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
+
   async getById(input: { id: string }, userId: string) {
     try {
       const goal = await financialGoalService.getFinancialGoal({ userId, id: input.id }, ['transactions']);

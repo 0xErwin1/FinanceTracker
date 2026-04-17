@@ -102,7 +102,7 @@ customErrors[ApiError.User.PASSWORD_TOO_SHORT] = {
     EN: 'Password has to be at least 6 characters long',
     ES: 'La contraseña debe tener un largo de al menos 6',
   },
-  HTTPStatusCode: StatusCodes.UNAUTHORIZED,
+  HTTPStatusCode: StatusCodes.BAD_REQUEST,
 };
 
 customErrors[ApiError.User.USER_ALREADY_EXISTS] = {
@@ -167,7 +167,16 @@ customErrors[ApiError.Category.CANNOT_DELETE_CATEGORY_TRANSACTIONS] = {
     EN: 'Cannot delete a category with transactions, try with the query `?deleteTransactions=true` to delete all transactions.',
     ES: 'No se puede eliminar una categoría con transacciones, pruebe con la query `?deleteTransactions=true` para eliminar todas las transacciones',
   },
-  HTTPStatusCode: StatusCodes.UNAUTHORIZED,
+  HTTPStatusCode: StatusCodes.CONFLICT,
+};
+
+customErrors[ApiError.Category.CATEGORY_TYPE_MISMATCH] = {
+  message: 'Category type does not match transaction type',
+  showMessage: {
+    EN: 'Category type does not match transaction type',
+    ES: 'El tipo de categoría no coincide con el tipo de transacción',
+  },
+  HTTPStatusCode: StatusCodes.BAD_REQUEST,
 };
 
 // Financial Goal
@@ -178,6 +187,15 @@ customErrors[ApiError.FinancialGoal.FINANCIAL_GOAL_NOT_EXIST] = {
     ES: 'El objetivo financiero no existe',
   },
   HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+customErrors[ApiError.FinancialGoal.CANNOT_DELETE_GOAL_WITH_TRANSACTIONS] = {
+  message: 'Cannot delete a financial goal with linked transactions',
+  showMessage: {
+    EN: 'Cannot delete a financial goal with linked transactions. Unlink transactions first.',
+    ES: 'No se puede eliminar un objetivo financiero con transacciones vinculadas. Desvincule las transacciones primero.',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
 };
 
 // Budget

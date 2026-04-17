@@ -137,10 +137,7 @@ export async function stopWorker(): Promise<void> {
   await closeBullMQConnection();
 }
 
-export async function scheduleRecurringJob(template: {
-  id: string;
-  dayOfMonth: number;
-}): Promise<void> {
+export async function scheduleRecurringJob(template: { id: string; dayOfMonth: number }): Promise<void> {
   try {
     const q = getQueue();
     const cron = `0 0 ${template.dayOfMonth} * *`;

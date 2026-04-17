@@ -2,6 +2,7 @@ import { AppDataSource } from '../data-source';
 import { User } from '../entities';
 import { ApiError } from '../enums';
 import { CustomError } from '../lib';
+import { categoryService } from './category.service';
 import { hashPassword } from '../utils';
 
 const repo = () => AppDataSource.getRepository(User);
@@ -36,6 +37,8 @@ async function createUser(newUser: CreateUserInput): Promise<User> {
 
   const user = repo().create(newUser);
   await repo().save(user);
+
+  await categoryService.seedDefaultCategories(user.id);
 
   return user;
 }

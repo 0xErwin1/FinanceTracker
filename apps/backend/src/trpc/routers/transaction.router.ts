@@ -53,54 +53,58 @@ const setGoalSchema = z.object({
   goalId: z.string().uuid(),
 });
 
+const updateTransactionSchema = z.object({
+  id: z.string().uuid(),
+  type: z.nativeEnum(TransactionType).optional(),
+  amount: z.number().min(0).optional(),
+  currency: z.nativeEnum(CurrencyEnum).optional(),
+  categoryId: z.string().uuid().nullable().optional(),
+  date: z.string().optional(),
+  note: z.string().nullable().optional(),
+  exchangeRate: z.number().positive().nullable().optional(),
+});
+
 export const transactionRouter = {
   create: publicProcedure
     .use(isAuthenticated)
     .input(createTransactionSchema)
-    .mutation(({ input, ctx }) =>
-      transactionController.create(input, ctx.userId),
-    ),
+    .mutation(({ input, ctx }) => transactionController.create(input, ctx.userId)),
 
   getById: publicProcedure
     .use(isAuthenticated)
     .input(transactionIdSchema)
-    .query(({ input, ctx }) =>
-      transactionController.getById(input, ctx.userId),
-    ),
+    .query(({ input, ctx }) => transactionController.getById(input, ctx.userId)),
 
   getAll: publicProcedure
     .use(isAuthenticated)
     .input(getTransactionsSchema)
-    .query(({ input, ctx }) =>
-      transactionController.getAll(input, ctx.userId),
-    ),
+    .query(({ input, ctx }) => transactionController.getAll(input, ctx.userId)),
 
   getBalance: publicProcedure
     .use(isAuthenticated)
     .input(getBalanceSchema)
-    .query(({ input, ctx }) =>
-      transactionController.getBalance(input, ctx.userId),
-    ),
+    .query(({ input, ctx }) => transactionController.getBalance(input, ctx.userId)),
 
   delete: publicProcedure
     .use(isAuthenticated)
     .input(transactionIdSchema)
-    .mutation(({ input, ctx }) =>
-      transactionController.delete(input, ctx.userId),
-    ),
+    .mutation(({ input, ctx }) => transactionController.delete(input, ctx.userId)),
 
-  getMonthsAndYears: publicProcedure.use(isAuthenticated).query(({ ctx }) =>
-    transactionController.getMonthsAndYears(ctx.userId),
-  ),
+  update: publicProcedure
+    .use(isAuthenticated)
+    .input(updateTransactionSchema)
+    .mutation(({ input, ctx }) => transactionController.update(input, ctx.userId)),
 
-  getTotalSavings: publicProcedure.use(isAuthenticated).query(({ ctx }) =>
-    transactionController.getTotalSavings(ctx.userId),
-  ),
+  getMonthsAndYears: publicProcedure
+    .use(isAuthenticated)
+    .query(({ ctx }) => transactionController.getMonthsAndYears(ctx.userId)),
+
+  getTotalSavings: publicProcedure
+    .use(isAuthenticated)
+    .query(({ ctx }) => transactionController.getTotalSavings(ctx.userId)),
 
   setGoal: publicProcedure
     .use(isAuthenticated)
     .input(setGoalSchema)
-    .mutation(({ input, ctx }) =>
-      transactionController.setGoal(input, ctx.userId),
-    ),
+    .mutation(({ input, ctx }) => transactionController.setGoal(input, ctx.userId)),
 };

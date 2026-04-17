@@ -69,6 +69,27 @@ export const transactionController = {
     }
   },
 
+  async update(
+    input: {
+      id: string;
+      type?: any;
+      amount?: number;
+      currency?: any;
+      categoryId?: string | null;
+      date?: string;
+      note?: string | null;
+      exchangeRate?: number | null;
+    },
+    userId: string,
+  ) {
+    try {
+      const { id, ...data } = input;
+      return await transactionService.updateTransaction(data, { id, userId });
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
+
   async delete(input: { id: string }, userId: string) {
     try {
       await transactionService.deleteTransaction(input.id, userId);

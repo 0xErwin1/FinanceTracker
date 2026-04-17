@@ -20,7 +20,7 @@ interface UpdateGoalOptions {
   type?: FinancialGoalsType;
   targetAmount?: number;
   currency?: CurrencyEnum;
-  note?: string;
+  note?: string | null;
   targetDate?: string;
   name?: string;
   currentAmount?: number;
@@ -63,9 +63,27 @@ async function getAllFinancialGoals(
   return repo().find({ where: where as any, relations });
 }
 
+async function deleteFinancialGoal(goalId: string, userId: string): Promise<void> {
+  const goal = await repo().findOne({
+    where: { id: goalId, userId },
+    relations: ['transactions'],
+  });
+
+  if (!goal) {
+    throw new CustomError(ApiError.FinancialGoal.FINANCIAL_GOAL_NOT_EXIST);
+  }
+
+  if (goal.transactions && goal.transactions.length > 0) {
+    throw new CustomError(ApiError.FinancialGoal.CANNOT_DELETE_GOAL_WITH_TRANSACTIONS);
+  }
+
+  await repo().softDelete(goalId);
+}
+
 export const financialGoalService = {
   createFinancialGoal,
   updateFinancialGoal,
+  deleteFinancialGoal,
   getAllFinancialGoals,
   getFinancialGoal,
 };

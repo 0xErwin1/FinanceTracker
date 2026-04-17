@@ -13,6 +13,17 @@ const createFinancialGoalSchema = z.object({
   targetDate: z.string(),
 });
 
+const updateFinancialGoalSchema = z.object({
+  id: z.string().uuid(),
+  type: z.nativeEnum(FinancialGoalsType).optional(),
+  targetAmount: z.number().min(0).optional(),
+  currency: z.nativeEnum(CurrencyEnum).optional(),
+  note: z.string().nullable().optional(),
+  name: z.string().min(1).optional(),
+  targetDate: z.string().optional(),
+  currentAmount: z.number().min(0).optional(),
+});
+
 const getFinancialGoalSchema = z.object({
   id: z.string().uuid(),
 });
@@ -21,18 +32,22 @@ export const financialGoalRouter = {
   create: publicProcedure
     .use(isAuthenticated)
     .input(createFinancialGoalSchema)
-    .mutation(({ input, ctx }) =>
-      financialGoalController.create(input, ctx.userId),
-    ),
+    .mutation(({ input, ctx }) => financialGoalController.create(input, ctx.userId)),
+
+  update: publicProcedure
+    .use(isAuthenticated)
+    .input(updateFinancialGoalSchema)
+    .mutation(({ input, ctx }) => financialGoalController.update(input, ctx.userId)),
+
+  delete: publicProcedure
+    .use(isAuthenticated)
+    .input(getFinancialGoalSchema)
+    .mutation(({ input, ctx }) => financialGoalController.delete(input, ctx.userId)),
 
   getById: publicProcedure
     .use(isAuthenticated)
     .input(getFinancialGoalSchema)
-    .query(({ input, ctx }) =>
-      financialGoalController.getById(input, ctx.userId),
-    ),
+    .query(({ input, ctx }) => financialGoalController.getById(input, ctx.userId)),
 
-  getAll: publicProcedure.use(isAuthenticated).query(({ ctx }) =>
-    financialGoalController.getAll(ctx.userId),
-  ),
+  getAll: publicProcedure.use(isAuthenticated).query(({ ctx }) => financialGoalController.getAll(ctx.userId)),
 };

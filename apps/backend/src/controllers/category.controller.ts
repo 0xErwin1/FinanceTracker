@@ -24,6 +24,25 @@ export const categoryController = {
     }
   },
 
+  async update(
+    input: {
+      id: string;
+      name?: string;
+      type?: any;
+      color?: string | null;
+      icon?: string | null;
+      note?: string | null;
+    },
+    userId: string,
+  ) {
+    try {
+      const { id, ...data } = input;
+      return await categoryService.updateCategory(id, userId, data);
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
+
   async delete(input: { id: string; deleteTransactions: boolean }, userId: string) {
     try {
       await categoryService.deleteCategory(input.id, userId, input.deleteTransactions);
