@@ -29,7 +29,11 @@ export function useInstallments(transactions: Ref<TransactionItem[]>): Installme
       const sorted = [...txs].sort((a, b) => (a.installmentNumber ?? 0) - (b.installmentNumber ?? 0));
 
       const totalInstallments = sorted[0]?.totalInstallments ?? 0;
-      const paidInstallments = sorted.filter((t) => t.installmentNumber != null).length;
+
+      // An installment is "paid" if its date is today or in the past.
+      // Future-dated installments are considered pending.
+      const today = new Date().toISOString().split('T')[0];
+      const paidInstallments = sorted.filter((t) => t.date && t.date.split('T')[0] <= today).length;
 
       const totalAmount = sorted.reduce((sum, t) => sum + Number(t.amount), 0);
 

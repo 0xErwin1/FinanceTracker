@@ -27,8 +27,6 @@ const typeOptions = [
   { value: 'ALL', label: 'All Types' },
   { value: 'INCOME', label: 'Income' },
   { value: 'EXPENSE', label: 'Expense' },
-  { value: 'SAVING', label: 'Saving' },
-  { value: 'INSTALLMENTS', label: 'Installments' },
 ];
 
 const selectClass =

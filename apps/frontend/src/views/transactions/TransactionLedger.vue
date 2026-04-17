@@ -142,8 +142,6 @@ function dailyTotalClass(total: number): string {
               <span
                 class="inline-flex items-center gap-1.5 rounded-full bg-bg-primary px-2 py-0.5 text-xs text-text-primary"
               >
-                <span v-if="tx.categoryIcon">{{ tx.categoryIcon }}</span>
-
                 {{ tx.categoryName }}
               </span>
             </td>

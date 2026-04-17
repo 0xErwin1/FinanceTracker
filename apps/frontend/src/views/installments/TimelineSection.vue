@@ -9,45 +9,34 @@ interface Props {
 }
 
 defineProps<Props>();
+const emit = defineEmits<{ pay: [transactionId: string] }>();
 
 type EntryStatus = 'completed' | 'active' | 'future';
 
-/** Classify a timeline entry based on its position in the plan. */
-function entryStatus(
-  entry: TransactionRow,
-  plan: InstallmentPlan,
-): EntryStatus {
-  if (plan.paidInstallments >= plan.totalInstallments) return 'completed';
-  if (entry.installmentNumber != null && entry.installmentNumber <= plan.paidInstallments) {
-    return 'completed';
-  }
-  if (
-    entry.installmentNumber != null &&
-    entry.installmentNumber === plan.paidInstallments + 1
-  ) {
-    return 'active';
-  }
+/** Classify a timeline entry based on its date relative to today. */
+function entryStatus(entry: TransactionRow): EntryStatus {
+  const today = new Date().toISOString().split('T')[0];
+  const entryDate = entry.date ? entry.date.split('T')[0] : '';
+
+  if (entryDate && entryDate <= today) return 'completed';
   return 'future';
 }
 
 /** Dot color class based on status. */
 function dotClass(status: EntryStatus): string {
   if (status === 'completed') return 'bg-accent-green';
-  if (status === 'active') return 'border-2 border-accent-blue bg-transparent';
   return 'bg-text-muted/40';
 }
 
 /** Badge variant for entry status. */
-function statusBadgeVariant(status: EntryStatus): 'success' | 'info' | 'default' {
+function statusBadgeVariant(status: EntryStatus): 'success' | 'default' {
   if (status === 'completed') return 'success';
-  if (status === 'active') return 'info';
   return 'default';
 }
 
 /** Badge text for entry status. */
 function statusBadgeText(status: EntryStatus): string {
-  if (status === 'completed') return 'Completed';
-  if (status === 'active') return 'Upcoming';
+  if (status === 'completed') return 'Paid';
   return 'Pending';
 }
 
@@ -74,15 +63,11 @@ function isMuted(status: EntryStatus): boolean {
       <div class="flex items-center gap-4">
         <div class="flex items-center gap-1.5">
           <span class="h-2 w-2 rounded-full bg-accent-green" />
-          <span class="text-xs text-text-muted">Completed</span>
-        </div>
-        <div class="flex items-center gap-1.5">
-          <span class="h-2 w-2 rounded-full border-2 border-accent-blue" />
-          <span class="text-xs text-text-muted">Active</span>
+          <span class="text-xs text-text-muted">Paid</span>
         </div>
         <div class="flex items-center gap-1.5">
           <span class="h-2 w-2 rounded-full bg-text-muted/40" />
-          <span class="text-xs text-text-muted">Future</span>
+          <span class="text-xs text-text-muted">Pending</span>
         </div>
       </div>
     </div>
@@ -143,7 +128,7 @@ function isMuted(status: EntryStatus): boolean {
             <!-- Dot -->
             <span
               :class="[
-                dotClass(entryStatus(entry, plan)),
+                dotClass(entryStatus(entry)),
                 'absolute -left-6 top-1 h-3 w-3 rounded-full',
               ]"
             />
@@ -151,10 +136,7 @@ function isMuted(status: EntryStatus): boolean {
             <!-- Entry content -->
             <div
               :class="[
-                isMuted(entryStatus(entry, plan)) ? 'opacity-40' : '',
-                entryStatus(entry, plan) === 'active'
-                  ? 'rounded-base border border-accent-blue/20 bg-accent-blue/5 p-3'
-                  : '',
+                isMuted(entryStatus(entry)) ? 'opacity-40' : '',
               ]"
             >
               <!-- Date + status badge -->
@@ -163,8 +145,8 @@ function isMuted(status: EntryStatus): boolean {
                   {{ formatDate(entry.date) }}
                 </span>
                 <Badge
-                  :text="statusBadgeText(entryStatus(entry, plan))"
-                  :variant="statusBadgeVariant(entryStatus(entry, plan))"
+                  :text="statusBadgeText(entryStatus(entry))"
+                  :variant="statusBadgeVariant(entryStatus(entry))"
                 />
               </div>
 
@@ -186,20 +168,15 @@ function isMuted(status: EntryStatus): boolean {
                 {{ formatCurrency(entry.amount, entry.currency) }}
               </p>
 
-              <!-- Action buttons for active entry -->
+              <!-- Pay button for pending installments -->
               <div
-                v-if="entryStatus(entry, plan) === 'active'"
+                v-if="entryStatus(entry) === 'future'"
                 class="mt-3 flex gap-2"
               >
                 <button
                   type="button"
-                  class="rounded-base border border-border-default bg-bg-primary px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:bg-bg-card-hover hover:text-text-primary"
-                >
-                  View Details
-                </button>
-                <button
-                  type="button"
                   class="rounded-base bg-accent-blue/15 px-3 py-1.5 text-xs font-medium text-accent-blue transition-colors hover:bg-accent-blue/25"
+                  @click="emit('pay', entry.id)"
                 >
                   Pay Now
                 </button>

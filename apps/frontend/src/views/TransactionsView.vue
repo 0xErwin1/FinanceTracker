@@ -17,9 +17,15 @@ const router = useRouter();
 
 const typeFilter = ref('ALL');
 const categoryFilter = ref('');
-const dateFrom = ref('');
-const dateTo = ref('');
 const searchFilter = ref((route.query.q as string) || '');
+
+// Default date range: last 30 days
+const thirtyDaysAgo = new Date();
+thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+const defaultDateFrom = thirtyDaysAgo.toISOString().split('T')[0];
+
+const dateFrom = ref(defaultDateFrom);
+const dateTo = ref('');
 
 // --- Data sources -----------------------------------------------------------
 
@@ -61,6 +67,9 @@ const filteredTransactions = computed(() => {
   if (!Array.isArray(items)) return [];
 
   let result = items;
+
+  // Exclude INSTALLMENTS from the main list — they have their own view
+  result = result.filter((t) => (t as { type?: string }).type !== 'INSTALLMENTS');
 
   if (typeFilter.value !== 'ALL') {
     result = result.filter((t) => (t as { type?: string }).type === typeFilter.value);
