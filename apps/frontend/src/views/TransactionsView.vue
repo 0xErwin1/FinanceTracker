@@ -68,8 +68,15 @@ const filteredTransactions = computed(() => {
 
   let result = items;
 
-  // Exclude INSTALLMENTS from the main list — they have their own view
-  result = result.filter((t) => (t as { type?: string }).type !== 'INSTALLMENTS');
+  // Exclude future (pending) INSTALLMENTS — only show paid ones (date <= today).
+  // Paid installments have their date set to today or a past date via "Pay Now".
+  const today = new Date().toISOString().split('T')[0];
+  result = result.filter((t) => {
+    const type = (t as { type?: string }).type;
+    if (type !== 'INSTALLMENTS') return true;
+    const d = (t as { date?: string }).date;
+    return d != null && d.split('T')[0] <= today;
+  });
 
   if (typeFilter.value !== 'ALL') {
     result = result.filter((t) => (t as { type?: string }).type === typeFilter.value);
