@@ -111,7 +111,7 @@ function dailyTotalClass(total: number): string {
     >
       <!-- Group header: date + daily total -->
       <div
-        class="flex items-center justify-between border-b border-border-default/50 bg-bg-card-hover px-4 py-2"
+        class="flex flex-col gap-1 border-b border-border-default/50 bg-bg-card-hover px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
       >
         <span class="text-sm font-medium text-text-secondary">
           {{ group.displayDate }}
@@ -123,110 +123,207 @@ function dailyTotalClass(total: number): string {
       </div>
 
       <!-- Transaction rows -->
-      <table class="w-full text-sm">
-        <tbody>
-          <tr
-            v-for="tx in group.transactions"
-            :key="tx.id"
-            class="cursor-pointer border-b border-border-default/30 last:border-b-0 transition-colors hover:bg-bg-card-hover"
-          >
-            <!-- Date -->
-            <td class="w-24 px-4 py-2.5 text-xs text-text-muted">
-              {{ formatDate(tx.date) }}
-            </td>
-
-            <!-- Category badge -->
-            <td class="px-4 py-2.5">
-              <span
-                class="inline-flex items-center gap-1.5 rounded-full bg-bg-primary px-2 py-0.5 text-xs text-text-primary"
-              >
-                {{ tx.categoryName }}
-              </span>
-            </td>
-
-            <!-- Note -->
-            <td class="px-4 py-2.5 text-text-secondary">
-              {{ tx.note || '\u2014' }}
-            </td>
-
-            <!-- Amount -->
-            <td class="px-4 py-2.5 text-right font-mono">
-              <span
-                :class="
-                  tx.type === 'INCOME' ? 'text-accent-green' : 'text-accent-red'
-                "
-              >
-                {{ tx.type === 'INCOME' ? '+' : '-' }}
-                {{ formatCurrency(tx.amount, tx.currency) }}
-              </span>
-            </td>
-
-            <!-- Currency -->
-            <td class="w-16 px-4 py-2.5 text-center text-xs text-text-muted">
-              {{ tx.currency }}
-            </td>
-
-            <!-- Type badge -->
-            <td class="w-28 px-4 py-2.5">
-              <Badge
-                :text="typeBadgeText(tx.type)"
-                :variant="typeBadgeVariant(tx.type)"
-              />
-            </td>
-
-            <!-- Actions -->
-            <td class="w-24 px-4 py-2.5 text-right">
-              <div v-if="deleteError && deletingId === tx.id" class="flex items-center justify-end gap-1">
+      <div class="space-y-3 p-3 shell:hidden">
+        <div
+          v-for="tx in group.transactions"
+          :key="`${tx.id}-mobile`"
+          class="rounded-base border border-border-default/60 bg-bg-primary/60 p-3"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 space-y-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <Badge
+                  :text="typeBadgeText(tx.type)"
+                  :variant="typeBadgeVariant(tx.type)"
+                />
                 <span
-                  class="text-xs text-accent-red truncate max-w-[100px]"
-                  :title="deleteError"
+                  class="inline-flex items-center gap-1.5 rounded-full bg-bg-card px-2 py-0.5 text-xs text-text-primary"
                 >
-                  Failed
+                  {{ tx.categoryName }}
                 </span>
-                <button
-                  class="p-1 text-text-muted hover:text-text-primary transition-colors"
-                  title="Dismiss"
-                  @click.stop="cancelDelete"
-                >
-                  <X :size="14" />
-                </button>
               </div>
-              <div v-else-if="deletingId === tx.id" class="flex items-center justify-end gap-1">
-                <button
-                  class="p-1 text-accent-red hover:text-accent-red/80 transition-colors"
-                  title="Confirm delete"
-                  @click.stop="handleDelete(tx.id)"
+
+              <p class="text-sm font-medium text-text-primary">
+                {{ tx.note || 'No note provided' }}
+              </p>
+            </div>
+
+            <span
+              class="shrink-0 text-right font-mono text-sm"
+              :class="tx.type === 'INCOME' ? 'text-accent-green' : 'text-accent-red'"
+            >
+              {{ tx.type === 'INCOME' ? '+' : '-' }}
+              {{ formatCurrency(tx.amount, tx.currency) }}
+            </span>
+          </div>
+
+          <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-text-secondary">
+            <div>
+              <p class="text-text-muted">Date</p>
+              <p class="mt-1 text-text-primary">{{ formatDate(tx.date) }}</p>
+            </div>
+
+            <div>
+              <p class="text-text-muted">Currency</p>
+              <p class="mt-1 text-text-primary">{{ tx.currency }}</p>
+            </div>
+          </div>
+
+          <div class="mt-3 border-t border-border-default/50 pt-3">
+            <div v-if="deleteError && deletingId === tx.id" class="flex items-center justify-between gap-2">
+              <span class="truncate text-xs text-accent-red" :title="deleteError">
+                {{ deleteError }}
+              </span>
+              <button
+                type="button"
+                class="rounded-base px-2 py-1 text-xs text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary"
+                @click.stop="cancelDelete"
+              >
+                Dismiss
+              </button>
+            </div>
+
+            <div v-else-if="deletingId === tx.id" class="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                class="flex-1 rounded-base bg-accent-red px-3 py-2 text-xs font-medium text-bg-primary transition-colors hover:bg-accent-red/90"
+                @click.stop="handleDelete(tx.id)"
+              >
+                Confirm Delete
+              </button>
+              <button
+                type="button"
+                class="flex-1 rounded-base border border-border-default px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-bg-card"
+                @click.stop="cancelDelete"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div v-else class="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                class="flex-1 rounded-base border border-border-default px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary"
+                @click.stop="router.push(`/transactions/${tx.id}/edit`)"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                class="flex-1 rounded-base border border-border-default px-3 py-2 text-xs text-accent-red transition-colors hover:bg-accent-red/10"
+                @click.stop="handleDelete(tx.id)"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-safe-scroll-x hidden shell:block">
+        <table class="w-full min-w-[760px] text-sm">
+          <tbody>
+            <tr
+              v-for="tx in group.transactions"
+              :key="tx.id"
+              class="cursor-pointer border-b border-border-default/30 last:border-b-0 transition-colors hover:bg-bg-card-hover"
+            >
+              <td class="w-24 px-4 py-2.5 text-xs text-text-muted">
+                {{ formatDate(tx.date) }}
+              </td>
+
+              <td class="px-4 py-2.5">
+                <span
+                  class="inline-flex items-center gap-1.5 rounded-full bg-bg-primary px-2 py-0.5 text-xs text-text-primary"
                 >
-                  <Check :size="14" />
-                </button>
-                <button
-                  class="p-1 text-text-muted hover:text-text-primary transition-colors"
-                  title="Cancel"
-                  @click.stop="cancelDelete"
+                  {{ tx.categoryName }}
+                </span>
+              </td>
+
+              <td class="px-4 py-2.5 text-text-secondary">
+                {{ tx.note || '\u2014' }}
+              </td>
+
+              <td class="px-4 py-2.5 text-right font-mono">
+                <span
+                  :class="
+                    tx.type === 'INCOME' ? 'text-accent-green' : 'text-accent-red'
+                  "
                 >
-                  <X :size="14" />
-                </button>
-              </div>
-              <div v-else class="flex items-center justify-end gap-1">
-                <button
-                  class="p-1 text-text-muted hover:text-accent-gold transition-colors"
-                  title="Edit transaction"
-                  @click.stop="router.push(`/transactions/${tx.id}/edit`)"
-                >
-                  <Pencil :size="14" />
-                </button>
-                <button
-                  class="p-1 text-text-muted hover:text-accent-red transition-colors"
-                  title="Delete transaction"
-                  @click.stop="handleDelete(tx.id)"
-                >
-                  <Trash2 :size="14" />
-                </button>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+                  {{ tx.type === 'INCOME' ? '+' : '-' }}
+                  {{ formatCurrency(tx.amount, tx.currency) }}
+                </span>
+              </td>
+
+              <td class="w-16 px-4 py-2.5 text-center text-xs text-text-muted">
+                {{ tx.currency }}
+              </td>
+
+              <td class="w-28 px-4 py-2.5">
+                <Badge
+                  :text="typeBadgeText(tx.type)"
+                  :variant="typeBadgeVariant(tx.type)"
+                />
+              </td>
+
+              <td class="w-24 px-4 py-2.5 text-right">
+                <div v-if="deleteError && deletingId === tx.id" class="flex items-center justify-end gap-1">
+                  <span
+                    class="max-w-[100px] truncate text-xs text-accent-red"
+                    :title="deleteError"
+                  >
+                    Failed
+                  </span>
+                  <button
+                    type="button"
+                    class="p-1 text-text-muted transition-colors hover:text-text-primary"
+                    title="Dismiss"
+                    @click.stop="cancelDelete"
+                  >
+                    <X :size="14" />
+                  </button>
+                </div>
+                <div v-else-if="deletingId === tx.id" class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    class="p-1 text-accent-red transition-colors hover:text-accent-red/80"
+                    title="Confirm delete"
+                    @click.stop="handleDelete(tx.id)"
+                  >
+                    <Check :size="14" />
+                  </button>
+                  <button
+                    type="button"
+                    class="p-1 text-text-muted transition-colors hover:text-text-primary"
+                    title="Cancel"
+                    @click.stop="cancelDelete"
+                  >
+                    <X :size="14" />
+                  </button>
+                </div>
+                <div v-else class="flex items-center justify-end gap-1">
+                  <button
+                    type="button"
+                    class="p-1 text-text-muted transition-colors hover:text-accent-gold"
+                    title="Edit transaction"
+                    @click.stop="router.push(`/transactions/${tx.id}/edit`)"
+                  >
+                    <Pencil :size="14" />
+                  </button>
+                  <button
+                    type="button"
+                    class="p-1 text-text-muted transition-colors hover:text-accent-red"
+                    title="Delete transaction"
+                    @click.stop="handleDelete(tx.id)"
+                  >
+                    <Trash2 :size="14" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Empty state -->

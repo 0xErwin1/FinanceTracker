@@ -38,7 +38,7 @@ function planStatusLabel(plan: InstallmentPlanDTO): string {
     <!-- Loading skeleton -->
     <div
       v-if="loading"
-      class="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-3"
+      class="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3"
     >
       <div
         v-for="i in 3"
@@ -65,7 +65,7 @@ function planStatusLabel(plan: InstallmentPlanDTO): string {
     <!-- Plan cards grid -->
     <div
       v-else
-      class="grid grid-cols-[repeat(auto-fit,minmax(320px,1fr))] gap-3"
+      class="grid grid-cols-[repeat(auto-fit,minmax(260px,1fr))] gap-3"
     >
       <div
         v-for="plan in plans"

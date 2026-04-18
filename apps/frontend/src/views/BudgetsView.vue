@@ -4,6 +4,7 @@ import { useTransactions } from '@/composables/useTransactions';
 import { useBudgets } from '@/composables/useBudgets';
 import { useCategories } from '@/composables/useCategories';
 import { useAggregations } from '@/composables/useAggregations';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import StatCard from '@/components/base/StatCard.vue';
 import BudgetHistoryChart from './budgets/BudgetHistoryChart.vue';
 import BudgetInsights from './budgets/BudgetInsights.vue';
@@ -114,19 +115,13 @@ function scrollToGrid() {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4 lg:space-y-5">
     <!-- Section 1: Header -->
-    <div class="flex items-start justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-text-primary">
-          Budgets
-        </h1>
-        <p class="mt-1 text-sm text-text-muted">
-          Track and manage your monthly spending limits by category.
-        </p>
-      </div>
-
-      <div class="flex gap-3">
+    <ResponsivePageHeader
+      title="Budgets"
+      subtitle="Track and manage monthly spending limits without losing context or actions on smaller screens."
+    >
+      <template #actions>
         <StatCard
           title="Total Budget"
           :value="formatCurrency(totalBudget)"
@@ -140,11 +135,11 @@ function scrollToGrid() {
             : undefined"
           :subtitle="totalBudget > 0 ? `of ${formatCurrency(totalBudget)}` : undefined"
         />
-      </div>
-    </div>
+      </template>
+    </ResponsivePageHeader>
 
     <!-- Section 2: Historical Chart + Insights -->
-    <div class="grid grid-cols-[2fr_1fr] gap-4">
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
       <BudgetHistoryChart
         :monthly-spent="monthlyVelocity"
         :total-budget="totalBudget"
@@ -163,7 +158,7 @@ function scrollToGrid() {
     <!-- Section 3: Budget Category Grid -->
     <div
       ref="gridSectionRef"
-      class="rounded-base border border-border-default bg-bg-surface p-5"
+      class="rounded-base border border-border-default bg-bg-surface p-4 sm:p-5"
     >
       <BudgetCategoryGrid
         :budgets="budgetItems"

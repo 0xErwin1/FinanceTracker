@@ -13,9 +13,14 @@ interface Filter {
 
 interface Props {
   filters: Filter[];
+  stackOnMobile?: boolean;
+  wrapActions?: boolean;
 }
 
-defineProps<Props>();
+const props = withDefaults(defineProps<Props>(), {
+  stackOnMobile: false,
+  wrapActions: true,
+});
 
 const emit = defineEmits<{
   'update:filter': [key: string, value: string];
@@ -23,8 +28,19 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-3">
-    <div v-for="filter in filters" :key="filter.key" class="flex items-center gap-2">
+  <div
+    :class="[
+      'gap-3',
+      props.stackOnMobile
+        ? 'grid grid-cols-1 shell:flex shell:flex-wrap shell:items-end'
+        : 'flex flex-wrap items-center',
+    ]"
+  >
+    <div
+      v-for="filter in filters"
+      :key="filter.key"
+      class="flex min-w-0 flex-col gap-1.5 shell:flex-row shell:items-center shell:gap-2"
+    >
       <label
         :for="`filter-${filter.key}`"
         class="text-xs font-medium text-text-muted"
@@ -35,7 +51,7 @@ const emit = defineEmits<{
       <select
         :id="`filter-${filter.key}`"
         :value="filter.modelValue"
-        class="rounded-base border border-border-default bg-bg-card px-3 py-1.5 text-sm text-text-primary outline-none transition-colors focus:border-accent-gold"
+        class="min-w-0 rounded-base border border-border-default bg-bg-card px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-accent-gold"
         @change="
           emit('update:filter', filter.key, ($event.target as HTMLSelectElement).value)
         "
@@ -48,6 +64,17 @@ const emit = defineEmits<{
           {{ option.label }}
         </option>
       </select>
+    </div>
+
+    <div
+      v-if="$slots.actions"
+      :class="[
+        'flex gap-2 shell:ml-auto',
+        props.wrapActions ? 'flex-wrap' : 'flex-nowrap',
+        props.stackOnMobile ? 'flex-col sm:flex-row' : 'items-center',
+      ]"
+    >
+      <slot name="actions" />
     </div>
   </div>
 </template>

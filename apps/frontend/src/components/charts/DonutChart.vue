@@ -22,11 +22,10 @@ const chartOptions = computed(() => ({
   chart: {
     ...chartTheme.chart,
     type: 'donut' as const,
+    parentHeightOffset: 0,
   },
   labels: props.categories.map((c) => c.category),
-  colors:
-    props.categories.map((c) => c.color).filter(Boolean) ||
-    chartTheme.colors,
+  colors: props.categories.map((c) => c.color).filter(Boolean) || chartTheme.colors,
   plotOptions: {
     pie: {
       donut: {
@@ -64,11 +63,28 @@ const chartOptions = computed(() => ({
     ...chartTheme.legend,
     position: 'bottom' as const,
   },
+  responsive: [
+    {
+      breakpoint: 640,
+      options: {
+        plotOptions: {
+          pie: {
+            donut: {
+              size: '62%',
+            },
+          },
+        },
+        legend: {
+          position: 'bottom' as const,
+        },
+      },
+    },
+  ],
 }));
 </script>
 
 <template>
-  <div class="w-full">
+  <div class="app-chart-surface min-w-0 w-full">
     <VueApexCharts
       type="donut"
       :options="chartOptions"

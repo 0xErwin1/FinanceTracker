@@ -79,7 +79,7 @@ function badgeVariant(pct: number): 'success' | 'warning' | 'info' {
 </script>
 
 <template>
-  <div class="grid grid-cols-[2fr_1fr] gap-4">
+  <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
     <!-- Loading skeleton -->
     <template v-if="loading">
       <div class="animate-pulse rounded-base border border-border-default bg-bg-card p-5">
@@ -118,6 +118,9 @@ function badgeVariant(pct: number): 'success' | 'warning' | 'info' {
           v-if="recentRows.length > 0"
           :columns="columns"
           :rows="recentRows"
+          mobile-mode="cards"
+          card-title-key="note"
+          card-subtitle-key="date"
         >
           <template #date="{ value }">
             <span class="text-xs text-text-secondary">
@@ -126,7 +129,7 @@ function badgeVariant(pct: number): 'success' | 'warning' | 'info' {
           </template>
 
           <template #note="{ value }">
-            <span class="text-xs text-text-primary">
+            <span class="text-sm text-text-primary shell:text-xs">
               {{ value }}
             </span>
           </template>
@@ -187,7 +190,7 @@ function badgeVariant(pct: number): 'success' | 'warning' | 'info' {
             :key="goal.id"
             class="rounded-base bg-bg-primary p-3"
           >
-            <div class="mb-1 flex items-center justify-between">
+            <div class="mb-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <span class="truncate text-xs font-medium text-text-primary">
                 {{ goal.name }}
               </span>

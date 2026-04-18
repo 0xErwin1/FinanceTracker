@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useCategories } from '@/composables/useCategories';
 import { trpc } from '@/api/trpc';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import type { CategoryDTO } from '@expenses/api';
 import type { TransactionType } from '@expenses/api';
 import { Plus, Trash2, Tag, Check, X, Pencil } from 'lucide-vue-next';
@@ -103,21 +104,22 @@ async function saveEdit(id: string) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 lg:space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <Tag :size="24" class="text-accent-gold" />
-        <h1 class="text-xl font-semibold text-text-primary">Categories</h1>
-      </div>
-      <button
-        class="flex items-center gap-2 bg-accent-gold text-bg-primary font-semibold text-sm py-2 px-4 rounded-base hover:opacity-90 transition-opacity"
-        @click="router.push('/categories/create')"
-      >
-        <Plus :size="16" />
-        New Category
-      </button>
-    </div>
+    <ResponsivePageHeader
+      title="Categories"
+      :subtitle="`${categoryList.length} categories configured`"
+    >
+      <template #actions>
+        <button
+          class="flex w-full items-center justify-center gap-2 rounded-base bg-accent-gold px-4 py-2 text-sm font-semibold text-bg-primary transition-opacity hover:opacity-90 sm:w-auto"
+          @click="router.push('/categories/create')"
+        >
+          <Plus :size="16" />
+          New Category
+        </button>
+      </template>
+    </ResponsivePageHeader>
 
     <!-- Loading state -->
     <div
@@ -136,8 +138,72 @@ async function saveEdit(id: string) {
     </div>
 
     <!-- Category list -->
-    <div v-else class="bg-bg-surface border border-border-default rounded-base overflow-hidden">
-      <table class="w-full">
+    <div v-else class="space-y-3">
+      <div class="space-y-3 shell:hidden">
+        <div
+          v-for="cat in categoryList"
+          :key="`${cat.id}-mobile`"
+          class="rounded-base border border-border-default bg-bg-surface p-4"
+        >
+          <div v-if="editingId === cat.id" class="space-y-3">
+            <div v-if="editError" class="text-sm text-accent-red">{{ editError }}</div>
+            <input v-model="editForm.name" type="text" class="w-full rounded-base border border-border-default bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50" />
+            <select v-model="editForm.type" class="w-full rounded-base border border-border-default bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50">
+              <option value="INCOME">INCOME</option>
+              <option value="EXPENSE">EXPENSE</option>
+            </select>
+            <input v-model="editForm.note" type="text" class="w-full rounded-base border border-border-default bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50" placeholder="Optional note" />
+            <div class="flex gap-2">
+              <button class="flex-1 rounded-base bg-accent-gold px-3 py-2 text-xs font-medium text-bg-primary" @click="saveEdit(cat.id)">Save</button>
+              <button class="flex-1 rounded-base border border-border-default px-3 py-2 text-xs text-text-secondary" @click="cancelEdit">Cancel</button>
+            </div>
+          </div>
+
+          <div v-else class="space-y-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-medium text-text-primary">{{ cat.name }}</p>
+                <p class="mt-1 text-xs text-text-muted">{{ cat.note || '--' }}</p>
+              </div>
+              <span
+                class="rounded-base px-2 py-0.5 font-mono text-xs"
+                :class="cat.type === 'INCOME' ? 'bg-accent-green/10 text-accent-green' : 'bg-accent-red/10 text-accent-red'"
+              >
+                {{ cat.type }}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-2 text-sm text-text-secondary">
+              <span>Color:</span>
+              <span v-if="cat.color" class="inline-block h-4 w-4 rounded-sm" :style="{ backgroundColor: cat.color }" />
+              <span v-else>--</span>
+            </div>
+
+            <div class="flex flex-wrap gap-2">
+              <button class="rounded-base border border-border-default px-3 py-2 text-xs text-text-secondary" @click="startEdit(cat)">Edit</button>
+              <button v-if="deletingId !== cat.id" class="rounded-base border border-border-default px-3 py-2 text-xs text-accent-red" @click="handleDelete(cat.id)">Delete</button>
+            </div>
+
+            <div v-if="deletingId === cat.id" class="flex flex-col gap-2 border-t border-border-default/60 pt-3">
+              <p v-if="deleteError" class="text-xs text-accent-red">{{ deleteError }}</p>
+              <div class="flex gap-2">
+                <button class="flex-1 rounded-base bg-accent-red px-3 py-2 text-xs font-medium text-bg-primary" @click="handleDelete(cat.id)">Confirm Delete</button>
+                <button class="flex-1 rounded-base border border-border-default px-3 py-2 text-xs text-text-secondary" @click="cancelDelete">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-if="categoryList.length === 0"
+          class="rounded-base border border-border-default bg-bg-surface px-5 py-8 text-center text-sm text-text-muted"
+        >
+          No categories yet. Click "New Category" to create one.
+        </div>
+      </div>
+
+      <div class="app-safe-scroll-x hidden overflow-hidden rounded-base border border-border-default bg-bg-surface shell:block">
+      <table class="w-full min-w-[760px]">
         <thead>
           <tr class="border-b border-border-default">
             <th class="text-left text-xs font-medium text-text-muted px-5 py-3">
@@ -316,6 +382,7 @@ async function saveEdit(id: string) {
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

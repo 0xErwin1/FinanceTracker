@@ -60,16 +60,16 @@ const lineData = computed<ChartDataPoint[]>(() =>
 </script>
 
 <template>
-  <div class="grid grid-cols-[2fr_1fr] gap-4">
+  <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
     <!-- Loading skeleton -->
     <template v-if="loading">
       <div class="animate-pulse rounded-base border border-border-default bg-bg-card p-5">
         <div class="h-4 w-32 rounded bg-bg-primary mb-4" />
-        <div class="flex gap-3 mb-4">
+        <div class="mb-4 flex flex-col gap-3 sm:flex-row">
           <div class="h-14 w-28 rounded-base bg-bg-primary" />
           <div class="h-14 w-28 rounded-base bg-bg-primary" />
         </div>
-        <div class="grid grid-cols-[auto_1fr] gap-4">
+        <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
           <div class="h-24 w-40 rounded-base bg-bg-primary" />
           <div class="h-48 rounded-base bg-bg-primary" />
         </div>
@@ -90,14 +90,14 @@ const lineData = computed<ChartDataPoint[]>(() =>
         class="rounded-base border border-border-default bg-bg-card p-5"
       >
         <!-- Top row: Period label + Income/Expense metrics + Net Savings inline -->
-        <div class="mb-4 flex items-center justify-between gap-4">
-          <div class="flex items-center gap-4">
+        <div class="mb-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div class="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-start">
             <h3 class="text-sm font-medium text-text-secondary">
               Current Period
             </h3>
 
             <!-- Compact Net Savings -->
-            <div class="rounded-base bg-bg-primary px-3 py-1.5">
+            <div class="rounded-base bg-bg-primary px-3 py-2 sm:min-w-[220px]">
               <p class="text-[10px] font-medium tracking-wider text-text-muted">
                 NET SAVINGS
               </p>
@@ -116,7 +116,7 @@ const lineData = computed<ChartDataPoint[]>(() =>
             </div>
           </div>
 
-          <div class="flex gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:min-w-[240px]">
             <div class="rounded-base bg-bg-primary px-3 py-2">
               <p class="text-xs text-text-muted">Income</p>
               <p class="font-mono text-sm font-semibold text-accent-green">
@@ -133,7 +133,7 @@ const lineData = computed<ChartDataPoint[]>(() =>
         </div>
 
         <!-- Bottom: Mixed bar+line chart (expenses bars + balance line) -->
-        <div class="rounded-base bg-bg-primary p-4">
+        <div class="app-chart-surface rounded-base bg-bg-primary p-4">
           <p class="mb-1 text-xs font-medium tracking-wider text-text-muted">
             EXPENSES &amp; BALANCE TREND
           </p>
@@ -195,11 +195,7 @@ const lineData = computed<ChartDataPoint[]>(() =>
         </div>
 
         <!-- Projected Savings Insight -->
-        <InsightCard
-          title="Projected Savings"
-          :message="projectedSavingsMsg"
-          severity="success"
-        />
+        <InsightCard title="Projected Savings" :message="projectedSavingsMsg" severity="success" />
       </div>
     </template>
   </div>

@@ -3,6 +3,8 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, Loader2 } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
+import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useGoals } from '@/composables/useGoals';
 import { CurrencyEnum, FinancialGoalsType } from '@expenses/api';
 
@@ -18,6 +20,11 @@ const formTargetDate = ref('');
 const formNote = ref('');
 const formError = ref<string | null>(null);
 const saving = ref(false);
+
+const fieldClass =
+  'w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50';
+
+const dateFieldClass = `${fieldClass} [color-scheme:dark]`;
 
 async function handleSave() {
   formError.value = null;
@@ -55,50 +62,49 @@ async function handleSave() {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center gap-3">
-      <button
-        class="p-1.5 rounded-base text-text-muted hover:text-text-primary transition-colors"
-        title="Back to Goals"
-        @click="router.push('/goals')"
-      >
-        <ArrowLeft :size="20" />
-      </button>
-      <h1 class="text-xl font-semibold text-text-primary">New Financial Goal</h1>
-    </div>
-
-    <!-- Form card -->
-    <form
-      class="bg-bg-surface border border-border-default rounded-base p-5 space-y-4"
-      @submit.prevent="handleSave"
+  <div class="space-y-4 lg:space-y-6">
+    <ResponsivePageHeader
+      title="New Financial Goal"
+      subtitle="Create savings and spending-limit goals with a form that stays reachable and readable on smaller screens."
     >
-      <div
-        v-if="formError"
-        class="bg-accent-red/10 border border-accent-red/30 text-accent-red text-sm rounded-base px-4 py-3"
-      >
-        {{ formError }}
-      </div>
+      <template #actions>
+        <button
+          type="button"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-base border border-border-default px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary sm:w-auto"
+          title="Back to Goals"
+          @click="router.push('/goals')"
+        >
+          <ArrowLeft :size="16" />
+          Back to Goals
+        </button>
+      </template>
+    </ResponsivePageHeader>
 
-      <div class="grid grid-cols-3 gap-4">
+    <form class="space-y-4" @submit.prevent="handleSave">
+      <ResponsiveFormSection
+        title="Goal details"
+        description="Goal fields stack on mobile, expand to two columns on tablet, and use wider groupings on desktop."
+        :columns="3"
+      >
+        <div v-if="formError" class="rounded-base border border-accent-red/30 bg-accent-red/10 px-4 py-3 shell:col-span-2 xl:col-span-3">
+          <p class="text-sm text-accent-red">{{ formError }}</p>
+        </div>
+
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Type</label>
-          <select
-            v-model="formType"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
-          >
+          <select v-model="formType" :class="fieldClass">
             <option :value="FinancialGoalsType.SAVING">Saving</option>
             <option :value="FinancialGoalsType.SPEND_LESS">Spend Less</option>
           </select>
         </div>
 
-        <div class="space-y-1.5">
+        <div class="space-y-1.5 xl:col-span-2">
           <label class="block text-sm text-text-secondary">Name</label>
           <input
             v-model="formName"
             type="text"
             required
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="Goal name"
           />
         </div>
@@ -111,19 +117,14 @@ async function handleSave() {
             step="0.01"
             min="0"
             required
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="0.00"
           />
         </div>
-      </div>
 
-      <div class="grid grid-cols-3 gap-4">
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Currency</label>
-          <select
-            v-model="formCurrency"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
-          >
+          <select v-model="formCurrency" :class="fieldClass">
             <option :value="CurrencyEnum.USD">USD</option>
             <option :value="CurrencyEnum.UYU">UYU</option>
             <option :value="CurrencyEnum.EUR">EUR</option>
@@ -132,42 +133,38 @@ async function handleSave() {
 
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Target Date</label>
-          <input
-            v-model="formTargetDate"
-            type="date"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50 [color-scheme:dark]"
-          />
+          <input v-model="formTargetDate" type="date" :class="dateFieldClass" />
         </div>
 
-        <div class="space-y-1.5">
+        <div class="space-y-1.5 xl:col-span-2">
           <label class="block text-sm text-text-secondary">Note</label>
           <input
             v-model="formNote"
             type="text"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="Optional note"
           />
         </div>
-      </div>
 
-      <div class="flex justify-end gap-3">
-        <button
-          type="button"
-          :disabled="saving"
-          class="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
-          @click="router.push('/goals')"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          :disabled="saving"
-          class="flex items-center gap-1.5 px-4 py-2 text-sm bg-accent-gold text-bg-primary font-semibold rounded-base hover:opacity-90 disabled:opacity-50"
-        >
-          <Loader2 v-if="saving" :size="14" class="animate-spin" />
-          {{ saving ? 'Creating...' : 'Create Goal' }}
-        </button>
-      </div>
+        <template #actions>
+          <button
+            type="button"
+            :disabled="saving"
+            class="w-full rounded-base border border-border-default px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary disabled:opacity-50 sm:w-auto"
+            @click="router.push('/goals')"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            :disabled="saving"
+            class="flex w-full items-center justify-center gap-1.5 rounded-base bg-accent-gold px-4 py-2 text-sm font-semibold text-bg-primary transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
+          >
+            <Loader2 v-if="saving" :size="14" class="animate-spin" />
+            {{ saving ? 'Creating...' : 'Create Goal' }}
+          </button>
+        </template>
+      </ResponsiveFormSection>
     </form>
   </div>
 </template>

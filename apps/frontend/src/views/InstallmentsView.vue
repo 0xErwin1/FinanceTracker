@@ -22,7 +22,7 @@ async function handlePay(obligationId: string) {
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4 lg:space-y-5">
     <!-- Section 1: Page Header -->
     <PageHeader
       :loading="isLoading"

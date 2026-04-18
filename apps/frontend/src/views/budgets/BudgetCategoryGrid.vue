@@ -128,7 +128,7 @@ function barColor(pct: number): string {
     </p>
 
     <!-- Loading skeleton -->
-    <div v-if="loading" class="grid grid-cols-3 gap-4">
+    <div v-if="loading" class="grid grid-cols-1 gap-4 shell:grid-cols-2 xl:grid-cols-3">
       <div
         v-for="i in 6"
         :key="i"
@@ -142,7 +142,7 @@ function barColor(pct: number): string {
     </div>
 
     <!-- Content -->
-    <div v-else class="grid grid-cols-3 gap-4">
+    <div v-else class="grid grid-cols-1 gap-4 shell:grid-cols-2 xl:grid-cols-3">
       <!-- Budget category cards -->
       <div
         v-for="budget in budgets"
@@ -208,11 +208,12 @@ function barColor(pct: number): string {
         <!-- Display mode -->
         <template v-else>
           <!-- Header: Name + Badge + Actions -->
-          <div class="mb-3 flex items-center justify-between">
+          <div class="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <span class="text-sm font-medium text-text-primary">
               {{ budget.categoryName }}
             </span>
-            <div class="flex items-center gap-1.5">
+
+            <div class="flex flex-wrap items-center gap-1.5">
               <Badge
                 :text="statusBadge(budget).text"
                 :variant="statusBadge(budget).variant"
@@ -255,7 +256,7 @@ function barColor(pct: number): string {
           />
 
           <!-- Footer: "$X of $Y" + delete -->
-          <div class="mt-2 flex items-center justify-between">
+          <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p class="font-mono text-xs text-text-muted">
               {{ formatCurrency(budget.spent) }} of {{ formatCurrency(budget.budgeted) }}
             </p>
@@ -294,7 +295,7 @@ function barColor(pct: number): string {
 
       <!-- Add New Category button (navigates to create page) -->
       <button
-        class="flex flex-col items-center justify-center rounded-base border border-dashed border-border-default bg-bg-card p-4 transition-colors hover:bg-bg-card-hover"
+        class="flex min-h-[180px] flex-col items-center justify-center rounded-base border border-dashed border-border-default bg-bg-card p-4 transition-colors hover:bg-bg-card-hover"
         type="button"
         @click="router.push('/budgets/create')"
       >

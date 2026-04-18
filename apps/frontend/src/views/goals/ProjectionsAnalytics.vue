@@ -87,7 +87,7 @@ const targetAmount = computed(() => props.goal?.targetAmount ?? 0);
       </div>
 
       <!-- Metric cards -->
-      <div class="mb-4 flex gap-3">
+      <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div class="rounded-base bg-bg-primary px-3 py-2">
           <p class="text-xs text-text-muted">Projected</p>
           <p class="font-mono text-sm font-semibold text-accent-green">
@@ -103,13 +103,14 @@ const targetAmount = computed(() => props.goal?.targetAmount ?? 0);
       </div>
 
       <!-- Bar chart -->
-      <BarChart
-        v-if="projectionData.length > 0"
-        :data="projectionData"
-        label="Projected Balance"
-        color="#4ade80"
-        height="280"
-      />
+      <div v-if="projectionData.length > 0" class="app-chart-surface min-w-0">
+        <BarChart
+          :data="projectionData"
+          label="Projected Balance"
+          color="#4ade80"
+          height="280"
+        />
+      </div>
 
       <div
         v-else

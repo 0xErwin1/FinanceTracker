@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useRecurring } from '@/composables/useRecurring';
 import { useCategories } from '@/composables/useCategories';
 import { trpc } from '@/api/trpc';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import type { CategoryDTO } from '@expenses/api';
 import { Repeat, Plus, Pause, Play, Trash2, Pencil, Check, X } from 'lucide-vue-next';
 import { formatCurrency } from '@/utils/format';
@@ -95,26 +96,22 @@ function formatDay(day: number): string {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 lg:space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <Repeat :size="24" class="text-accent-gold" />
-        <div>
-          <h1 class="text-xl font-semibold text-text-primary">Recurring Transactions</h1>
-          <p class="text-sm text-text-muted mt-0.5">
-            {{ recurringList.length }} total &middot; {{ activeCount }} active
-          </p>
-        </div>
-      </div>
-      <button
-        class="flex items-center gap-2 bg-accent-gold text-bg-primary font-semibold text-sm py-2 px-4 rounded-base hover:opacity-90 transition-opacity"
-        @click="router.push('/recurring/create')"
-      >
-        <Plus :size="16" />
-        New Recurring
-      </button>
-    </div>
+    <ResponsivePageHeader
+      title="Recurring Transactions"
+      :subtitle="`${recurringList.length} total · ${activeCount} active`"
+    >
+      <template #actions>
+        <button
+          class="flex w-full items-center justify-center gap-2 rounded-base bg-accent-gold px-4 py-2 text-sm font-semibold text-bg-primary transition-opacity hover:opacity-90 sm:w-auto"
+          @click="router.push('/recurring/create')"
+        >
+          <Plus :size="16" />
+          New Recurring
+        </button>
+      </template>
+    </ResponsivePageHeader>
 
     <!-- Loading state -->
     <div
@@ -133,8 +130,109 @@ function formatDay(day: number): string {
     </div>
 
     <!-- Recurring list -->
-    <div v-else class="bg-bg-surface border border-border-default rounded-base overflow-hidden">
-      <table class="w-full">
+    <div v-else class="space-y-3">
+      <div class="space-y-3 shell:hidden">
+        <div
+          v-for="item in recurringList"
+          :key="`${item.id}-mobile`"
+          class="rounded-base border border-border-default bg-bg-surface p-4"
+        >
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div class="min-w-0 space-y-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <span
+                  class="rounded-base px-2 py-0.5 font-mono text-xs"
+                  :class="
+                    item.type === 'INCOME'
+                      ? 'bg-accent-green/10 text-accent-green'
+                      : 'bg-accent-red/10 text-accent-red'
+                  "
+                >
+                  {{ item.type }}
+                </span>
+                <span
+                  class="rounded-base px-2 py-0.5 text-xs"
+                  :class="
+                    item.active
+                      ? 'bg-accent-green/10 text-accent-green'
+                      : 'bg-bg-card-hover text-text-muted'
+                  "
+                >
+                  {{ item.active ? 'Active' : 'Paused' }}
+                </span>
+              </div>
+
+              <p class="font-mono text-sm text-text-primary">
+                {{ formatCurrency(item.amount, item.currency) }}
+              </p>
+
+              <p class="text-sm text-text-secondary">
+                {{ categoryMap.get(item.categoryId ?? '') ?? '--' }} · {{ formatDay(item.dayOfMonth) }}
+              </p>
+
+              <p class="text-sm text-text-muted">
+                {{ item.note || '--' }}
+              </p>
+            </div>
+
+            <div class="flex flex-wrap gap-2 sm:justify-end">
+              <button
+                class="rounded-base border border-border-default px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-bg-card"
+                @click="router.push(`/recurring/${item.id}/edit`)"
+              >
+                Edit
+              </button>
+
+              <button
+                v-if="item.active"
+                class="rounded-base border border-border-default px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-bg-card"
+                :disabled="togglingId === item.id"
+                @click="handlePause(item.id)"
+              >
+                Pause
+              </button>
+              <button
+                v-else
+                class="rounded-base border border-border-default px-3 py-2 text-xs text-text-secondary transition-colors hover:bg-bg-card"
+                :disabled="togglingId === item.id"
+                @click="handleResume(item.id)"
+              >
+                Resume
+              </button>
+
+              <button
+                v-if="deletingId !== item.id"
+                class="rounded-base border border-border-default px-3 py-2 text-xs text-accent-red transition-colors hover:bg-accent-red/10"
+                @click="handleDelete(item.id)"
+              >
+                Delete
+              </button>
+            </div>
+
+            <div v-if="deletingId === item.id" class="flex flex-col gap-2 border-t border-border-default/60 pt-3">
+              <p v-if="deleteError" class="text-xs text-accent-red">{{ deleteError }}</p>
+              <div class="flex gap-2">
+                <button class="flex-1 rounded-base bg-accent-red px-3 py-2 text-xs font-medium text-bg-primary" @click="handleDelete(item.id)">
+                  Confirm Delete
+                </button>
+                <button class="flex-1 rounded-base border border-border-default px-3 py-2 text-xs text-text-secondary" @click="cancelDelete">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          v-if="recurringList.length === 0"
+          class="rounded-base border border-border-default bg-bg-surface px-5 py-8 text-center text-sm text-text-muted"
+        >
+          No recurring transactions yet. Click "New Recurring" to create one.
+        </div>
+      </div>
+
+      <div class="app-safe-scroll-x hidden overflow-hidden rounded-base border border-border-default bg-bg-surface shell:block">
+      <table class="w-full min-w-[820px]">
         <thead>
           <tr class="border-b border-border-default">
             <th class="text-left text-xs font-medium text-text-muted px-5 py-3">
@@ -283,6 +381,7 @@ function formatDay(day: number): string {
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

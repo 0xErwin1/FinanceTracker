@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { Plus, Trash2, ArrowLeft, Loader2 } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
+import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useCategories } from '@/composables/useCategories';
 import { TransactionType, CurrencyEnum } from '@expenses/api';
 
@@ -101,6 +103,11 @@ watch(
 const submitting = ref(false);
 const errorMsg = ref('');
 
+const fieldClass =
+  'w-full rounded-base border border-border-default bg-bg-primary px-3 py-2 text-sm text-text-primary outline-none transition-colors focus:border-accent-gold';
+
+const dateFieldClass = `${fieldClass} [color-scheme:dark]`;
+
 function buildPayload() {
   return rows.value.map((r) => ({
     type: r.type,
@@ -194,168 +201,164 @@ async function createAndAddAnother() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
-    <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
+  <div class="flex flex-col gap-4 lg:gap-6">
+    <ResponsivePageHeader
+      title="New Transactions"
+      subtitle="Create one or more transactions without losing access to required fields or actions on smaller screens."
+    >
+      <template #actions>
         <button
-          class="p-1.5 rounded-base text-text-muted hover:text-text-primary transition-colors"
+          type="button"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-base border border-border-default px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary sm:w-auto"
           title="Back to Transactions"
           @click="router.push('/transactions')"
         >
-          <ArrowLeft :size="20" />
+          <ArrowLeft :size="16" />
+          Back to Transactions
         </button>
-        <h1 class="text-xl font-semibold text-text-primary">
-          New Transactions
-        </h1>
-      </div>
-    </div>
+      </template>
+    </ResponsivePageHeader>
 
-    <!-- Form card -->
-    <div class="rounded-base border border-border-default bg-bg-card overflow-hidden">
-      <!-- Rows -->
-      <div class="p-5 space-y-3">
+    <ResponsiveFormSection
+      title="Transaction entries"
+      description="Rows stack on mobile and expand into denser grids on larger screens."
+    >
+      <div class="space-y-4">
         <div
           v-for="(row, index) in rows"
           :key="row.id"
-          class="flex items-end gap-3"
+          class="rounded-base border border-border-default bg-bg-primary/50 p-4"
         >
-          <!-- Type -->
-          <div class="flex flex-col gap-1">
-            <label class="text-[10px] font-medium text-text-muted uppercase tracking-wide">
-              Type
-            </label>
-            <select
-              v-model="row.type"
-              class="rounded-base border border-border-default bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:border-accent-gold transition-colors"
+          <div class="mb-4 flex flex-col gap-3 border-b border-border-default/60 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <p class="text-sm font-medium text-text-primary">
+                Transaction {{ index + 1 }}
+              </p>
+              <p class="mt-1 text-xs text-text-muted">
+                All fields remain reachable on narrow viewports.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              :disabled="rows.length <= 1"
+              class="inline-flex w-full items-center justify-center gap-2 rounded-base border border-border-default px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-accent-red disabled:cursor-not-allowed disabled:opacity-30 sm:w-auto"
+              title="Remove row"
+              @click="removeRow(row.id)"
             >
-              <option :value="TransactionType.EXPENSE">Expense</option>
-              <option :value="TransactionType.INCOME">Income</option>
-              <option :value="TransactionType.SAVING">Saving</option>
-            </select>
+              <Trash2 :size="16" />
+              Remove row
+            </button>
           </div>
 
-          <!-- Amount -->
-          <div class="flex flex-col gap-1">
-            <label class="text-[10px] font-medium text-text-muted uppercase tracking-wide">
-              Amount
-            </label>
-            <input
-              v-model="row.amount"
-              type="number"
-              min="0"
-              step="0.01"
-              placeholder="0.00"
-              class="w-28 rounded-base border border-border-default bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:border-accent-gold transition-colors [color-scheme:dark]"
-            />
-          </div>
+          <div class="grid grid-cols-1 gap-4 shell:grid-cols-2 xl:grid-cols-6">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                Type
+              </label>
+              <select v-model="row.type" :class="fieldClass">
+                <option :value="TransactionType.EXPENSE">Expense</option>
+                <option :value="TransactionType.INCOME">Income</option>
+                <option :value="TransactionType.SAVING">Saving</option>
+              </select>
+            </div>
 
-          <!-- Currency -->
-          <div class="flex flex-col gap-1">
-            <label class="text-[10px] font-medium text-text-muted uppercase tracking-wide">
-              Currency
-            </label>
-            <select
-              v-model="row.currency"
-              class="rounded-base border border-border-default bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:border-accent-gold transition-colors"
-            >
-              <option :value="CurrencyEnum.USD">USD</option>
-              <option :value="CurrencyEnum.UYU">UYU</option>
-              <option :value="CurrencyEnum.EUR">EUR</option>
-            </select>
-          </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                Amount
+              </label>
+              <input
+                v-model="row.amount"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                :class="dateFieldClass"
+              />
+            </div>
 
-          <!-- Category -->
-          <div class="flex flex-col gap-1">
-            <label class="text-[10px] font-medium text-text-muted uppercase tracking-wide">
-              Category
-            </label>
-            <select
-              v-model="row.categoryId"
-              class="rounded-base border border-border-default bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:border-accent-gold transition-colors"
-            >
-              <option value="">None</option>
-              <option
-                v-for="cat in filteredCategories(row.type)"
-                :key="cat.id"
-                :value="cat.id"
-              >
-                {{ cat.name }}
-              </option>
-            </select>
-          </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                Currency
+              </label>
+              <select v-model="row.currency" :class="fieldClass">
+                <option :value="CurrencyEnum.USD">USD</option>
+                <option :value="CurrencyEnum.UYU">UYU</option>
+                <option :value="CurrencyEnum.EUR">EUR</option>
+              </select>
+            </div>
 
-          <!-- Date -->
-          <div class="flex flex-col gap-1">
-            <label class="text-[10px] font-medium text-text-muted uppercase tracking-wide">
-              Date
-            </label>
-            <input
-              v-model="row.date"
-              type="date"
-              class="rounded-base border border-border-default bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:border-accent-gold transition-colors [color-scheme:dark]"
-            />
-          </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                Category
+              </label>
+              <select v-model="row.categoryId" :class="fieldClass">
+                <option value="">None</option>
+                <option
+                  v-for="cat in filteredCategories(row.type)"
+                  :key="cat.id"
+                  :value="cat.id"
+                >
+                  {{ cat.name }}
+                </option>
+              </select>
+            </div>
 
-          <!-- Note -->
-          <div class="flex flex-col gap-1 flex-1 min-w-[120px]">
-            <label class="text-[10px] font-medium text-text-muted uppercase tracking-wide">
-              Note
-            </label>
-            <input
-              v-model="row.note"
-              type="text"
-              placeholder="Optional note..."
-              class="rounded-base border border-border-default bg-bg-primary px-2 py-1.5 text-sm text-text-primary outline-none focus:border-accent-gold transition-colors"
-            />
-          </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                Date
+              </label>
+              <input v-model="row.date" type="date" :class="dateFieldClass" />
+            </div>
 
-          <!-- Remove row -->
-          <button
-            :disabled="rows.length <= 1"
-            class="p-1.5 rounded-base text-text-muted transition-colors hover:text-accent-red disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Remove row"
-            @click="removeRow(row.id)"
-          >
-            <Trash2 :size="16" />
-          </button>
+            <div class="flex flex-col gap-1.5 xl:col-span-2">
+              <label class="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                Note
+              </label>
+              <input
+                v-model="row.note"
+                type="text"
+                placeholder="Optional note..."
+                :class="fieldClass"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div v-if="errorMsg" class="rounded-base border border-accent-red/30 bg-accent-red/10 px-4 py-3">
+          <p class="text-sm text-accent-red">{{ errorMsg }}</p>
         </div>
       </div>
 
-      <!-- Error message -->
-      <div v-if="errorMsg" class="px-5 pb-3">
-        <p class="text-xs text-accent-red">{{ errorMsg }}</p>
-      </div>
-
-      <!-- Footer actions -->
-      <div class="flex items-center justify-between px-5 py-3 border-t border-border-default">
+      <template #actions>
         <button
-          class="flex items-center gap-1.5 rounded-base border border-border-default px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-bg-card-hover"
+          type="button"
+          class="flex w-full items-center justify-center gap-1.5 rounded-base border border-border-default px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card-hover sm:w-auto sm:mr-auto"
           @click="addRow"
         >
           <Plus :size="14" />
           Add Row
         </button>
 
-        <div class="flex items-center gap-2">
-          <button
-            :disabled="submitting"
-            class="flex items-center gap-1.5 rounded-base border border-border-default px-4 py-1.5 text-sm text-text-secondary transition-colors hover:bg-bg-card-hover disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="createAndAddAnother"
-          >
-            Create & Add Another
-          </button>
+        <button
+          type="button"
+          :disabled="submitting"
+          class="flex w-full items-center justify-center gap-1.5 rounded-base border border-border-default px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card-hover disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          @click="createAndAddAnother"
+        >
+          Create & Add Another
+        </button>
 
-          <button
-            :disabled="submitting"
-            class="flex items-center gap-1.5 rounded-base bg-accent-gold px-4 py-1.5 text-sm font-medium text-bg-primary transition-colors hover:bg-accent-gold/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            @click="submitAll"
-          >
-            <Loader2 v-if="submitting" :size="14" class="animate-spin" />
-            {{ submitting ? 'Creating...' : 'Create & Go Back' }}
-          </button>
-        </div>
-      </div>
-    </div>
+        <button
+          type="button"
+          :disabled="submitting"
+          class="flex w-full items-center justify-center gap-1.5 rounded-base bg-accent-gold px-4 py-2 text-sm font-medium text-bg-primary transition-colors hover:bg-accent-gold/90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          @click="submitAll"
+        >
+          <Loader2 v-if="submitting" :size="14" class="animate-spin" />
+          {{ submitting ? 'Creating...' : 'Create & Go Back' }}
+        </button>
+      </template>
+    </ResponsiveFormSection>
   </div>
 </template>

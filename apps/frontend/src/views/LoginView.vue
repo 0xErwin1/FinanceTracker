@@ -21,10 +21,10 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-bg-primary">
-    <div class="w-full max-w-[400px] px-6">
+  <div class="flex min-h-dvh items-center justify-center overflow-y-auto bg-bg-primary px-4 py-6 sm:px-6 sm:py-10">
+    <div class="w-full max-w-md">
       <!-- Logo -->
-      <div class="mb-8 text-center">
+      <div class="mb-6 text-center sm:mb-8">
         <h1 class="text-3xl font-bold tracking-widest text-accent-gold">
           VAULTLY
         </h1>
@@ -35,7 +35,7 @@ async function handleLogin() {
 
       <!-- Login form -->
       <form
-        class="bg-bg-surface rounded-base border border-border-default p-6 space-y-5"
+        class="rounded-base border border-border-default bg-bg-surface p-5 space-y-5 sm:p-6"
         @submit.prevent="handleLogin"
       >
         <!-- Error message -->
@@ -91,7 +91,7 @@ async function handleLogin() {
       </form>
 
       <!-- Link to register -->
-      <p class="mt-6 text-center text-sm text-text-muted">
+      <p class="mt-5 text-center text-sm text-text-muted sm:mt-6">
         Don't have an account?
         <router-link
           to="/register"

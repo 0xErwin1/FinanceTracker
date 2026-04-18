@@ -1,7 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Bell, Settings } from 'lucide-vue-next';
+import { Bell, Menu, Settings } from 'lucide-vue-next';
+
+interface Props {
+  showMenuButton?: boolean;
+}
+
+withDefaults(defineProps<Props>(), {
+  showMenuButton: false,
+});
+
+const emit = defineEmits<{
+  toggleSidebar: [];
+}>();
 
 const route = useRoute();
 const router = useRouter();
@@ -13,22 +25,37 @@ const pageTitle = computed(() => {
 
 <template>
   <header
-    class="h-[56px] bg-bg-surface border-b border-border-default flex items-center px-6 gap-4"
+    class="sticky top-0 z-30 flex min-h-[56px] items-center gap-3 border-b border-border-default bg-bg-surface/95 px-4 py-3 backdrop-blur sm:px-6 lg:px-8"
   >
-    <!-- Page title -->
-    <h2 class="text-base font-semibold text-text-primary mr-auto">
-      {{ pageTitle }}
-    </h2>
+    <button
+      v-if="showMenuButton"
+      type="button"
+      class="rounded-base p-2 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary shell:hidden"
+      aria-label="Open navigation"
+      @click="emit('toggleSidebar')"
+    >
+      <Menu :size="18" />
+    </button>
+
+    <div class="mr-auto min-w-0">
+      <h2 class="truncate text-base font-semibold text-text-primary sm:text-lg">
+        {{ pageTitle }}
+      </h2>
+    </div>
+
+    <slot name="actions" />
 
     <!-- Right section -->
     <button
-      class="p-2 text-text-muted hover:text-text-primary transition-colors"
+      type="button"
+      class="rounded-base p-2 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
       title="Notifications"
     >
       <Bell :size="18" />
     </button>
     <button
-      class="p-2 text-text-muted hover:text-text-primary transition-colors"
+      type="button"
+      class="rounded-base p-2 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary"
       title="Settings"
       @click="router.push('/settings')"
     >

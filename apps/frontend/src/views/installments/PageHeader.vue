@@ -7,7 +7,7 @@ defineProps<Props>();
 </script>
 
 <template>
-  <div class="flex items-start justify-between">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
     <div>
       <p class="text-sm font-medium tracking-wider text-text-muted">
         PAYMENT TRACKING

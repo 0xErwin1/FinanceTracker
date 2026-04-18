@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
 import { trpc } from '@/api/trpc';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { User, Lock, LogOut, Save } from 'lucide-vue-next';
 
 const router = useRouter();
@@ -101,8 +102,11 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="space-y-6 max-w-[640px]">
-    <h1 class="text-xl font-semibold text-text-primary">Settings</h1>
+  <div class="max-w-3xl space-y-4 lg:space-y-6">
+    <ResponsivePageHeader
+      title="Settings"
+      subtitle="Manage profile, password, and account actions with forms that stay readable on small screens."
+    />
 
     <!-- Success banner -->
     <div
@@ -113,14 +117,14 @@ async function handleLogout() {
     </div>
 
     <!-- Profile card -->
-    <div class="bg-bg-surface border border-border-default rounded-base p-6 space-y-4">
+    <div class="rounded-base border border-border-default bg-bg-surface p-5 space-y-4 sm:p-6">
       <div class="flex items-center gap-3">
         <User :size="20" class="text-accent-gold" />
         <h2 class="text-base font-semibold text-text-primary">Profile</h2>
       </div>
 
       <div v-if="!editingProfile" class="space-y-3">
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p class="text-xs text-text-muted mb-1">First Name</p>
             <p class="text-sm text-text-primary">
@@ -155,7 +159,7 @@ async function handleLogout() {
         >
           {{ profileError }}
         </div>
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div class="space-y-1.5">
             <label class="block text-sm text-text-secondary">First Name</label>
             <input
@@ -175,7 +179,7 @@ async function handleLogout() {
             />
           </div>
         </div>
-        <div class="flex justify-end gap-3">
+        <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
             class="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
@@ -196,7 +200,7 @@ async function handleLogout() {
     </div>
 
     <!-- Password card -->
-    <div class="bg-bg-surface border border-border-default rounded-base p-6 space-y-4">
+    <div class="rounded-base border border-border-default bg-bg-surface p-5 space-y-4 sm:p-6">
       <div class="flex items-center gap-3">
         <Lock :size="20" class="text-accent-gold" />
         <h2 class="text-base font-semibold text-text-primary">Password</h2>
@@ -251,7 +255,7 @@ async function handleLogout() {
             class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
           />
         </div>
-        <div class="flex justify-end gap-3">
+        <div class="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
             type="button"
             class="px-4 py-2 text-sm text-text-secondary hover:text-text-primary"
@@ -272,7 +276,7 @@ async function handleLogout() {
     </div>
 
     <!-- Account card -->
-    <div class="bg-bg-surface border border-border-default rounded-base p-6 space-y-4">
+    <div class="rounded-base border border-border-default bg-bg-surface p-5 space-y-4 sm:p-6">
       <div class="flex items-center gap-3">
         <LogOut :size="20" class="text-accent-gold" />
         <h2 class="text-base font-semibold text-text-primary">Account</h2>

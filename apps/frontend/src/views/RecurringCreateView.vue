@@ -3,6 +3,8 @@ import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, Repeat } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
+import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useCategories } from '@/composables/useCategories';
 import { useRecurring } from '@/composables/useRecurring';
 import { TransactionType, CurrencyEnum } from '@expenses/api';
@@ -23,6 +25,11 @@ const formStartDate = ref(new Date().toISOString().split('T')[0]);
 const formEndDate = ref('');
 const formError = ref<string | null>(null);
 const creating = ref(false);
+
+const fieldClass =
+  'w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50';
+
+const dateFieldClass = `${fieldClass} [color-scheme:dark]`;
 
 const filteredCategoryOptions = computed(() => {
   const items = rawCategories.value;
@@ -126,39 +133,37 @@ async function handleCreateAndAddAnother() {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center gap-3">
-      <button
-        class="p-1.5 rounded-base text-text-muted hover:text-text-primary transition-colors"
-        title="Back to Recurring"
-        @click="router.push('/recurring')"
-      >
-        <ArrowLeft :size="20" />
-      </button>
-      <Repeat :size="24" class="text-accent-gold" />
-      <h1 class="text-xl font-semibold text-text-primary">New Recurring Transaction</h1>
-    </div>
-
-    <!-- Form card -->
-    <form
-      class="bg-bg-surface border border-border-default rounded-base p-5 space-y-4"
-      @submit.prevent="handleCreate"
+  <div class="space-y-4 lg:space-y-6">
+    <ResponsivePageHeader
+      title="New Recurring Transaction"
+      subtitle="Set up recurring transactions with a form that stays readable and actionable on narrow screens."
     >
-      <div
-        v-if="formError"
-        class="bg-accent-red/10 border border-accent-red/30 text-accent-red text-sm rounded-base px-4 py-3"
-      >
-        {{ formError }}
-      </div>
+      <template #actions>
+        <button
+          type="button"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-base border border-border-default px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary sm:w-auto"
+          title="Back to Recurring"
+          @click="router.push('/recurring')"
+        >
+          <ArrowLeft :size="16" />
+          Back to Recurring
+        </button>
+      </template>
+    </ResponsivePageHeader>
 
-      <div class="grid grid-cols-3 gap-4">
+    <form class="space-y-4" @submit.prevent="handleCreate">
+      <ResponsiveFormSection
+        title="Recurring details"
+        description="Fields stack on mobile and expand into denser groups at tablet and desktop breakpoints."
+        :columns="3"
+      >
+        <div v-if="formError" class="rounded-base border border-accent-red/30 bg-accent-red/10 px-4 py-3 shell:col-span-2 xl:col-span-3">
+          <p class="text-sm text-accent-red">{{ formError }}</p>
+        </div>
+
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Type</label>
-          <select
-            v-model="formType"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
-          >
+          <select v-model="formType" :class="fieldClass">
             <option :value="TransactionType.EXPENSE">Expense</option>
             <option :value="TransactionType.INCOME">Income</option>
           </select>
@@ -172,31 +177,25 @@ async function handleCreateAndAddAnother() {
             step="0.01"
             min="0"
             required
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="0.00"
           />
         </div>
 
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Currency</label>
-          <select
-            v-model="formCurrency"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
-          >
+          <select v-model="formCurrency" :class="fieldClass">
             <option :value="CurrencyEnum.USD">USD</option>
             <option :value="CurrencyEnum.UYU">UYU</option>
             <option :value="CurrencyEnum.EUR">EUR</option>
           </select>
         </div>
-      </div>
 
-      <div class="grid grid-cols-3 gap-4">
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Category *</label>
           <select
             v-model="formCategoryId"
-            class="w-full rounded-base border bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
-            :class="!formCategoryId ? 'border-accent-red' : 'border-border-default'"
+            :class="[fieldClass, !formCategoryId ? '!border-accent-red/50' : '']"
           >
             <option value="" disabled>Select category</option>
             <option
@@ -217,31 +216,24 @@ async function handleCreateAndAddAnother() {
             min="1"
             max="31"
             required
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="1-31"
           />
         </div>
 
-        <div class="space-y-1.5">
+        <div class="space-y-1.5 xl:col-span-2">
           <label class="block text-sm text-text-secondary">Note</label>
           <input
             v-model="formNote"
             type="text"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="Optional note"
           />
         </div>
-      </div>
 
-      <div class="grid grid-cols-2 gap-4">
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Start Date</label>
-          <input
-            v-model="formStartDate"
-            type="date"
-            required
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
-          />
+          <input v-model="formStartDate" type="date" required :class="dateFieldClass" />
         </div>
 
         <div class="space-y-1.5">
@@ -249,29 +241,29 @@ async function handleCreateAndAddAnother() {
           <input
             v-model="formEndDate"
             type="date"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="dateFieldClass"
             placeholder="Optional"
           />
         </div>
-      </div>
 
-      <div class="flex justify-end gap-3">
-        <button
-          type="button"
-          :disabled="creating"
-          class="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
-          @click="handleCreateAndAddAnother"
-        >
-          {{ creating ? 'Creating...' : 'Create & Add Another' }}
-        </button>
-        <button
-          type="submit"
-          :disabled="creating"
-          class="px-4 py-2 text-sm bg-accent-gold text-bg-primary font-semibold rounded-base hover:opacity-90 disabled:opacity-50"
-        >
-          {{ creating ? 'Creating...' : 'Create & Go Back' }}
-        </button>
-      </div>
+        <template #actions>
+          <button
+            type="button"
+            :disabled="creating"
+            class="w-full rounded-base border border-border-default px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary disabled:opacity-50 sm:w-auto"
+            @click="handleCreateAndAddAnother"
+          >
+            {{ creating ? 'Creating...' : 'Create & Add Another' }}
+          </button>
+          <button
+            type="submit"
+            :disabled="creating"
+            class="w-full rounded-base bg-accent-gold px-4 py-2 text-sm font-semibold text-bg-primary transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
+          >
+            {{ creating ? 'Creating...' : 'Create & Go Back' }}
+          </button>
+        </template>
+      </ResponsiveFormSection>
     </form>
   </div>
 </template>

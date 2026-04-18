@@ -3,6 +3,8 @@ import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, PieChart } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
+import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useCategories } from '@/composables/useCategories';
 import { useBudgets } from '@/composables/useBudgets';
 
@@ -17,6 +19,11 @@ const formMonth = ref(new Date().toISOString().slice(0, 7));
 const formAlertThreshold = ref('80');
 const formError = ref<string | null>(null);
 const creating = ref(false);
+
+const fieldClass =
+  'w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50';
+
+const monthFieldClass = `${fieldClass} [color-scheme:dark]`;
 
 /** All categories from the composable. */
 const categoryOptions = computed(() => {
@@ -104,40 +111,37 @@ async function handleCreateAndAddAnother() {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center gap-3">
-      <button
-        class="p-1.5 rounded-base text-text-muted hover:text-text-primary transition-colors"
-        title="Back to Budgets"
-        @click="router.push('/budgets')"
-      >
-        <ArrowLeft :size="20" />
-      </button>
-      <PieChart :size="24" class="text-accent-gold" />
-      <h1 class="text-xl font-semibold text-text-primary">New Budget</h1>
-    </div>
-
-    <!-- Form card -->
-    <form
-      class="bg-bg-surface border border-border-default rounded-base p-5 space-y-4"
-      @submit.prevent="handleCreateAndGoBack"
+  <div class="space-y-4 lg:space-y-6">
+    <ResponsivePageHeader
+      title="New Budget"
+      subtitle="Create category budgets with a mobile-safe form and full-width actions on smaller screens."
     >
-      <div
-        v-if="formError"
-        class="bg-accent-red/10 border border-accent-red/30 text-accent-red text-sm rounded-base px-4 py-3"
-      >
-        {{ formError }}
-      </div>
+      <template #actions>
+        <button
+          type="button"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-base border border-border-default px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary sm:w-auto"
+          title="Back to Budgets"
+          @click="router.push('/budgets')"
+        >
+          <ArrowLeft :size="16" />
+          Back to Budgets
+        </button>
+      </template>
+    </ResponsivePageHeader>
 
-      <div class="grid grid-cols-2 gap-4">
+    <form class="space-y-4" @submit.prevent="handleCreateAndGoBack">
+      <ResponsiveFormSection
+        title="Budget configuration"
+        description="Fields collapse to one column on mobile and expand to two columns at tablet widths."
+        :columns="2"
+      >
+        <div v-if="formError" class="rounded-base border border-accent-red/30 bg-accent-red/10 px-4 py-3 shell:col-span-2">
+          <p class="text-sm text-accent-red">{{ formError }}</p>
+        </div>
+
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Category</label>
-          <select
-            v-model="formCategoryId"
-            required
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
-          >
+          <select v-model="formCategoryId" required :class="fieldClass">
             <option value="" disabled>Select category</option>
             <option
               v-for="cat in expenseCategories"
@@ -147,10 +151,7 @@ async function handleCreateAndAddAnother() {
               {{ cat.name }}
             </option>
           </select>
-          <p
-            v-if="expenseCategories.length === 0"
-            class="text-xs text-text-muted"
-          >
+          <p v-if="expenseCategories.length === 0" class="text-xs text-text-muted">
             No expense categories available.
           </p>
         </div>
@@ -163,21 +164,14 @@ async function handleCreateAndAddAnother() {
             step="0.01"
             min="0"
             required
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="0.00"
           />
         </div>
-      </div>
 
-      <div class="grid grid-cols-2 gap-4">
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Month</label>
-          <input
-            v-model="formMonth"
-            type="month"
-            required
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
-          />
+          <input v-model="formMonth" type="month" required :class="monthFieldClass" />
         </div>
 
         <div class="space-y-1.5">
@@ -187,29 +181,29 @@ async function handleCreateAndAddAnother() {
             type="number"
             min="0"
             max="100"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="80"
           />
         </div>
-      </div>
 
-      <div class="flex justify-end gap-3">
-        <button
-          type="button"
-          :disabled="creating"
-          class="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
-          @click="handleCreateAndAddAnother"
-        >
-          {{ creating ? 'Creating...' : 'Create & Add Another' }}
-        </button>
-        <button
-          type="submit"
-          :disabled="creating"
-          class="px-4 py-2 text-sm bg-accent-gold text-bg-primary font-semibold rounded-base hover:opacity-90 disabled:opacity-50"
-        >
-          {{ creating ? 'Creating...' : 'Create & Go Back' }}
-        </button>
-      </div>
+        <template #actions>
+          <button
+            type="button"
+            :disabled="creating"
+            class="w-full rounded-base border border-border-default px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary disabled:opacity-50 sm:w-auto"
+            @click="handleCreateAndAddAnother"
+          >
+            {{ creating ? 'Creating...' : 'Create & Add Another' }}
+          </button>
+          <button
+            type="submit"
+            :disabled="creating"
+            class="w-full rounded-base bg-accent-gold px-4 py-2 text-sm font-semibold text-bg-primary transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
+          >
+            {{ creating ? 'Creating...' : 'Create & Go Back' }}
+          </button>
+        </template>
+      </ResponsiveFormSection>
     </form>
   </div>
 </template>

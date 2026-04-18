@@ -38,7 +38,7 @@ function barColor(pct: number): string {
 </script>
 
 <template>
-  <div class="grid grid-cols-[1fr_2fr] gap-4">
+  <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(280px,1fr)_minmax(0,2fr)]">
     <!-- Loading skeleton -->
     <template v-if="loading">
       <div class="animate-pulse rounded-base border border-border-default bg-bg-card p-5">
@@ -95,9 +95,9 @@ function barColor(pct: number): string {
       <div
         class="rounded-base border border-border-default bg-bg-card p-5"
       >
-        <div class="flex gap-8">
+        <div class="flex flex-col gap-6 xl:flex-row xl:items-center">
           <!-- Donut chart — larger -->
-          <div class="shrink-0">
+          <div class="shrink-0 xl:w-[260px]">
             <DonutChart
               v-if="categorySplits.length > 0"
               :categories="categorySplits"
@@ -107,7 +107,7 @@ function barColor(pct: number): string {
             />
             <div
               v-else
-              class="flex h-[220px] w-[220px] items-center justify-center rounded-full bg-bg-primary text-xs text-text-muted"
+              class="flex h-[220px] w-full items-center justify-center rounded-base bg-bg-primary text-xs text-text-muted xl:w-[220px] xl:rounded-full"
             >
               No data
             </div>
@@ -123,7 +123,7 @@ function barColor(pct: number): string {
               No spending data
             </div>
 
-            <div v-else class="grid grid-cols-2 gap-x-4 gap-y-3">
+            <div v-else class="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
               <div
                 v-for="cat in topCategories"
                 :key="cat.category"

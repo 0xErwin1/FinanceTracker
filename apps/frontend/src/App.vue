@@ -35,7 +35,7 @@ const showLayout = computed(() => auth.isAuthenticated.value);
   <!-- Full-screen loading while checking session -->
   <div
     v-if="initializing"
-    class="flex min-h-screen items-center justify-center bg-bg-primary"
+    class="flex min-h-dvh items-center justify-center bg-bg-primary"
   >
     <div class="flex flex-col items-center gap-3">
       <div
@@ -46,7 +46,7 @@ const showLayout = computed(() => auth.isAuthenticated.value);
   </div>
 
   <!-- Authenticated: full layout with sidebar + topbar -->
-  <AppLayout v-else-if="showLayout" />
+  <AppLayout v-else-if="showLayout" class="min-h-dvh" />
 
   <!-- Unauthenticated: bare router view (LoginView) -->
   <RouterView v-else />

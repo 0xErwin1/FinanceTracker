@@ -80,7 +80,7 @@ function cellBgClass(amount: number): string {
 <template>
   <div class="rounded-base border border-border-default bg-bg-card p-3">
     <!-- Header: month/year + legend -->
-    <div class="mb-2 flex items-center justify-between">
+    <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h3 class="text-xs font-medium text-text-primary">
         {{
           new Date(year, month - 1).toLocaleString('en-US', {
@@ -90,7 +90,7 @@ function cellBgClass(amount: number): string {
         }}
       </h3>
 
-      <div class="flex items-center gap-1.5 text-[10px] text-text-muted">
+      <div class="flex flex-wrap items-center gap-1.5 text-[10px] text-text-muted">
         <span>Less</span>
         <span class="inline-block h-2.5 w-2.5 rounded-sm bg-bg-card/50" />
         <span class="inline-block h-2.5 w-2.5 rounded-sm bg-accent-green/20" />

@@ -25,6 +25,7 @@ const chartOptions = computed(() => {
     chart: {
       ...chartTheme.chart,
       type: 'bar' as const,
+      parentHeightOffset: 0,
     },
     colors: ['#e8c468', '#564338'],
     plotOptions: {
@@ -55,6 +56,28 @@ const chartOptions = computed(() => {
       horizontalAlign: 'right' as const,
       markers: { size: 8, shape: 'circle' as const },
     },
+    responsive: [
+      {
+        breakpoint: 640,
+        options: {
+          legend: {
+            position: 'bottom' as const,
+            horizontalAlign: 'left' as const,
+          },
+          plotOptions: {
+            bar: {
+              columnWidth: '72%',
+            },
+          },
+          xaxis: {
+            labels: {
+              rotate: -45,
+              hideOverlappingLabels: true,
+            },
+          },
+        },
+      },
+    ],
     tooltip: {
       ...chartTheme.tooltip,
       y: {
@@ -82,7 +105,7 @@ const chartSeries = computed(() => [
   >
     <!-- Loading skeleton -->
     <div v-if="loading" class="animate-pulse">
-      <div class="mb-4 flex items-center justify-between">
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex items-center gap-2">
           <div class="h-5 w-5 rounded bg-bg-primary" />
           <div class="h-4 w-32 rounded bg-bg-primary" />
@@ -108,7 +131,7 @@ const chartSeries = computed(() => [
           </h3>
         </div>
 
-        <div class="flex items-center gap-4">
+        <div class="flex flex-wrap items-center gap-4">
           <span class="flex items-center gap-1.5 text-xs text-text-muted">
             <span class="inline-block h-2 w-2 rounded-full bg-accent-gold" />
             Budget
@@ -121,12 +144,14 @@ const chartSeries = computed(() => [
       </div>
 
       <!-- Grouped bar chart -->
-      <VueApexCharts
-        type="bar"
-        :options="chartOptions"
-        :series="chartSeries"
-        height="240"
-      />
+      <div class="app-chart-surface min-w-0">
+        <VueApexCharts
+          type="bar"
+          :options="chartOptions"
+          :series="chartSeries"
+          height="240"
+        />
+      </div>
     </template>
   </div>
 </template>

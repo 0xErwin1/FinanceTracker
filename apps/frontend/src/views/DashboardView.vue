@@ -6,6 +6,7 @@ import { useGoals } from '@/composables/useGoals';
 import { useCategories } from '@/composables/useCategories';
 import { useRecurring } from '@/composables/useRecurring';
 import { useAggregations } from '@/composables/useAggregations';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import type { BudgetCategory } from '@/types';
 import HeroBalance from './dashboard/HeroBalance.vue';
 import BudgetsSpending from './dashboard/BudgetsSpending.vue';
@@ -89,7 +90,12 @@ const isLoading = computed(
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4 lg:space-y-5">
+    <ResponsivePageHeader
+      title="Dashboard"
+      subtitle="Key balances, budgets, and recent activity now reflow without clipping cards or charts on smaller screens."
+    />
+
     <!-- Section 1: Hero Balance & Projections -->
     <HeroBalance
       :total-income="totalIncome"

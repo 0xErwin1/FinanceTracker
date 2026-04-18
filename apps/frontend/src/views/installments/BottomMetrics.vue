@@ -47,7 +47,7 @@ const remainingPayments = computed(() => {
     <!-- Loading skeleton -->
     <div
       v-if="loading"
-      class="grid grid-cols-4 gap-3"
+      class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
     >
       <div
         v-for="i in 4"
@@ -59,7 +59,7 @@ const remainingPayments = computed(() => {
       </div>
     </div>
 
-    <div v-else class="grid grid-cols-4 gap-3">
+    <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
       <!-- Upcoming 30D -->
       <div class="rounded-base border border-border-default bg-bg-card p-3">
         <p class="text-[10px] font-medium tracking-wider text-text-muted">

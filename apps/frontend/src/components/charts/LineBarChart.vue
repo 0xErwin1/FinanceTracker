@@ -27,8 +27,13 @@ const chartOptions = computed(() => ({
   chart: {
     ...chartTheme.chart,
     type: 'line' as const,
+    parentHeightOffset: 0,
   },
   colors: [props.lineColor, props.barColor],
+  legend: {
+    ...chartTheme.legend,
+    position: 'bottom' as const,
+  },
   stroke: {
     width: [2, 0],
     curve: 'smooth' as const,
@@ -55,11 +60,29 @@ const chartOptions = computed(() => ({
       formatter: (val: number) => val.toFixed(0),
     },
   },
+  responsive: [
+    {
+      breakpoint: 640,
+      options: {
+        plotOptions: {
+          bar: {
+            columnWidth: '72%',
+          },
+        },
+        xaxis: {
+          labels: {
+            rotate: -45,
+            hideOverlappingLabels: true,
+          },
+        },
+      },
+    },
+  ],
 }));
 </script>
 
 <template>
-  <div class="w-full">
+  <div class="app-chart-surface min-w-0 w-full">
     <VueApexCharts
       type="line"
       :options="chartOptions"

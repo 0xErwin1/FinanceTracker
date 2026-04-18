@@ -33,12 +33,12 @@ const currentMonth = now.getMonth() + 1;
     <!-- Content -->
     <template v-else>
       <!-- Section header -->
-      <div class="mb-2 flex items-center justify-between">
+      <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h3 class="text-xs font-medium text-text-primary">
           Spending Heat Map
         </h3>
 
-        <div class="flex items-center gap-2 text-[10px] text-text-muted">
+        <div class="flex flex-wrap items-center gap-2 text-[10px] text-text-muted">
           <div class="flex items-center gap-1">
             <span class="inline-block h-2 w-2 rounded-full bg-accent-green/30" />
             <span>Low</span>

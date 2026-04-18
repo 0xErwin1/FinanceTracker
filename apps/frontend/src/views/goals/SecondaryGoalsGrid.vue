@@ -55,7 +55,7 @@ async function handleDelete(id: string) {
 
 <template>
   <div>
-    <div v-if="loading" class="grid grid-cols-3 gap-4">
+    <div v-if="loading" class="grid grid-cols-1 gap-4 shell:grid-cols-2 xl:grid-cols-3">
       <div
         v-for="i in 3"
         :key="i"
@@ -67,7 +67,7 @@ async function handleDelete(id: string) {
       </div>
     </div>
 
-    <div v-else-if="cards.length > 0" class="grid grid-cols-3 gap-4">
+    <div v-else-if="cards.length > 0" class="grid grid-cols-1 gap-4 shell:grid-cols-2 xl:grid-cols-3">
       <div
         v-for="goal in cards"
         :key="goal.id"

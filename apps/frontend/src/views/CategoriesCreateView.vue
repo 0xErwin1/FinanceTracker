@@ -3,6 +3,8 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ArrowLeft, Tag } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
+import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { TransactionType } from '@expenses/api';
 
 const router = useRouter();
@@ -15,6 +17,9 @@ const formNote = ref('');
 const formIcon = ref('');
 const formError = ref<string | null>(null);
 const creating = ref(false);
+
+const fieldClass =
+  'w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50';
 
 function resetForm() {
   formName.value = '';
@@ -69,63 +74,59 @@ async function handleCreateAndAddAnother() {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center gap-3">
-      <button
-        class="p-1.5 rounded-base text-text-muted hover:text-text-primary transition-colors"
-        title="Back to Categories"
-        @click="router.push('/categories')"
-      >
-        <ArrowLeft :size="20" />
-      </button>
-      <Tag :size="24" class="text-accent-gold" />
-      <h1 class="text-xl font-semibold text-text-primary">New Category</h1>
-    </div>
-
-    <!-- Form card -->
-    <form
-      class="bg-bg-surface border border-border-default rounded-base p-5 space-y-4"
-      @submit.prevent="handleCreateAndGoBack"
+  <div class="space-y-4 lg:space-y-6">
+    <ResponsivePageHeader
+      title="New Category"
+      subtitle="Create categories with a mobile-safe form and full-width actions on narrow screens."
     >
-      <div
-        v-if="formError"
-        class="bg-accent-red/10 border border-accent-red/30 text-accent-red text-sm rounded-base px-4 py-3"
-      >
-        {{ formError }}
-      </div>
+      <template #actions>
+        <button
+          type="button"
+          class="inline-flex w-full items-center justify-center gap-2 rounded-base border border-border-default px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary sm:w-auto"
+          title="Back to Categories"
+          @click="router.push('/categories')"
+        >
+          <ArrowLeft :size="16" />
+          Back to Categories
+        </button>
+      </template>
+    </ResponsivePageHeader>
 
-      <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-1.5">
+    <form class="space-y-4" @submit.prevent="handleCreateAndGoBack">
+      <ResponsiveFormSection
+        title="Category details"
+        description="Category fields stack on mobile and expand into denser groupings on tablet and desktop."
+        :columns="3"
+      >
+        <div v-if="formError" class="rounded-base border border-accent-red/30 bg-accent-red/10 px-4 py-3 shell:col-span-2 xl:col-span-3">
+          <p class="text-sm text-accent-red">{{ formError }}</p>
+        </div>
+
+        <div class="space-y-1.5 xl:col-span-2">
           <label class="block text-sm text-text-secondary">Name</label>
           <input
             v-model="formName"
             type="text"
             required
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="Category name"
           />
         </div>
 
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Type</label>
-          <select
-            v-model="formType"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none focus:border-accent-gold/50"
-          >
+          <select v-model="formType" :class="fieldClass">
             <option :value="TransactionType.EXPENSE">Expense</option>
             <option :value="TransactionType.INCOME">Income</option>
           </select>
         </div>
-      </div>
 
-      <div class="grid grid-cols-3 gap-4">
         <div class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Color</label>
           <input
             v-model="formColor"
             type="color"
-            class="w-full h-10 rounded-base border border-border-default bg-bg-card cursor-pointer"
+            class="h-10 w-full rounded-base border border-border-default bg-bg-card cursor-pointer"
           />
         </div>
 
@@ -134,39 +135,39 @@ async function handleCreateAndAddAnother() {
           <input
             v-model="formIcon"
             type="text"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="e.g. shopping-cart"
           />
         </div>
 
-        <div class="space-y-1.5">
+        <div class="space-y-1.5 xl:col-span-2">
           <label class="block text-sm text-text-secondary">Note</label>
           <input
             v-model="formNote"
             type="text"
-            class="w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-accent-gold/50"
+            :class="fieldClass"
             placeholder="Optional note"
           />
         </div>
-      </div>
 
-      <div class="flex justify-end gap-3">
-        <button
-          type="button"
-          :disabled="creating"
-          class="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors disabled:opacity-50"
-          @click="handleCreateAndAddAnother"
-        >
-          {{ creating ? 'Creating...' : 'Create & Add Another' }}
-        </button>
-        <button
-          type="submit"
-          :disabled="creating"
-          class="px-4 py-2 text-sm bg-accent-gold text-bg-primary font-semibold rounded-base hover:opacity-90 disabled:opacity-50"
-        >
-          {{ creating ? 'Creating...' : 'Create & Go Back' }}
-        </button>
-      </div>
+        <template #actions>
+          <button
+            type="button"
+            :disabled="creating"
+            class="w-full rounded-base border border-border-default px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card hover:text-text-primary disabled:opacity-50 sm:w-auto"
+            @click="handleCreateAndAddAnother"
+          >
+            {{ creating ? 'Creating...' : 'Create & Add Another' }}
+          </button>
+          <button
+            type="submit"
+            :disabled="creating"
+            class="w-full rounded-base bg-accent-gold px-4 py-2 text-sm font-semibold text-bg-primary transition-opacity hover:opacity-90 disabled:opacity-50 sm:w-auto"
+          >
+            {{ creating ? 'Creating...' : 'Create & Go Back' }}
+          </button>
+        </template>
+      </ResponsiveFormSection>
     </form>
   </div>
 </template>

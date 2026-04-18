@@ -115,13 +115,13 @@ async function handleDelete() {
 
     <template v-else-if="goal">
       <!-- Badge + Title + Actions -->
-      <div class="mb-4 flex items-center gap-2">
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Badge text="SAVING" variant="success" />
         <h2 class="text-lg font-semibold text-text-primary">
           {{ goal.name }}
         </h2>
 
-        <div class="ml-auto flex items-center gap-1">
+        <div class="flex items-center gap-1 sm:ml-auto">
           <button
             class="p-1 rounded-base text-text-muted hover:text-text-primary transition-colors"
             title="Edit"
@@ -140,7 +140,7 @@ async function handleDelete() {
       </div>
 
       <!-- Delete confirmation -->
-      <div v-if="confirmDelete" class="mb-4 flex items-center gap-2 text-xs">
+      <div v-if="confirmDelete" class="mb-4 flex flex-col gap-2 text-xs sm:flex-row sm:items-center">
         <span class="text-text-muted">Delete this goal?</span>
         <button
           class="text-accent-red font-medium"
@@ -169,7 +169,7 @@ async function handleDelete() {
       </p>
 
       <!-- Two metric columns -->
-      <div class="mb-4 grid grid-cols-2 gap-4">
+      <div class="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div class="rounded-base bg-bg-primary p-3">
           <p class="text-xs font-medium tracking-wider text-text-muted">
             CURRENT BALANCE
@@ -199,7 +199,7 @@ async function handleDelete() {
       </div>
 
       <!-- Sub-metrics row -->
-      <div class="grid grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 gap-3 shell:grid-cols-2 xl:grid-cols-3">
         <div class="rounded-base bg-bg-primary p-3">
           <p class="text-xs font-medium tracking-wider text-text-muted">
             MONTHLY VELOCITY

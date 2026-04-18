@@ -67,13 +67,13 @@ function isMuted(status: EntryStatus): boolean {
 <template>
   <section>
     <!-- Section header -->
-    <div class="mb-2 flex items-center justify-between">
+    <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h2 class="text-sm font-medium text-text-primary">
         Payment Timeline
       </h2>
 
       <!-- Legend -->
-      <div class="flex items-center gap-3">
+      <div class="flex flex-wrap items-center gap-3">
         <div class="flex items-center gap-1">
           <span class="h-1.5 w-1.5 rounded-full bg-accent-blue/60" />
           <span class="text-[10px] text-text-muted">Pending</span>
@@ -151,10 +151,10 @@ function isMuted(status: EntryStatus): boolean {
               :class="[
                 isMuted(entryStatus(obligation)) ? 'opacity-40' : '',
               ]"
-              class="flex items-center gap-3"
+              class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3"
             >
               <!-- Date + installment number + amount -->
-              <span class="text-xs text-text-muted min-w-[70px]">
+              <span class="min-w-[70px] text-xs text-text-muted">
                 {{ formatDate(obligation.dueDate) }}
               </span>
 
@@ -176,7 +176,7 @@ function isMuted(status: EntryStatus): boolean {
               <button
                 v-if="obligation.status === 'PENDING'"
                 type="button"
-                class="ml-auto rounded-base bg-accent-blue/15 px-2.5 py-1 text-[11px] font-medium text-accent-blue transition-colors hover:bg-accent-blue/25"
+                class="rounded-base bg-accent-blue/15 px-2.5 py-1 text-[11px] font-medium text-accent-blue transition-colors hover:bg-accent-blue/25 sm:ml-auto"
                 @click="emit('pay', obligation.id)"
               >
                 Pay Now

@@ -102,13 +102,13 @@ async function handleDelete() {
 
     <template v-else-if="goal">
       <!-- Badge + Title + Actions -->
-      <div class="mb-4 flex items-center gap-2">
+      <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Badge text="SPEND LIMIT" variant="warning" />
         <h2 class="text-lg font-semibold text-text-primary">
           {{ goal.name }}
         </h2>
 
-        <div class="ml-auto flex items-center gap-1">
+        <div class="flex items-center gap-1 sm:ml-auto">
           <button
             class="p-1 rounded-base text-text-muted hover:text-text-primary transition-colors"
             title="Edit"
@@ -127,7 +127,7 @@ async function handleDelete() {
       </div>
 
       <!-- Delete confirmation -->
-      <div v-if="confirmDelete" class="mb-4 flex items-center gap-2 text-xs">
+      <div v-if="confirmDelete" class="mb-4 flex flex-col gap-2 text-xs sm:flex-row sm:items-center">
         <span class="text-text-muted">Delete this goal?</span>
         <button
           class="text-accent-red font-medium"
@@ -166,7 +166,7 @@ async function handleDelete() {
 
       <!-- Budget period + progress -->
       <div class="mb-4">
-        <div class="mb-2 flex items-center justify-between">
+        <div class="mb-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <Badge :text="periodLabel" variant="info" />
           <span class="font-mono text-xs text-text-muted">
             {{ percentage.toFixed(0) }}%

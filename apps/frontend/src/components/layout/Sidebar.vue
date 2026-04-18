@@ -11,10 +11,21 @@ import {
   Settings,
   LogOut,
   Plus,
-  User,
+  PanelLeftClose,
 } from 'lucide-vue-next';
 import { useAuth } from '@/composables/useAuth';
 import type { Component } from 'vue';
+
+interface Props {
+  open: boolean;
+  desktop: boolean;
+}
+
+const props = defineProps<Props>();
+
+const emit = defineEmits<{
+  close: [];
+}>();
 
 const route = useRoute();
 const router = useRouter();
@@ -42,13 +53,26 @@ function isActive(to: string): boolean {
   return route.path.startsWith(to);
 }
 
-function handleNewTransaction() {
-  router.push('/transactions/create');
+function closeSidebar() {
+  if (!props.desktop) {
+    emit('close');
+  }
+}
+
+async function navigateTo(to: string) {
+  await router.push(to);
+  closeSidebar();
+}
+
+async function handleNewTransaction() {
+  await router.push('/transactions/create');
+  closeSidebar();
 }
 
 async function handleLogout() {
   await auth.logout();
-  router.push('/login');
+  await router.push('/login');
+  closeSidebar();
 }
 
 const userInitial = () => {
@@ -61,60 +85,80 @@ const userInitial = () => {
 
 <template>
   <aside
-    class="fixed top-0 left-0 h-screen w-[256px] bg-bg-sidebar border-r border-border-default flex flex-col z-50"
+    :class="[
+      'fixed inset-y-0 left-0 z-50 flex h-dvh w-[var(--app-sidebar-width)] flex-col border-r border-border-default bg-bg-sidebar transition-transform duration-200 ease-out shell:translate-x-0',
+      open ? 'translate-x-0 shadow-2xl shadow-black/30 shell:shadow-none' : '-translate-x-full',
+    ]"
   >
     <!-- Logo -->
-    <div class="px-6 py-5 border-b border-border-default">
-      <h1 class="text-xl font-bold tracking-widest text-accent-gold">
-        VAULTLY
-      </h1>
-      <p class="text-xs text-text-muted mt-0.5 font-mono">TERMINAL V1.0.4</p>
+    <div class="border-b border-border-default px-5 py-4 sm:px-6">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h1 class="text-xl font-bold tracking-widest text-accent-gold">
+            VAULTLY
+          </h1>
+          <p class="mt-0.5 font-mono text-xs text-text-muted">TERMINAL V1.0.4</p>
+        </div>
+
+        <button
+          v-if="!desktop"
+          type="button"
+          class="rounded-base p-2 text-text-muted transition-colors hover:bg-bg-card hover:text-text-primary shell:hidden"
+          aria-label="Close navigation"
+          @click="closeSidebar"
+        >
+          <PanelLeftClose :size="18" />
+        </button>
+      </div>
     </div>
 
     <!-- Navigation -->
-    <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-      <RouterLink
+    <nav class="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+      <button
         v-for="item in navItems"
         :key="item.to + item.label"
-        :to="item.to"
-        class="flex items-center gap-3 px-3 py-2.5 rounded-base text-sm transition-colors"
+        type="button"
+        class="flex w-full items-center gap-3 rounded-base px-3 py-2.5 text-left text-sm transition-colors"
         :class="
           isActive(item.to)
             ? 'bg-bg-card text-accent-gold'
             : 'text-text-secondary hover:bg-bg-card-hover hover:text-text-primary'
         "
+        @click="navigateTo(item.to)"
       >
         <component :is="item.icon" :size="20" />
         <span>{{ item.label }}</span>
-      </RouterLink>
+      </button>
     </nav>
 
     <!-- Bottom section -->
-    <div class="px-4 py-4 border-t border-border-default space-y-3">
+    <div class="space-y-3 border-t border-border-default px-4 py-4">
       <button
-        class="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-accent-gold text-bg-primary font-semibold text-sm rounded-base hover:opacity-90 transition-opacity"
+        type="button"
+        class="flex w-full items-center justify-center gap-2 rounded-base bg-accent-gold px-4 py-2.5 text-sm font-semibold text-bg-primary transition-opacity hover:opacity-90"
         @click="handleNewTransaction"
       >
         <Plus :size="16" />
         New Transaction
       </button>
 
-      <div class="flex items-center gap-3 px-2">
+      <div class="flex items-center gap-3 rounded-base bg-bg-card px-3 py-3">
         <div
-          class="w-8 h-8 rounded-full bg-bg-card-hover flex items-center justify-center"
+          class="flex h-9 w-9 items-center justify-center rounded-full bg-bg-card-hover font-mono text-sm font-semibold text-accent-gold"
         >
-          <User :size="16" class="text-text-muted" />
+          {{ userInitial() }}
         </div>
-        <div class="flex flex-col flex-1 min-w-0">
-          <span class="text-xs text-text-primary truncate">
+        <div class="min-w-0 flex-1">
+          <p class="truncate text-xs text-text-primary">
             {{ auth.user.value?.firstName ?? 'User' }}
-          </span>
-          <span class="text-[10px] text-text-muted truncate">
+          </p>
+          <p class="truncate text-[10px] text-text-muted">
             {{ auth.user.value?.email ?? '' }}
-          </span>
+          </p>
         </div>
         <button
-          class="p-1 text-text-muted hover:text-accent-red transition-colors"
+          type="button"
+          class="rounded-base p-2 text-text-muted transition-colors hover:bg-bg-primary hover:text-accent-red"
           title="Sign out"
           @click="handleLogout"
         >

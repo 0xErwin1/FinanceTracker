@@ -170,7 +170,7 @@ const lastSync = computed(() => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col gap-3">
+  <div class="flex h-full min-w-0 flex-col gap-4">
     <!-- Section 1: Filter Bar -->
     <TransactionFilterBar
       :search-filter="searchFilter"
@@ -189,7 +189,7 @@ const lastSync = computed(() => {
     />
 
     <!-- Section 2: Transaction Ledger -->
-    <div class="flex-1 overflow-y-auto">
+    <div class="min-w-0 flex-1">
       <TransactionLedger
         :groups="groupedTransactions"
         :loading="loading"

@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { Plus } from 'lucide-vue-next';
 import { useGoals } from '@/composables/useGoals';
+import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import StatCard from '@/components/base/StatCard.vue';
 import MainSavingGoal from './goals/MainSavingGoal.vue';
 import SpendingLimitGoal from './goals/SpendingLimitGoal.vue';
@@ -64,44 +65,41 @@ const primaryCurrency = computed(() => mainSavingGoal.value?.currency ?? 'USD');
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div class="space-y-4 lg:space-y-5">
     <!-- Section 1: Header + New Goal button -->
-    <div class="flex items-start justify-between">
-      <div>
-        <p class="text-sm text-text-secondary">Track & plan</p>
-        <div class="flex items-center gap-3">
-          <h1 class="text-2xl font-semibold text-text-primary">
-            Financial Goals
-          </h1>
-          <button
-            class="flex items-center gap-1.5 rounded-base bg-accent-gold px-3 py-1.5 text-sm font-medium text-bg-primary hover:opacity-90 transition-opacity"
-            @click="router.push('/goals/create')"
-          >
-            <Plus :size="14" />
-            New Goal
-          </button>
-        </div>
-      </div>
+    <ResponsivePageHeader
+      title="Financial Goals"
+      subtitle="Track savings targets and spending limits with layouts that stay readable from mobile to desktop."
+    >
+      <template #actions>
+        <button
+          class="flex w-full items-center justify-center gap-1.5 rounded-base bg-accent-gold px-3 py-2 text-sm font-medium text-bg-primary transition-opacity hover:opacity-90 sm:w-auto"
+          @click="router.push('/goals/create')"
+        >
+          <Plus :size="14" />
+          New Goal
+        </button>
 
-      <template v-if="loading">
-        <div class="h-[83px] w-52 animate-pulse rounded-base bg-bg-card" />
+        <template v-if="loading">
+          <div class="h-[83px] w-full animate-pulse rounded-base bg-bg-card sm:w-52" />
+        </template>
+        <StatCard
+          v-else
+          title="Total Saved"
+          :value="
+            new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: primaryCurrency,
+              minimumFractionDigits: 2,
+            }).format(totalSaved)
+          "
+          subtitle="Across all goals"
+        />
       </template>
-      <StatCard
-        v-else
-        title="Total Saved"
-        :value="
-          new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: primaryCurrency,
-            minimumFractionDigits: 2,
-          }).format(totalSaved)
-        "
-        subtitle="Across all goals"
-      />
-    </div>
+    </ResponsivePageHeader>
 
     <!-- Section 2: Main bento grid (2/3 + 1/3) -->
-    <div class="grid grid-cols-[2fr_1fr] gap-4">
+    <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
       <MainSavingGoal
         :goal="mainSavingGoal"
         :loading="loading"
