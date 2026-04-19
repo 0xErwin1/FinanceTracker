@@ -1,11 +1,12 @@
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 import 'reflect-metadata';
 import { AppDataSource } from './data-source';
 import { User } from './entities';
-import { categoryService } from './services/category.service';
 import { logger } from './lib';
+import { categoryService } from './services/category.service';
 
 async function seed() {
   await AppDataSource.initialize();

@@ -1,14 +1,14 @@
 <script setup lang="ts">
+import { Plus } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { Plus } from 'lucide-vue-next';
-import { useGoals } from '@/composables/useGoals';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import StatCard from '@/components/base/StatCard.vue';
+import { useGoals } from '@/composables/useGoals';
 import MainSavingGoal from './goals/MainSavingGoal.vue';
-import SpendingLimitGoal from './goals/SpendingLimitGoal.vue';
-import SecondaryGoalsGrid from './goals/SecondaryGoalsGrid.vue';
 import ProjectionsAnalytics from './goals/ProjectionsAnalytics.vue';
+import SecondaryGoalsGrid from './goals/SecondaryGoalsGrid.vue';
+import SpendingLimitGoal from './goals/SpendingLimitGoal.vue';
 
 const router = useRouter();
 

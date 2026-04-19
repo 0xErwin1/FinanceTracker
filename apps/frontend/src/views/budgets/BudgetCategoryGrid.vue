@@ -1,20 +1,26 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { Check, Pencil, Plus, Trash2, X } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { trpc } from '@/api/trpc';
-import ProgressBar from '@/components/base/ProgressBar.vue';
 import Badge from '@/components/base/Badge.vue';
+import ProgressBar from '@/components/base/ProgressBar.vue';
 import { formatCurrency } from '@/utils/format';
-import { Pencil, Trash2, X, Check, Plus } from 'lucide-vue-next';
+import type { CurrencyAmount } from '../multiCurrency';
 
 interface BudgetCardItem {
   id: string;
   categoryId: string;
   categoryName: string;
   budgeted: number;
-  spent: number;
-  currency: string;
-  percentage: number;
+  spent: number | null;
+  currency: string | null;
+  percentage: number | null;
+  estimatedSpent: number | null;
+  estimatedSpentCurrency: string | null;
+  estimatedPercentage: number | null;
+  hasMixedSpend: boolean;
+  nativeSpent: CurrencyAmount[];
   isOverBudget: boolean;
   isNearLimit: boolean;
   alertThreshold: number | null;
@@ -105,12 +111,28 @@ function cancelDelete() {
 }
 
 function statusBadge(item: BudgetCardItem): { text: string; variant: 'success' | 'warning' | 'danger' } {
-  if (item.isOverBudget || item.percentage >= 90) {
+  if (item.hasMixedSpend) {
+    if (item.estimatedPercentage === null) {
+      return { text: 'Native Only', variant: 'warning' };
+    }
+
+    if (item.estimatedPercentage >= 90) {
+      return { text: 'Estimated Caution', variant: 'danger' };
+    }
+
+    return { text: 'Estimated', variant: 'warning' };
+  }
+
+  const percentage = item.percentage ?? 0;
+
+  if (item.isOverBudget || percentage >= 90) {
     return { text: 'Caution', variant: 'danger' };
   }
-  if (item.isNearLimit || item.percentage >= 70) {
+
+  if (item.isNearLimit || percentage >= 70) {
     return { text: 'Near Limit', variant: 'warning' };
   }
+
   return { text: 'Safe', variant: 'success' };
 }
 
@@ -119,6 +141,16 @@ function barColor(pct: number): string {
   if (pct >= 70) return 'bg-accent-orange';
   return 'bg-accent-green';
 }
+
+function formatBudgetValue(amount: number, currency: string | null): string {
+  if (!currency) {
+    return amount.toFixed(2);
+  }
+
+  return formatCurrency(amount, currency);
+}
+
+const mixedCurrencyCards = computed(() => props.budgets.filter((budget) => budget.hasMixedSpend));
 </script>
 
 <template>
@@ -231,35 +263,67 @@ function barColor(pct: number): string {
 
           <!-- Amount + change indicator -->
           <div class="mb-3 flex items-baseline gap-2">
-            <span class="font-mono text-lg font-semibold text-text-primary">
-              {{ formatCurrency(budget.spent) }}
-            </span>
-            <span
-              :class="[
-                'font-mono text-xs',
-                budget.percentage >= 90
-                  ? 'text-accent-red'
-                  : budget.percentage >= 70
-                    ? 'text-accent-orange'
-                    : 'text-accent-green',
-              ]"
-            >
-              {{ budget.percentage.toFixed(0) }}%
-            </span>
+            <template v-if="budget.hasMixedSpend">
+              <span
+                v-if="budget.estimatedSpent !== null && budget.estimatedSpentCurrency"
+                class="font-mono text-lg font-semibold text-text-primary"
+              >
+                Estimated {{ formatCurrency(budget.estimatedSpent, budget.estimatedSpentCurrency) }}
+              </span>
+              <span v-else class="text-sm text-text-muted">
+                Native subtotals only
+              </span>
+              <span v-if="budget.estimatedPercentage !== null" class="font-mono text-xs text-accent-gold">
+                {{ budget.estimatedPercentage.toFixed(0) }}%
+              </span>
+            </template>
+            <template v-else>
+              <span class="font-mono text-lg font-semibold text-text-primary">
+                {{ formatBudgetValue(budget.spent ?? 0, budget.currency) }}
+              </span>
+              <span
+                :class="[
+                  'font-mono text-xs',
+                  (budget.percentage ?? 0) >= 90
+                    ? 'text-accent-red'
+                    : (budget.percentage ?? 0) >= 70
+                      ? 'text-accent-orange'
+                      : 'text-accent-green',
+                ]"
+              >
+                {{ (budget.percentage ?? 0).toFixed(0) }}%
+              </span>
+            </template>
+          </div>
+
+          <div v-if="budget.hasMixedSpend" class="space-y-1.5 rounded-base border border-border-default bg-bg-surface px-3 py-2 text-xs text-text-muted">
+            <p>Native spent totals</p>
+            <p v-for="entry in budget.nativeSpent" :key="`${budget.id}-${entry.currency}`" class="font-mono text-text-primary">
+              {{ entry.currency }} {{ formatCurrency(entry.amount, entry.currency) }}
+            </p>
           </div>
 
           <!-- Progress bar -->
           <ProgressBar
-            :value="budget.spent"
+            v-else
+            :value="budget.spent ?? 0"
             :max="budget.budgeted"
-            :color="barColor(budget.percentage)"
+            :color="barColor(budget.percentage ?? 0)"
           />
 
           <!-- Footer: "$X of $Y" + delete -->
           <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p class="font-mono text-xs text-text-muted">
-              {{ formatCurrency(budget.spent) }} of {{ formatCurrency(budget.budgeted) }}
-            </p>
+            <div class="text-xs text-text-muted">
+              <p
+                v-if="budget.hasMixedSpend && budget.estimatedSpent !== null && budget.estimatedSpentCurrency"
+                class="font-mono"
+              >
+                Estimated spent {{ formatCurrency(budget.estimatedSpent, budget.estimatedSpentCurrency) }}
+              </p>
+              <p class="font-mono">
+                Limit {{ formatBudgetValue(budget.budgeted, budget.currency) }}
+              </p>
+            </div>
 
             <!-- Delete confirmation inline -->
             <template v-if="deletingId === budget.id">
@@ -292,6 +356,15 @@ function barColor(pct: number): string {
           </div>
         </template>
       </div>
+
+      <button
+        v-if="mixedCurrencyCards.length > 0"
+        class="col-span-full rounded-base border border-border-default bg-bg-surface px-4 py-3 text-left text-xs text-text-muted"
+        type="button"
+        disabled
+      >
+        Mixed-currency budget cards now show native subtotals instead of a false combined spend figure.
+      </button>
 
       <!-- Add New Category button (navigates to create page) -->
       <button

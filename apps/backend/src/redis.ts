@@ -1,5 +1,5 @@
 import RedisStore from 'connect-redis';
-import { type RedisClientType, createClient } from 'redis';
+import { createClient, type RedisClientType } from 'redis';
 import { config } from './config';
 import { logger } from './lib';
 

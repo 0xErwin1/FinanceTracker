@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import type { CategorySplit, BudgetCategory } from '@/types';
 import ProgressBar from '@/components/base/ProgressBar.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
+import type { BudgetCategory, CategorySplit } from '@/types';
 import { formatCurrency } from '@/utils/format';
+import type { CurrencyAmount } from '../multiCurrency';
 
 interface Props {
   budgets: BudgetCategory[];
   categorySplits: CategorySplit[];
-  totalExpenses: number;
+  expenseBreakdown: CurrencyAmount[];
   loading: boolean;
 }
 
@@ -29,6 +30,7 @@ const topBudgets = computed(() =>
 
 /** Top 6 categories for the 2x3 grid display. */
 const topCategories = computed(() => props.categorySplits.slice(0, 6));
+const canShowCombinedSpending = computed(() => props.expenseBreakdown.length <= 1);
 
 function barColor(pct: number): string {
   if (pct >= 90) return 'bg-accent-red';
@@ -99,12 +101,22 @@ function barColor(pct: number): string {
           <!-- Donut chart — larger -->
           <div class="shrink-0 xl:w-[260px]">
             <DonutChart
-              v-if="categorySplits.length > 0"
+              v-if="categorySplits.length > 0 && canShowCombinedSpending"
               :categories="categorySplits"
               center-label="TOTAL"
-              :center-value="formatCurrency(totalExpenses)"
+              :center-value="formatCurrency(expenseBreakdown[0]?.amount ?? 0, expenseBreakdown[0]?.currency ?? 'USD')"
               height="220"
             />
+            <div
+              v-else-if="expenseBreakdown.length > 1"
+              class="flex h-[220px] w-full flex-col items-center justify-center rounded-base bg-bg-primary px-4 text-center text-xs text-text-muted xl:w-[220px] xl:rounded-full"
+            >
+              Mixed native currencies
+
+              <span class="mt-2 block">
+                Category totals stay hidden until an estimated valuation is available.
+              </span>
+            </div>
             <div
               v-else
               class="flex h-[220px] w-full items-center justify-center rounded-base bg-bg-primary text-xs text-text-muted xl:w-[220px] xl:rounded-full"
@@ -119,7 +131,11 @@ function barColor(pct: number): string {
               CATEGORY DISTRIBUTION
             </p>
 
-            <div v-if="topCategories.length === 0" class="py-4 text-center text-xs text-text-muted">
+            <div v-if="expenseBreakdown.length > 1" class="py-4 text-center text-xs text-text-muted">
+              Native expense subtotals stay visible above. Estimated category distribution is deferred until valuation coverage exists.
+            </div>
+
+            <div v-else-if="topCategories.length === 0" class="py-4 text-center text-xs text-text-muted">
               No spending data
             </div>
 

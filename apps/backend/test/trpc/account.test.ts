@@ -1,5 +1,7 @@
 import { CurrencyEnum, TransactionType } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
+import { AppDataSource } from '../../src/data-source';
+import { FxRate } from '../../src/entities';
 import {
   createAuthenticatedCaller,
   seedAccount,
@@ -204,6 +206,80 @@ describe('account router', () => {
     expect(daily).toMatchObject({ currentBalance: 150, archivedAt: null });
     expect(oldSavings).toMatchObject({ currentBalance: 10 });
     expect(oldSavings?.archivedAt).not.toBeNull();
+  });
+
+  it('returns an estimated valuation snapshot without counting third-party destinations', async () => {
+    const user = await seedUser({
+      email: 'valuation-account@example.com',
+      reportingCurrency: CurrencyEnum.USD,
+      valuationFreshnessDays: 3,
+    });
+    const valuationCaller = createAuthenticatedCaller(user.id);
+
+    const ownedUsd = await seedAccount(user.id, {
+      name: 'Checking',
+      currency: CurrencyEnum.USD,
+      ownership: 'self',
+    });
+    const ownedEur = await seedAccount(user.id, {
+      name: 'Brokerage',
+      currency: CurrencyEnum.EUR,
+      ownership: 'custodial',
+    });
+    const destination = await seedAccount(user.id, {
+      name: 'Landlord',
+      currency: CurrencyEnum.EUR,
+      ownership: 'third_party',
+    });
+
+    await seedTransaction(user.id, {
+      accountId: ownedUsd.id,
+      type: TransactionType.INCOME,
+      amount: 200,
+      currency: CurrencyEnum.USD,
+      date: '2026-04-18',
+    });
+    await seedTransaction(user.id, {
+      accountId: ownedEur.id,
+      type: TransactionType.INCOME,
+      amount: 50,
+      currency: CurrencyEnum.EUR,
+      date: '2026-04-18',
+    });
+    await seedTransaction(user.id, {
+      accountId: destination.id,
+      type: TransactionType.INCOME,
+      amount: 999,
+      currency: CurrencyEnum.EUR,
+      date: '2026-04-18',
+    });
+
+    await AppDataSource.getRepository(FxRate).save(
+      AppDataSource.getRepository(FxRate).create({
+        userId: user.id,
+        baseCurrency: CurrencyEnum.EUR,
+        quoteCurrency: CurrencyEnum.USD,
+        rate: 1.1,
+        effectiveDate: '2026-04-18',
+        sourceLabel: 'Manual close',
+      }),
+    );
+
+    await expect(valuationCaller.account.getValuationSnapshot()).resolves.toEqual({
+      reportingCurrency: CurrencyEnum.USD,
+      valuationDate: '2026-04-19',
+      coverage: 'complete',
+      estimatedTotal: 255,
+      nativeTotals: {
+        EUR: 50,
+        USD: 200,
+      },
+      coveredCurrencies: [CurrencyEnum.EUR, CurrencyEnum.USD],
+      missingCurrencies: [],
+      staleCurrencies: [],
+      sourceLabels: ['Manual close'],
+      effectiveDates: ['2026-04-18'],
+    });
   });
 
   it('archives accounts without removing them from summaries', async () => {

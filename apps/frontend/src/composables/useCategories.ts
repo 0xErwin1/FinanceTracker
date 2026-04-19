@@ -1,4 +1,4 @@
-import { ref, computed, type Ref } from 'vue';
+import { computed, type Ref, ref } from 'vue';
 import { trpc } from '@/api/trpc';
 
 type CategoryResult = Awaited<ReturnType<typeof trpc.category.getAll.query>>;

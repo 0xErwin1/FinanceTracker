@@ -11,8 +11,8 @@ import {
   describeAccountOwnership,
   formatAccountOwnership,
   populateAccountDraft,
-  resolveCardScopedPanelLayout,
   populateInstitutionDraft,
+  resolveCardScopedPanelLayout,
   validateAccountDraft,
   validateInstitutionDraft,
 } from './bankingManagement';

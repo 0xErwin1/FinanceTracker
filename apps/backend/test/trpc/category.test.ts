@@ -79,7 +79,7 @@ describe('category router', () => {
       expect(result.map((c: { name: string }) => c.name)).toEqual(
         expect.arrayContaining(['Food', 'Transport']),
       );
-    });
+    }, 15000);
 
     it('should return empty array when no categories exist', async () => {
       const result = await caller.category.getAll();

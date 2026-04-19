@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import type { CategoryDTO } from '@expenses/api';
+import { CurrencyEnum, TransactionType } from '@expenses/api';
 import { ArrowLeft, Repeat } from 'lucide-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { trpc } from '@/api/trpc';
 import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useAccounts } from '@/composables/useAccounts';
 import { useCategories } from '@/composables/useCategories';
 import { useRecurring } from '@/composables/useRecurring';
-import { TransactionType, CurrencyEnum } from '@expenses/api';
-import type { CategoryDTO } from '@expenses/api';
 
 const router = useRouter();
 const route = useRoute();

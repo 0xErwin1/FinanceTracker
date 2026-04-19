@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import { ArrowLeft, PieChart } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { trpc } from '@/api/trpc';
 import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
-import { useCategories } from '@/composables/useCategories';
 import { useBudgets } from '@/composables/useBudgets';
+import { useCategories } from '@/composables/useCategories';
 
 const router = useRouter();
 const { categories: rawCategories } = useCategories();

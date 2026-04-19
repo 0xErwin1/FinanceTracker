@@ -9,8 +9,8 @@ import {
   ManyToOne,
   PrimaryColumn,
 } from 'typeorm';
-import { Category } from './category.entity';
 import { Account } from './account.entity';
+import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
 import { InstallmentObligation } from './installment_obligation.entity';
 import { RecurringTransaction } from './recurring_transaction.entity';

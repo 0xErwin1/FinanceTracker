@@ -1,3 +1,6 @@
+import type { CurrencyEnum } from '../../enums';
+import type { ValuationSnapshotDTO } from '../account/model';
+
 export interface BudgetDTO {
   id: string;
   categoryId: string;
@@ -14,4 +17,6 @@ export interface BudgetAlert {
   percentage: number;
   isOverBudget: boolean;
   isNearLimit: boolean;
+  nativeSpentByCurrency?: Record<CurrencyEnum, number>;
+  valuationSnapshot?: ValuationSnapshotDTO | null;
 }

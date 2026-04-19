@@ -194,15 +194,14 @@ async function validateTransferAccounts(
     throw new CustomError(ApiError.Transaction.TRANSFER_ACCOUNTS_MUST_DIFFER);
   }
 
-  const sourceAccount = await accountService.getTransferSourceAccount(sourceAccountId, userId, currency);
-  const destinationAccount = await accountService.getTransferDestinationAccount(
-    destinationAccountId,
-    userId,
-    currency,
-  );
+  const sourceAccount = await accountService.getTransferSourceAccount(sourceAccountId, userId);
+  const destinationAccount = await accountService.getTransferDestinationAccount(destinationAccountId, userId);
 
   if (sourceAccount.currency !== destinationAccount.currency || sourceAccount.currency !== currency) {
-    throw new CustomError(ApiError.Transaction.TRANSFER_CURRENCY_MISMATCH);
+    const error = new CustomError(ApiError.Transaction.TRANSFER_CURRENCY_MISMATCH);
+    error.message =
+      'Cross-currency transfers are not supported in v1. Keep both transfer accounts in the same currency.';
+    throw error;
   }
 
   return { sourceAccount, destinationAccount };
@@ -268,28 +267,33 @@ async function getBalance(userId: string, dateFrom?: string, dateTo?: string): P
 
 function calculateBalance(transaction: TransactionDTO, balances: Balances): void {
   const amount = Number.parseFloat(String(transaction.amount));
-  const rawRate = Number.parseFloat(String(transaction.exchangeRate));
-  const rate = Number.isFinite(rawRate) && rawRate > 0 ? rawRate : 1;
 
   switch (transaction.currency) {
     case CurrencyEnum.UYU:
       balances.uyu += amount;
-      balances.total += amount;
       break;
     case CurrencyEnum.USD:
       balances.usd += amount;
-      balances.total += amount * rate;
       break;
     case CurrencyEnum.EUR:
       balances.eur += amount;
-      balances.total += amount * rate;
       break;
   }
 
-  balances.total = +balances.total.toFixed(2);
   balances.eur = +balances.eur.toFixed(2);
   balances.usd = +balances.usd.toFixed(2);
   balances.uyu = +balances.uyu.toFixed(2);
+}
+
+function finalizeBalanceTotal(balances: Balances): void {
+  const nativeAmounts = [balances.eur, balances.usd, balances.uyu].filter((amount) => amount !== 0);
+
+  if (nativeAmounts.length <= 1) {
+    balances.total = +(balances.eur + balances.usd + balances.uyu).toFixed(2);
+    return;
+  }
+
+  balances.total = 0;
 }
 
 function calculateBalances(transactions: TransactionDTO[]): TransactionBalances {
@@ -314,6 +318,10 @@ function calculateBalances(transactions: TransactionDTO[]): TransactionBalances 
         break;
     }
   }
+
+  finalizeBalanceTotal(expenses);
+  finalizeBalanceTotal(incomes);
+  finalizeBalanceTotal(savings);
 
   return { expenses, incomes, savings };
 }

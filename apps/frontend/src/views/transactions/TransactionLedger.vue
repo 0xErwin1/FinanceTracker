@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { Check, Pencil, Trash2, X } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { trpc } from '@/api/trpc';
 import Badge from '@/components/base/Badge.vue';
 import { formatCurrency, formatDate } from '@/utils/format';
-import { trpc } from '@/api/trpc';
-import { Trash2, Pencil, Check, X } from 'lucide-vue-next';
 
 export interface TransactionDisplay {
   id: string;
@@ -24,7 +24,8 @@ export interface TransactionDisplay {
 export interface DayGroup {
   date: string;
   displayDate: string;
-  total: number;
+  total: { amount: number; currency: string } | null;
+  currencyTotals: Array<{ currency: string; amount: number }>;
   transactions: TransactionDisplay[];
 }
 
@@ -129,9 +130,23 @@ function transferBadgeText(tx: TransactionDisplay): string | null {
           {{ group.displayDate }}
         </span>
 
-        <span class="font-mono text-sm" :class="dailyTotalClass(group.total)">
-          {{ formatCurrency(group.total) }}
-        </span>
+        <div v-if="group.total" class="text-right">
+          <span class="font-mono text-sm" :class="dailyTotalClass(group.total.amount)">
+            {{ formatCurrency(group.total.amount, group.total.currency) }}
+          </span>
+        </div>
+
+        <div v-else class="text-right">
+          <p class="text-xs text-text-muted">Native subtotals only</p>
+          <p
+            v-for="entry in group.currencyTotals"
+            :key="`${group.date}-${entry.currency}`"
+            class="font-mono text-xs"
+            :class="dailyTotalClass(entry.amount)"
+          >
+            {{ entry.currency }} {{ formatCurrency(entry.amount, entry.currency) }}
+          </p>
+        </div>
       </div>
 
       <!-- Transaction rows -->

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
-import DataTable from '@/components/base/DataTable.vue';
 import Badge from '@/components/base/Badge.vue';
+import DataTable from '@/components/base/DataTable.vue';
 import ProgressBar from '@/components/base/ProgressBar.vue';
 import { formatCurrency, formatDate } from '@/utils/format';
 

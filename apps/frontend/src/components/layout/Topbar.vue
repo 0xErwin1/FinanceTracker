@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { Bell, Menu, Settings } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Bell, Menu, Settings } from 'lucide-vue-next';
 
 interface Props {
   showMenuButton?: boolean;

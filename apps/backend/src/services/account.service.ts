@@ -4,6 +4,8 @@ import { Account, InstallmentPlan, Institution, RecurringTransaction, Transactio
 import { ApiError, type CurrencyEnum, TransactionType } from '../enums';
 import { CustomError, cacheInvalidateUser } from '../lib';
 import type { AccountDTO, AccountSummaryDTO, InstitutionDTO } from '../types/DTOs';
+import { userService } from './user.service';
+import { valuationService } from './valuation.service';
 
 interface CreateInstitutionInput {
   name: string;
@@ -430,6 +432,34 @@ async function getAccountSummaries(userId: string): Promise<AccountSummaryDTO[]>
   });
 }
 
+async function getAccountValuationSnapshot(userId: string) {
+  const user = await userService.getUser({ id: userId });
+
+  if (!user) {
+    throw new CustomError(ApiError.User.USER_DOES_NOT_EXIST);
+  }
+
+  if (!user.reportingCurrency) {
+    return null;
+  }
+
+  const summaries = await getAccountSummaries(userId);
+  const nativeTotals = summaries
+    .filter((summary) => summary.ownership !== 'third_party')
+    .reduce<Record<string, number>>((accumulator, summary) => {
+      accumulator[summary.currency] = (accumulator[summary.currency] ?? 0) + summary.currentBalance;
+      return accumulator;
+    }, {});
+
+  return valuationService.getValuationSnapshot({
+    userId,
+    nativeTotals,
+    reportingCurrency: user.reportingCurrency,
+    freshnessDays: user.valuationFreshnessDays,
+    valuationDate: new Date().toISOString().slice(0, 10),
+  });
+}
+
 export const accountService = {
   createInstitution,
   updateInstitution,
@@ -447,4 +477,5 @@ export const accountService = {
   getAccountDeletionState,
   deleteAccount,
   getAccountSummaries,
+  getAccountValuationSnapshot,
 };

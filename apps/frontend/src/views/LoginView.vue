@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { LogIn } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
-import { LogIn } from 'lucide-vue-next';
 
 const router = useRouter();
 const auth = useAuth();

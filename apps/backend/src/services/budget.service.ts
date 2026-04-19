@@ -1,9 +1,12 @@
+import type { CurrencyEnum } from '@expenses/api';
 import { Between, IsNull } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { Budget, Category, Transaction } from '../entities';
 import { ApiError, TransactionType } from '../enums';
 import { CustomError } from '../lib';
 import type { BudgetAlert, BudgetDTO } from '../types/DTOs';
+import { userService } from './user.service';
+import { valuationService } from './valuation.service';
 
 const repo = () => AppDataSource.getRepository(Budget);
 
@@ -100,6 +103,7 @@ async function getBudgetAlerts(userId: string, month: string): Promise<BudgetAle
   const startDate = `${year}-${String(monthNum).padStart(2, '0')}-01`;
   const lastDay = new Date(year, monthNum, 0).getDate();
   const endDate = `${year}-${String(monthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const user = await userService.getUser({ id: userId });
 
   const alerts: BudgetAlert[] = [];
 
@@ -115,8 +119,22 @@ async function getBudgetAlerts(userId: string, month: string): Promise<BudgetAle
     });
 
     const spent = transactions.reduce((sum, t) => sum + Number.parseFloat(String(t.amount)), 0);
+    const nativeSpentByCurrency = transactions.reduce<Record<string, number>>((accumulator, transaction) => {
+      accumulator[transaction.currency] =
+        (accumulator[transaction.currency] ?? 0) + Number.parseFloat(String(transaction.amount));
+      return accumulator;
+    }, {}) as Record<CurrencyEnum, number>;
     const budgetAmount = Number.parseFloat(String(budget.amount));
     const percentage = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
+    const valuationSnapshot = user?.reportingCurrency
+      ? await valuationService.getValuationSnapshot({
+          userId,
+          nativeTotals: nativeSpentByCurrency,
+          reportingCurrency: user.reportingCurrency,
+          freshnessDays: user.valuationFreshnessDays,
+          valuationDate: endDate,
+        })
+      : null;
 
     alerts.push({
       budget,
@@ -125,6 +143,8 @@ async function getBudgetAlerts(userId: string, month: string): Promise<BudgetAle
       isOverBudget: spent >= budgetAmount,
       isNearLimit:
         budget.alertThreshold !== null && percentage >= Number.parseFloat(String(budget.alertThreshold)),
+      nativeSpentByCurrency,
+      valuationSnapshot,
     });
   }
 

@@ -1,4 +1,4 @@
-import { CurrencyEnum, type AccountDTO, type AccountOwnership } from '@expenses/api';
+import { type AccountDTO, type AccountOwnership, CurrencyEnum } from '@expenses/api';
 import { describe, expect, it } from 'vitest';
 import { getTransferConstraintMessage, resolveTransferAccountOptions } from './transferForm';
 

@@ -197,10 +197,11 @@ customErrors[ApiError.Transaction.TRANSFER_ACCOUNTS_MUST_DIFFER] = {
 };
 
 customErrors[ApiError.Transaction.TRANSFER_CURRENCY_MISMATCH] = {
-  message: 'Transfer accounts must use the same currency',
+  message:
+    'Cross-currency transfers are not supported in v1. Keep both transfer accounts in the same currency.',
   showMessage: {
-    EN: 'Transfer accounts must use the same currency',
-    ES: 'Las cuentas de transferencia deben usar la misma moneda',
+    EN: 'Cross-currency transfers are not supported in v1. Keep both transfer accounts in the same currency.',
+    ES: 'Las transferencias entre monedas distintas no están soportadas en v1. Mantén ambas cuentas en la misma moneda.',
   },
   HTTPStatusCode: StatusCodes.CONFLICT,
 };

@@ -1,6 +1,6 @@
-import { computed, type ComputedRef, type Ref } from 'vue';
+import { type ComputedRef, computed, type Ref } from 'vue';
 import type { trpc } from '@/api/trpc';
-import type { ChartDataPoint, CategorySplit, HeatmapDay, MonthlyData, DailyData } from '@/types';
+import type { CategorySplit, ChartDataPoint, DailyData, HeatmapDay, MonthlyData } from '@/types';
 import { groupBy } from '@/utils/groupBy';
 
 type TransactionItem = Awaited<ReturnType<typeof trpc.transaction.getAll.query>>[number];
@@ -12,18 +12,18 @@ interface AggregationResult {
   monthlyIncomeExpenses: ComputedRef<MonthlyData[]>;
   /** Daily income, expenses, and running balance for the current month. */
   currentMonthDaily: ComputedRef<DailyData[]>;
-  /** Net savings: total income minus total expenses. */
-  netSavings: ComputedRef<number>;
   /** Spending breakdown by category. */
   spendingByCategory: ComputedRef<CategorySplit[]>;
-  /** Total income for the period. */
-  totalIncome: ComputedRef<number>;
-  /** Total expenses for the period. */
-  totalExpenses: ComputedRef<number>;
+  /** Native income totals for the period grouped by currency. */
+  totalIncomeByCurrency: ComputedRef<Record<string, number>>;
+  /** Native expense totals for the period grouped by currency. */
+  totalExpensesByCurrency: ComputedRef<Record<string, number>>;
   /** Heatmap data: spending per day. */
   heatmapData: ComputedRef<HeatmapDay[]>;
   /** Net savings broken down by currency code. */
   netSavingsByCurrency: ComputedRef<Record<string, number>>;
+  /** Placeholder until backend valuation snapshots are available. */
+  valuationSnapshot: ComputedRef<null>;
 }
 
 /**
@@ -36,19 +36,35 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
     transactions.value.filter((transaction) => transaction.transferGroupId == null),
   );
 
-  const totalIncome = computed(() =>
-    analyticsTransactions.value
-      .filter((t) => t.type === 'INCOME')
-      .reduce((sum, t) => sum + Number(t.amount), 0),
-  );
+  const totalIncomeByCurrency = computed<Record<string, number>>(() => {
+    const result: Record<string, number> = {};
 
-  const totalExpenses = computed(() =>
-    analyticsTransactions.value
-      .filter((t) => t.type === 'EXPENSE')
-      .reduce((sum, t) => sum + Number(t.amount), 0),
-  );
+    for (const transaction of analyticsTransactions.value) {
+      if (transaction.type !== 'INCOME') {
+        continue;
+      }
 
-  const netSavings = computed(() => totalIncome.value - totalExpenses.value);
+      const currency = transaction.currency ?? 'USD';
+      result[currency] = (result[currency] ?? 0) + Number(transaction.amount);
+    }
+
+    return result;
+  });
+
+  const totalExpensesByCurrency = computed<Record<string, number>>(() => {
+    const result: Record<string, number> = {};
+
+    for (const transaction of analyticsTransactions.value) {
+      if (transaction.type !== 'EXPENSE') {
+        continue;
+      }
+
+      const currency = transaction.currency ?? 'USD';
+      result[currency] = (result[currency] ?? 0) + Number(transaction.amount);
+    }
+
+    return result;
+  });
 
   const monthlyVelocity = computed<ChartDataPoint[]>(() => {
     const expenses = analyticsTransactions.value.filter((t) => t.type === 'EXPENSE');
@@ -194,15 +210,17 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
     return result;
   });
 
+  const valuationSnapshot = computed(() => null);
+
   return {
     monthlyVelocity,
     monthlyIncomeExpenses,
     currentMonthDaily,
-    netSavings,
     spendingByCategory,
-    totalIncome,
-    totalExpenses,
+    totalIncomeByCurrency,
+    totalExpensesByCurrency,
     heatmapData,
     netSavingsByCurrency,
+    valuationSnapshot,
   };
 }

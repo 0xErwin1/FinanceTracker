@@ -1,5 +1,8 @@
+import { CurrencyEnum } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
 import { createAuthenticatedCaller, createPublicCaller, seedUser, truncateAllTables } from './setup';
+
+jest.setTimeout(20000);
 
 describe('user router', () => {
   const publicCaller = createPublicCaller();
@@ -92,6 +95,8 @@ describe('user router', () => {
       expect(result).toBeDefined();
       expect(result?.id).toBe(user.id);
       expect(result?.email).toBe('test@example.com');
+      expect(result?.reportingCurrency).toBeNull();
+      expect(result?.valuationFreshnessDays).toBe(3);
       expect(result).not.toHaveProperty('password');
     });
 
@@ -136,6 +141,87 @@ describe('user router', () => {
 
     it('should reject without authentication', async () => {
       await expect(publicCaller.user.updateProfile({ firstName: 'X' })).rejects.toThrow(TRPCError);
+    });
+  });
+
+  describe('valuation preferences', () => {
+    it('returns the current saved valuation preferences', async () => {
+      const user = await seedUser({ reportingCurrency: CurrencyEnum.EUR, valuationFreshnessDays: 5 });
+      const caller = createAuthenticatedCaller(user.id);
+
+      await expect(caller.user.getValuationPreferences()).resolves.toEqual({
+        reportingCurrency: CurrencyEnum.EUR,
+        valuationFreshnessDays: 5,
+      });
+    });
+
+    it('persists reporting currency and freshness updates', async () => {
+      const user = await seedUser();
+      const caller = createAuthenticatedCaller(user.id);
+
+      await expect(
+        caller.user.updateValuationPreferences({
+          reportingCurrency: CurrencyEnum.USD,
+          valuationFreshnessDays: 7,
+        }),
+      ).resolves.toEqual({
+        reportingCurrency: CurrencyEnum.USD,
+        valuationFreshnessDays: 7,
+      });
+
+      await expect(caller.user.me()).resolves.toMatchObject({
+        reportingCurrency: CurrencyEnum.USD,
+        valuationFreshnessDays: 7,
+      });
+    });
+  });
+
+  describe('manual fx rates', () => {
+    it('creates, lists, updates, and deletes manual fx rates', async () => {
+      const user = await seedUser();
+      const caller = createAuthenticatedCaller(user.id);
+
+      const created = await caller.user.createFxRate({
+        baseCurrency: CurrencyEnum.EUR,
+        quoteCurrency: CurrencyEnum.USD,
+        rate: 1.08,
+        effectiveDate: '2026-04-18',
+        sourceLabel: 'Manual close',
+      });
+
+      expect(created).toMatchObject({
+        userId: user.id,
+        baseCurrency: CurrencyEnum.EUR,
+        quoteCurrency: CurrencyEnum.USD,
+        rate: 1.08,
+        effectiveDate: '2026-04-18',
+        sourceLabel: 'Manual close',
+      });
+
+      await expect(caller.user.listFxRates()).resolves.toEqual([
+        expect.objectContaining({
+          id: created.id,
+          baseCurrency: CurrencyEnum.EUR,
+          quoteCurrency: CurrencyEnum.USD,
+        }),
+      ]);
+
+      await expect(
+        caller.user.updateFxRate({
+          id: created.id,
+          rate: 1.11,
+          effectiveDate: '2026-04-19',
+          sourceLabel: 'Updated manual close',
+        }),
+      ).resolves.toMatchObject({
+        id: created.id,
+        rate: 1.11,
+        effectiveDate: '2026-04-19',
+        sourceLabel: 'Updated manual close',
+      });
+
+      await expect(caller.user.deleteFxRate({ id: created.id })).resolves.toEqual({ id: created.id });
+      await expect(caller.user.listFxRates()).resolves.toEqual([]);
     });
   });
 

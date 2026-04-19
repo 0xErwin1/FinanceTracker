@@ -65,4 +65,4 @@ export interface BudgetCategory {
   currency: string;
 }
 
-export type { InstallmentPlanDTO, InstallmentObligationDTO } from '@expenses/api';
+export type { InstallmentObligationDTO, InstallmentPlanDTO } from '@expenses/api';

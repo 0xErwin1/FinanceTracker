@@ -1,4 +1,4 @@
-import { CurrencyEnum, type AccountOwnership } from '@expenses/api';
+import { type AccountOwnership, CurrencyEnum } from '@expenses/api';
 import {
   Column,
   CreateDateColumn,

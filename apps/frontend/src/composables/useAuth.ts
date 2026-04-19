@@ -1,6 +1,6 @@
-import { ref, computed, inject, provide, type InjectionKey, type Ref } from 'vue';
-import { trpc } from '@/api/trpc';
 import type { UserDTO } from '@expenses/api';
+import { computed, type InjectionKey, inject, provide, type Ref, ref } from 'vue';
+import { trpc } from '@/api/trpc';
 
 // The tRPC client infers loose types when crossing workspace boundaries.
 // We cast the server response to the known DTO shape.
@@ -11,6 +11,8 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   email: string;
+  reportingCurrency: UserDTO['reportingCurrency'];
+  valuationFreshnessDays: UserDTO['valuationFreshnessDays'];
 }
 
 export interface UseAuthReturn {
@@ -40,6 +42,8 @@ function toAuthUser(dto: UserDTO): AuthUser {
     firstName: dto.firstName,
     lastName: dto.lastName,
     email: dto.email,
+    reportingCurrency: dto.reportingCurrency,
+    valuationFreshnessDays: dto.valuationFreshnessDays,
   };
 }
 

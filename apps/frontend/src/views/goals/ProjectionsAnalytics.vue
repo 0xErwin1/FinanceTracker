@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import BarChart from '@/components/charts/BarChart.vue';
-import { formatCurrency } from '@/utils/format';
 import type { ChartDataPoint } from '@/types';
+import { formatCurrency } from '@/utils/format';
 
 interface GoalItem {
   id: string;

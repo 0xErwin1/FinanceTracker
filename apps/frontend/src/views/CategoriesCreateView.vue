@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { TransactionType } from '@expenses/api';
+import { ArrowLeft, Tag } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowLeft, Tag } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
 import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
-import { TransactionType } from '@expenses/api';
 
 const router = useRouter();
 

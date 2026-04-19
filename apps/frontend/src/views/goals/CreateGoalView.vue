@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import { CurrencyEnum, FinancialGoalsType } from '@expenses/api';
+import { ArrowLeft, Loader2 } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { ArrowLeft, Loader2 } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
 import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useGoals } from '@/composables/useGoals';
-import { CurrencyEnum, FinancialGoalsType } from '@expenses/api';
 
 const router = useRouter();
 const { refetch } = useGoals();

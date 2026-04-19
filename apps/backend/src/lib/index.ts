@@ -1,4 +1,4 @@
-export { logger } from './logger.lib';
+export { cacheGet, cacheInvalidateUser, cacheSet } from './cache.lib';
 export { CustomError } from './custom_error.lib';
 export { customErrors } from './custom_errors.lib';
-export { cacheGet, cacheSet, cacheInvalidateUser } from './cache.lib';
+export { logger } from './logger.lib';

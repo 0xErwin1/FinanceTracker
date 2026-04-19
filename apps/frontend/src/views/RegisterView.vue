@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { UserPlus } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuth } from '@/composables/useAuth';
-import { UserPlus } from 'lucide-vue-next';
 
 const router = useRouter();
 const auth = useAuth();

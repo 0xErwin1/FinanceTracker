@@ -1,9 +1,9 @@
-import { type EntityManager } from 'typeorm';
-import { accountService, categoryService } from '.';
+import type { EntityManager } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { InstallmentObligation, InstallmentPlan } from '../entities';
-import { ApiError, CurrencyEnum, ObligationStatus, PlanStatus } from '../enums';
+import { ApiError, type CurrencyEnum, ObligationStatus, PlanStatus } from '../enums';
 import { CustomError, cacheInvalidateUser } from '../lib';
+import { accountService, categoryService } from '.';
 
 const planRepo = () => AppDataSource.getRepository(InstallmentPlan);
 const obligationRepo = () => AppDataSource.getRepository(InstallmentObligation);

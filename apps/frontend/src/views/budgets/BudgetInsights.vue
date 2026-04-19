@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import ProgressBar from '@/components/base/ProgressBar.vue';
 import InsightCard from '@/components/base/InsightCard.vue';
+import ProgressBar from '@/components/base/ProgressBar.vue';
 import { formatCurrency } from '@/utils/format';
 
 interface Props {
@@ -20,9 +20,7 @@ const usagePercent = computed(() => {
   return (props.totalSpent / props.totalBudget) * 100;
 });
 
-const remaining = computed(() =>
-  Math.max(props.totalBudget - props.totalSpent, 0),
-);
+const remaining = computed(() => Math.max(props.totalBudget - props.totalSpent, 0));
 
 const insightMessage = computed(() => {
   if (props.totalBudget <= 0) return 'No budget data available for this period.';

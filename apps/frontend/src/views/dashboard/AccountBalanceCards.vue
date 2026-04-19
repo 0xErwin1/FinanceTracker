@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import type { AccountOwnership } from '@expenses/api';
+import { computed } from 'vue';
 import { formatCurrency, formatDate } from '@/utils/format';
 
 interface AccountSummaryItem {

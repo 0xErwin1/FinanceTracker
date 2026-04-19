@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { CurrencyEnum } from '@expenses/api';
 import {
   Archive,
   Building2,
@@ -12,7 +11,8 @@ import {
   Trash2,
   Wallet,
 } from 'lucide-vue-next';
-import { CurrencyEnum } from '@expenses/api';
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { trpc } from '@/api/trpc';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useAccounts } from '@/composables/useAccounts';
@@ -21,8 +21,8 @@ import { formatCurrency, formatDate } from '@/utils/format';
 import {
   buildAccountDeletionState,
   buildBankingSuccessToast,
-  buildInstitutionRows,
   buildInstitutionDeletionState,
+  buildInstitutionRows,
   createAccountDraft,
   createInstitutionDraft,
   createInstitutionSelectLabel,

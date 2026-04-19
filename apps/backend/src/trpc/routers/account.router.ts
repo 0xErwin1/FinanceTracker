@@ -95,4 +95,8 @@ export const accountRouter = {
   getSummaries: publicProcedure
     .use(isAuthenticated)
     .query(({ ctx }) => accountController.getSummaries(ctx.userId)),
+
+  getValuationSnapshot: publicProcedure
+    .use(isAuthenticated)
+    .query(({ ctx }) => accountController.getValuationSnapshot(ctx.userId)),
 };

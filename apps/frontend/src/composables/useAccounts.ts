@@ -1,6 +1,6 @@
-import { computed, ref, type ComputedRef } from 'vue';
+import type { CurrencyEnum, ValuationSnapshotDTO } from '@expenses/api';
+import { type ComputedRef, computed, ref } from 'vue';
 import { trpc } from '@/api/trpc';
-import type { CurrencyEnum } from '@expenses/api';
 
 type AccountsResult = Awaited<ReturnType<typeof trpc.account.getAll.query>>;
 type AccountResult = AccountsResult[number];
@@ -13,6 +13,7 @@ interface UseAccountsReturn {
   activeAccounts: ComputedRef<AccountsResult>;
   summaries: ComputedRef<AccountSummaryResult>;
   institutions: ComputedRef<InstitutionResult>;
+  valuationSnapshot: ComputedRef<ValuationSnapshotDTO | null>;
   loading: ComputedRef<boolean>;
   error: ComputedRef<Error | null>;
   refetch: () => Promise<void>;
@@ -25,6 +26,7 @@ interface UseAccountsReturn {
 const accounts = ref<AccountsResult>([]);
 const summaries = ref<AccountSummaryResult>([]);
 const institutions = ref<InstitutionResult>([]);
+const valuationSnapshot = ref<ValuationSnapshotDTO | null>(null);
 const loading = ref(false);
 const error = ref<Error | null>(null);
 
@@ -35,15 +37,17 @@ async function fetchAccounts(): Promise<void> {
   error.value = null;
 
   try {
-    const [accountsResult, summariesResult, institutionsResult] = await Promise.all([
+    const [accountsResult, summariesResult, institutionsResult, valuationSnapshotResult] = await Promise.all([
       trpc.account.getAll.query(),
       trpc.account.getSummaries.query(),
       trpc.account.getInstitutions.query(),
+      trpc.account.getValuationSnapshot.query(),
     ]);
 
     accounts.value = accountsResult;
     summaries.value = summariesResult;
     institutions.value = institutionsResult;
+    valuationSnapshot.value = valuationSnapshotResult;
   } catch (err) {
     error.value = err instanceof Error ? err : new Error(String(err));
   } finally {
@@ -78,6 +82,7 @@ export function useAccounts(): UseAccountsReturn {
     activeAccounts: computed(() => accounts.value.filter((account) => account.archivedAt === null)),
     summaries: computed(() => summaries.value),
     institutions: computed(() => institutions.value),
+    valuationSnapshot: computed(() => valuationSnapshot.value),
     loading: computed(() => loading.value),
     error: computed(() => error.value),
     refetch: fetchAccounts,

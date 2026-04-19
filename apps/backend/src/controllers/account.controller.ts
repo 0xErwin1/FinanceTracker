@@ -116,4 +116,12 @@ export const accountController = {
       mapServiceError(error);
     }
   },
+
+  async getValuationSnapshot(userId: string) {
+    try {
+      return await accountService.getAccountValuationSnapshot(userId);
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
 };

@@ -1,16 +1,19 @@
 <script setup lang="ts">
+import type { ValuationSnapshotDTO } from '@expenses/api';
 import { computed } from 'vue';
-import type { ChartDataPoint, MonthlyData, DailyData } from '@/types';
-import LineBarChart from '@/components/charts/LineBarChart.vue';
-import ProgressBar from '@/components/base/ProgressBar.vue';
 import InsightCard from '@/components/base/InsightCard.vue';
+import ProgressBar from '@/components/base/ProgressBar.vue';
+import LineBarChart from '@/components/charts/LineBarChart.vue';
+import type { ChartDataPoint, DailyData, MonthlyData } from '@/types';
 import { formatCurrency } from '@/utils/format';
+import type { CurrencyAmount } from '../multiCurrency';
+import { getValuationCoverageMessage, getValuationSummaryLabel } from '../valuation';
 
 interface Props {
-  totalIncome: number;
-  totalExpenses: number;
-  netSavings: number;
-  netSavingsByCurrency: Record<string, number>;
+  incomeBreakdown: CurrencyAmount[];
+  expenseBreakdown: CurrencyAmount[];
+  savingsBreakdown: CurrencyAmount[];
+  valuationSnapshot: ValuationSnapshotDTO | null;
   monthlyVelocity: ChartDataPoint[];
   monthlyIncomeExpenses: MonthlyData[];
   currentMonthDaily: DailyData[];
@@ -20,27 +23,54 @@ interface Props {
 
 const props = defineProps<Props>();
 
+const primaryIncome = computed(() => props.incomeBreakdown[0] ?? null);
+const primaryExpense = computed(() => props.expenseBreakdown[0] ?? null);
+const primarySavings = computed(() => props.savingsBreakdown[0] ?? null);
+
+const canShowCombinedTrend = computed(
+  () =>
+    props.incomeBreakdown.length <= 1 &&
+    props.expenseBreakdown.length <= 1 &&
+    props.savingsBreakdown.length <= 1,
+);
+
 const burnPercent = computed(() => {
-  if (props.totalIncome <= 0) return 0;
-  return (props.totalExpenses / props.totalIncome) * 100;
+  if (
+    !primaryIncome.value ||
+    !primaryExpense.value ||
+    primaryIncome.value.currency !== primaryExpense.value.currency
+  ) {
+    return 0;
+  }
+
+  if (primaryIncome.value.amount <= 0) return 0;
+
+  return (primaryExpense.value.amount / primaryIncome.value.amount) * 100;
 });
 
 const recurringPercent = computed(() => {
-  if (props.totalIncome <= 0) return 0;
-  return (props.recurringTotal / props.totalIncome) * 100;
+  if (!primaryIncome.value || primaryIncome.value.amount <= 0) return 0;
+  return (props.recurringTotal / primaryIncome.value.amount) * 100;
 });
 
 const projectedSavingsMsg = computed(() => {
-  if (props.totalIncome <= 0) return 'Insufficient data';
-  const rate = ((props.netSavings / props.totalIncome) * 100).toFixed(0);
+  if (!primaryIncome.value || !primarySavings.value) {
+    return 'Native balances span multiple currencies. Estimated savings stay hidden until valuation coverage is available.';
+  }
+
+  if (primaryIncome.value.currency !== primarySavings.value.currency || primaryIncome.value.amount <= 0) {
+    return 'Insufficient native data';
+  }
+
+  const rate = ((primarySavings.value.amount / primaryIncome.value.amount) * 100).toFixed(0);
   return `+${rate}% savings rate this period`;
 });
 
-const secondaryCurrencies = computed(() =>
-  Object.entries(props.netSavingsByCurrency)
-    .filter(([code]) => code !== 'USD')
-    .map(([code, amount]) => ({ code, amount })),
-);
+const savingsBreakdown = computed(() => props.savingsBreakdown);
+const valuationLabel = computed(() => getValuationSummaryLabel(props.valuationSnapshot));
+const valuationMessage = computed(() => getValuationCoverageMessage(props.valuationSnapshot));
+const valuationEstimatedTotal = computed(() => props.valuationSnapshot?.estimatedTotal ?? null);
+const valuationReportingCurrency = computed(() => props.valuationSnapshot?.reportingCurrency ?? null);
 
 /** Daily expenses as bar chart data points (current month, labeled by day number). */
 const barData = computed<ChartDataPoint[]>(() =>
@@ -101,16 +131,22 @@ const lineData = computed<ChartDataPoint[]>(() =>
               <p class="text-[10px] font-medium tracking-wider text-text-muted">
                 NET SAVINGS
               </p>
-              <p class="font-mono text-lg font-bold text-text-primary">
-                {{ formatCurrency(netSavings) }}
+              <p v-if="primarySavings" class="font-mono text-lg font-bold text-text-primary">
+                {{ formatCurrency(primarySavings.amount, primarySavings.currency) }}
               </p>
-              <div v-if="secondaryCurrencies.length > 0" class="space-y-0">
+              <p v-if="valuationEstimatedTotal !== null && valuationReportingCurrency" class="mt-1 text-xs text-accent-gold">
+                {{ valuationLabel }}: {{ formatCurrency(valuationEstimatedTotal, valuationReportingCurrency) }}
+              </p>
+              <p v-else class="text-xs text-text-muted">
+                Native totals only — no estimated combined savings yet.
+              </p>
+              <div v-if="savingsBreakdown.length > 0" class="space-y-0">
                 <p
-                  v-for="{ code, amount } in secondaryCurrencies"
-                  :key="code"
+                  v-for="entry in savingsBreakdown"
+                  :key="entry.currency"
                   class="font-mono text-[10px] text-text-muted"
                 >
-                  {{ code }}: {{ formatCurrency(amount, code) }}
+                  {{ entry.currency }}: {{ formatCurrency(entry.amount, entry.currency) }}
                 </p>
               </div>
             </div>
@@ -119,21 +155,37 @@ const lineData = computed<ChartDataPoint[]>(() =>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:min-w-[240px]">
             <div class="rounded-base bg-bg-primary px-3 py-2">
               <p class="text-xs text-text-muted">Income</p>
-              <p class="font-mono text-sm font-semibold text-accent-green">
-                {{ formatCurrency(totalIncome) }}
-              </p>
+              <div v-if="incomeBreakdown.length > 0" class="space-y-1">
+                <p
+                  v-for="entry in incomeBreakdown"
+                  :key="entry.currency"
+                  class="font-mono text-sm font-semibold text-accent-green"
+                >
+                  {{ formatCurrency(entry.amount, entry.currency) }}
+                </p>
+              </div>
             </div>
             <div class="rounded-base bg-bg-primary px-3 py-2">
               <p class="text-xs text-text-muted">Expenses</p>
-              <p class="font-mono text-sm font-semibold text-accent-red">
-                {{ formatCurrency(totalExpenses) }}
-              </p>
+              <div v-if="expenseBreakdown.length > 0" class="space-y-1">
+                <p
+                  v-for="entry in expenseBreakdown"
+                  :key="entry.currency"
+                  class="font-mono text-sm font-semibold text-accent-red"
+                >
+                  {{ formatCurrency(entry.amount, entry.currency) }}
+                </p>
+              </div>
             </div>
+          </div>
+
+          <div class="rounded-base bg-bg-primary px-3 py-2 text-xs text-text-muted">
+            {{ valuationMessage }}
           </div>
         </div>
 
         <!-- Bottom: Mixed bar+line chart (expenses bars + balance line) -->
-        <div class="app-chart-surface rounded-base bg-bg-primary p-4">
+        <div v-if="canShowCombinedTrend" class="app-chart-surface rounded-base bg-bg-primary p-4">
           <p class="mb-1 text-xs font-medium tracking-wider text-text-muted">
             EXPENSES &amp; BALANCE TREND
           </p>
@@ -146,6 +198,9 @@ const lineData = computed<ChartDataPoint[]>(() =>
             line-color="#4ade80"
             height="210"
           />
+        </div>
+        <div v-else class="rounded-base bg-bg-primary p-4 text-xs text-text-muted">
+          Trend charts stay hidden while this period mixes native currencies. Add valuation coverage before showing an estimated combined trend.
         </div>
       </div>
 
@@ -167,7 +222,7 @@ const lineData = computed<ChartDataPoint[]>(() =>
               ESTIMATED BURN
             </span>
             <span class="font-mono text-xs text-text-primary">
-              {{ formatCurrency(totalExpenses) }}
+              {{ primaryExpense ? formatCurrency(primaryExpense.amount, primaryExpense.currency) : 'Native only' }}
             </span>
           </div>
           <ProgressBar
@@ -184,7 +239,7 @@ const lineData = computed<ChartDataPoint[]>(() =>
               RECURRING COMMITMENT
             </span>
             <span class="font-mono text-xs text-text-primary">
-              {{ formatCurrency(recurringTotal) }}
+              {{ primaryIncome ? formatCurrency(recurringTotal, primaryIncome.currency) : formatCurrency(recurringTotal) }}
             </span>
           </div>
           <ProgressBar

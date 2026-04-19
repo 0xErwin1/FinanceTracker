@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import AppLayout from '@/components/layout/AppLayout.vue';
-import AppToastRegion from '@/components/feedback/AppToastRegion.vue';
-import { provideAuth, clearAuthState } from '@/composables/useAuth';
-import { provideToast } from '@/composables/useToast';
+import { computed, onMounted, ref } from 'vue';
 import { setOnUnauthorized } from '@/api/trpc';
+import AppToastRegion from '@/components/feedback/AppToastRegion.vue';
+import AppLayout from '@/components/layout/AppLayout.vue';
+import { clearAuthState, provideAuth } from '@/composables/useAuth';
+import { provideToast } from '@/composables/useToast';
 import router from '@/router';
 
 const auth = provideAuth();

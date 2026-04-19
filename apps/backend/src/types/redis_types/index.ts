@@ -1,5 +1,5 @@
 export { RedisMetadata } from './redis_metadata';
 export {
-  TransactionsRedisMetadata,
   TransactionMetadata,
+  TransactionsRedisMetadata,
 } from './transactions';

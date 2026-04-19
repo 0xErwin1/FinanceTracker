@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { InstallmentPlanDTO, InstallmentObligationDTO } from '@expenses/api';
+import type { InstallmentObligationDTO, InstallmentPlanDTO } from '@expenses/api';
 import Badge from '@/components/base/Badge.vue';
 import ProgressBar from '@/components/base/ProgressBar.vue';
 import { formatCurrency } from '@/utils/format';

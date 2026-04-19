@@ -1,8 +1,11 @@
-import { TransactionType } from '@expenses/api';
+import { CurrencyEnum, TransactionType } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
+import { AppDataSource } from '../../src/data-source';
+import { FxRate } from '../../src/entities';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
+  seedAccount,
   seedBudget,
   seedCategory,
   seedTransaction,
@@ -262,5 +265,75 @@ describe('budget router', () => {
       expect(result[0].spent).toBe(120);
       expect(result[0].isOverBudget).toBe(false);
     });
+
+    it('attaches native spent subtotals and partial valuation coverage for mixed-currency spending', async () => {
+      const user = await seedUser({
+        email: 'budget-valuation@example.com',
+        reportingCurrency: CurrencyEnum.USD,
+        valuationFreshnessDays: 3,
+      });
+      const valuationCaller = createAuthenticatedCaller(user.id);
+      const category = await seedCategory(user.id);
+      const eurAccount = await seedAccount(user.id, { currency: CurrencyEnum.EUR });
+
+      await valuationCaller.budget.create({
+        categoryId: category.id,
+        month: '2025-05-01',
+        amount: 500,
+        alertThreshold: 80,
+      });
+
+      await seedTransaction(user.id, {
+        categoryId: category.id,
+        type: TransactionType.EXPENSE,
+        amount: 120,
+        currency: CurrencyEnum.USD,
+        date: '2025-05-05',
+      });
+
+      await seedTransaction(user.id, {
+        categoryId: category.id,
+        accountId: eurAccount.id,
+        type: TransactionType.EXPENSE,
+        amount: 40,
+        currency: CurrencyEnum.EUR,
+        date: '2025-05-06',
+      });
+
+      await AppDataSource.getRepository(FxRate).save(
+        AppDataSource.getRepository(FxRate).create({
+          userId: user.id,
+          baseCurrency: CurrencyEnum.EUR,
+          quoteCurrency: CurrencyEnum.USD,
+          rate: 1.2,
+          effectiveDate: '2025-05-04',
+          sourceLabel: 'Manual close',
+        }),
+      );
+
+      const result = await valuationCaller.budget.getAlerts({ month: '2025-05-01' });
+
+      expect(result[0]).toMatchObject({
+        nativeSpentByCurrency: {
+          EUR: 40,
+          USD: 120,
+        },
+        valuationSnapshot: {
+          reportingCurrency: CurrencyEnum.USD,
+          valuationDate: '2025-05-31',
+          coverage: 'stale',
+          estimatedTotal: 168,
+          nativeTotals: {
+            EUR: 40,
+            USD: 120,
+          },
+          coveredCurrencies: [CurrencyEnum.EUR, CurrencyEnum.USD],
+          missingCurrencies: [],
+          staleCurrencies: [CurrencyEnum.EUR],
+          sourceLabels: ['Manual close'],
+          effectiveDates: ['2025-05-04'],
+        },
+      });
+    }, 15000);
   });
 });

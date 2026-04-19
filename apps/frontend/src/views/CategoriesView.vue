@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import type { CategoryDTO, TransactionType } from '@expenses/api';
+import { Check, Pencil, Plus, Tag, Trash2, X } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useCategories } from '@/composables/useCategories';
 import { trpc } from '@/api/trpc';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
-import type { CategoryDTO } from '@expenses/api';
-import type { TransactionType } from '@expenses/api';
-import { Plus, Trash2, Tag, Check, X, Pencil } from 'lucide-vue-next';
+import { useCategories } from '@/composables/useCategories';
 
 const router = useRouter();
 const { categories: rawCategories, loading, error, refetch } = useCategories();

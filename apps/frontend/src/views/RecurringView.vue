@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import type { CategoryDTO } from '@expenses/api';
+import { Check, Pause, Pencil, Play, Plus, Repeat, Trash2, X } from 'lucide-vue-next';
+import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAccounts } from '@/composables/useAccounts';
-import { useRecurring } from '@/composables/useRecurring';
-import { useCategories } from '@/composables/useCategories';
 import { trpc } from '@/api/trpc';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
-import type { CategoryDTO } from '@expenses/api';
-import { Repeat, Plus, Pause, Play, Trash2, Pencil, Check, X } from 'lucide-vue-next';
+import { useAccounts } from '@/composables/useAccounts';
+import { useCategories } from '@/composables/useCategories';
+import { useRecurring } from '@/composables/useRecurring';
 import { formatCurrency } from '@/utils/format';
 import { resolveLinkedAccountLabel } from './installments/installmentPlanForm';
 

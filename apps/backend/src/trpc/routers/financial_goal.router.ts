@@ -1,7 +1,7 @@
 import { publicProcedure } from '@expenses/api';
 import { z } from 'zod';
-import { CurrencyEnum, FinancialGoalsType } from '../../enums';
 import { financialGoalController } from '../../controllers';
+import { CurrencyEnum, FinancialGoalsType } from '../../enums';
 import { isAuthenticated } from '../protected';
 
 const createFinancialGoalSchema = z.object({

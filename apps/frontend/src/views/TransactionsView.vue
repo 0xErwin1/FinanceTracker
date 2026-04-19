@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { useRoute } from 'vue-router';
-import { useTransactions } from '@/composables/useTransactions';
-import { useCategories } from '@/composables/useCategories';
+import { computed, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { useAccounts } from '@/composables/useAccounts';
+import { useCategories } from '@/composables/useCategories';
+import { useTransactions } from '@/composables/useTransactions';
 import { formatDate } from '@/utils/format';
-import TransactionFilterBar from './transactions/TransactionFilterBar.vue';
-import TransactionLedger from './transactions/TransactionLedger.vue';
-import type { DayGroup, TransactionDisplay } from './transactions/TransactionLedger.vue';
+import { buildTransactionGroupSummary } from './multiCurrency';
 import TelemetryFooter from './transactions/TelemetryFooter.vue';
+import TransactionFilterBar from './transactions/TransactionFilterBar.vue';
+import type { DayGroup, TransactionDisplay } from './transactions/TransactionLedger.vue';
+import TransactionLedger from './transactions/TransactionLedger.vue';
+import { getValuationCoverageMessage } from './valuation';
 
 const route = useRoute();
 const router = useRouter();
@@ -33,7 +34,7 @@ const dateTo = ref('');
 
 const { transactions, loading, refetch } = useTransactions();
 const { categories } = useCategories();
-const { accounts } = useAccounts();
+const { accounts, valuationSnapshot } = useAccounts();
 
 // --- Category lookup --------------------------------------------------------
 
@@ -173,12 +174,17 @@ const groupedTransactions = computed<DayGroup[]>(() => {
 
   return [...groups.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([date, txs]) => ({
-      date,
-      displayDate: formatDate(date),
-      total: txs.reduce((sum, t) => sum + (t.type === 'INCOME' ? t.amount : -t.amount), 0),
-      transactions: txs.sort((a, b) => b.date.localeCompare(a.date)),
-    }));
+    .map(([date, txs]) => {
+      const totals = buildTransactionGroupSummary(txs);
+
+      return {
+        date,
+        displayDate: formatDate(date),
+        total: totals.combinedTotal,
+        currencyTotals: totals.currencyTotals,
+        transactions: txs.sort((a, b) => b.date.localeCompare(a.date)),
+      };
+    });
 });
 
 // --- Telemetry --------------------------------------------------------------
@@ -193,6 +199,8 @@ const lastSync = computed(() => {
     minute: '2-digit',
   });
 });
+
+const valuationMessage = computed(() => getValuationCoverageMessage(valuationSnapshot.value));
 </script>
 
 <template>
@@ -218,6 +226,10 @@ const lastSync = computed(() => {
     />
 
     <!-- Section 2: Transaction Ledger -->
+    <div class="rounded-base border border-border-default bg-bg-card px-4 py-3 text-sm text-text-muted">
+      {{ valuationMessage }}
+    </div>
+
     <div class="min-w-0 flex-1">
       <TransactionLedger
         :groups="groupedTransactions"

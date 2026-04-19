@@ -1,5 +1,5 @@
-import type { RedisMetadata } from '.';
 import type { TransactionType } from '../../enums';
+import type { RedisMetadata } from '.';
 
 export interface TransactionMetadata {
   type?: TransactionType;

@@ -1,8 +1,8 @@
-import { userService } from '.';
 import { ApiError } from '../enums';
 import { CustomError, logger } from '../lib';
 import { redisClient, redisKeyLifetime } from '../redis';
 import { comparePassword } from '../utils';
+import { userService } from '.';
 
 async function login(email: string, password: string, sessionId: string) {
   logger.info(`Login email: ${email}`);

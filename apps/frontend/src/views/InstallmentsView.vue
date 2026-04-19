@@ -5,10 +5,10 @@ import { trpc } from '@/api/trpc';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useAccounts } from '@/composables/useAccounts';
 import { useInstallments } from '@/composables/useInstallments';
-import PlanCards from './installments/PlanCards.vue';
-import TimelineSection from './installments/TimelineSection.vue';
 import BottomMetrics from './installments/BottomMetrics.vue';
 import { resolveLinkedAccountLabel } from './installments/installmentPlanForm';
+import PlanCards from './installments/PlanCards.vue';
+import TimelineSection from './installments/TimelineSection.vue';
 
 const router = useRouter();
 const { plans, totalRemaining, loading, refetch } = useInstallments();

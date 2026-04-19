@@ -3,15 +3,18 @@ export { FinancialGoalsType } from './enums/financial_goals.enum';
 export { ObligationStatus, PlanStatus } from './enums/installment.enum';
 export { TransactionType } from './enums/transaction_type.enum';
 
-export type { UserDTO, UserWithPassword } from './types/user/model';
+export type { UserDTO, UserValuationPreferencesDTO, UserWithPassword } from './types/user/model';
 export type { SessionDTO } from './types/session/model';
 export type { CategoryDTO } from './types/category/model';
 export type {
   AccountDTO,
+  FxRateDTO,
   AccountKind,
   AccountOwnership,
   AccountSummaryDTO,
   InstitutionDTO,
+  ValuationCoverage,
+  ValuationSnapshotDTO,
 } from './types/account/model';
 export type { TransactionDTO } from './types/transaction/model';
 export type { FinancialGoalDTO } from './types/financial_goal/model';

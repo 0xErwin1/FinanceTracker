@@ -1,11 +1,11 @@
 <script setup lang="ts">
+import { Pencil, Trash2 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Pencil, Trash2 } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
-import { useGoals } from '@/composables/useGoals';
 import Badge from '@/components/base/Badge.vue';
 import ProgressBar from '@/components/base/ProgressBar.vue';
+import { useGoals } from '@/composables/useGoals';
 import { formatCurrency, formatDate } from '@/utils/format';
 
 interface GoalItem {

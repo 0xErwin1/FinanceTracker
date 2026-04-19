@@ -1,6 +1,6 @@
-import { ref, computed, type ComputedRef, type Ref } from 'vue';
+import type { InstallmentObligationDTO, InstallmentPlanDTO } from '@expenses/api';
+import { type ComputedRef, computed, type Ref, ref } from 'vue';
 import { trpc } from '@/api/trpc';
-import type { InstallmentPlanDTO, InstallmentObligationDTO } from '@expenses/api';
 import { useAccounts } from './useAccounts';
 
 type PlanResult = Awaited<ReturnType<typeof trpc.installment.getAllPlans.query>>;

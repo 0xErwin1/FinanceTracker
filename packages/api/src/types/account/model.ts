@@ -36,3 +36,29 @@ export interface AccountSummaryDTO {
   institutionId: string | null;
   lastTransactionDate: string | null;
 }
+
+export type ValuationCoverage = 'complete' | 'partial' | 'missing' | 'stale';
+
+export interface FxRateDTO {
+  id: string;
+  userId: string;
+  baseCurrency: CurrencyEnum;
+  quoteCurrency: CurrencyEnum;
+  rate: number;
+  effectiveDate: string;
+  sourceLabel: string;
+  createdAt: Date;
+}
+
+export interface ValuationSnapshotDTO {
+  reportingCurrency: CurrencyEnum;
+  valuationDate: string;
+  coverage: ValuationCoverage;
+  estimatedTotal: number | null;
+  nativeTotals: Record<CurrencyEnum, number>;
+  coveredCurrencies: CurrencyEnum[];
+  missingCurrencies: CurrencyEnum[];
+  staleCurrencies: CurrencyEnum[];
+  sourceLabels: string[];
+  effectiveDates: string[];
+}

@@ -1,3 +1,4 @@
+import type { CurrencyEnum } from '../../enums';
 import type { CategoryDTO, FinancialGoalDTO, SessionDTO, TransactionDTO } from '..';
 
 export interface UserDTO {
@@ -5,11 +6,18 @@ export interface UserDTO {
   email: string;
   firstName: string;
   lastName: string;
+  reportingCurrency: CurrencyEnum | null;
+  valuationFreshnessDays: number;
   deletedAt?: Date | null;
   sessions?: SessionDTO[];
   transactions?: TransactionDTO[];
   categories?: CategoryDTO[];
   financialGoals?: FinancialGoalDTO[];
+}
+
+export interface UserValuationPreferencesDTO {
+  reportingCurrency: CurrencyEnum | null;
+  valuationFreshnessDays: number;
 }
 
 /**

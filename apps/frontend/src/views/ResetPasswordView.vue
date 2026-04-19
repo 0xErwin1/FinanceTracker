@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { ArrowLeft, KeyRound } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { ArrowLeft, KeyRound } from 'lucide-vue-next';
 
 const password = ref('');
 const confirmPassword = ref('');

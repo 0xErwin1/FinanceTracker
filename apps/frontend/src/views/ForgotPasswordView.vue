@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { ArrowLeft, Mail } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { ArrowLeft, Mail } from 'lucide-vue-next';
 
 const email = ref('');
 const submitted = ref(false);

@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import type { InstallmentObligationDTO, InstallmentPlanDTO } from '@expenses/api';
 import { computed } from 'vue';
-import type { InstallmentPlanDTO, InstallmentObligationDTO } from '@expenses/api';
 import { formatCurrency, formatDate } from '@/utils/format';
 
 interface Props {

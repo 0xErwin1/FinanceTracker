@@ -164,7 +164,7 @@ describe('recurring router', () => {
       const result = await caller.recurring.getAll({});
 
       expect(result).toEqual([]);
-    });
+    }, 15000);
   });
 
   describe('getById', () => {

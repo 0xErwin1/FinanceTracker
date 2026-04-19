@@ -1,4 +1,5 @@
-import { ref, computed, type Ref } from 'vue';
+import type { ValuationSnapshotDTO } from '@expenses/api';
+import { computed, type Ref, ref } from 'vue';
 import { trpc } from '@/api/trpc';
 
 type BudgetResult = Awaited<ReturnType<typeof trpc.budget.getAll.query>>;
@@ -7,6 +8,7 @@ type AlertResult = Awaited<ReturnType<typeof trpc.budget.getAlerts.query>>;
 interface UseBudgetsReturn {
   budgets: Ref<BudgetResult>;
   alerts: Ref<AlertResult>;
+  valuationSnapshot: Ref<ValuationSnapshotDTO | null>;
   loading: Ref<boolean>;
   error: Ref<Error | null>;
   refetch: () => Promise<void>;
@@ -19,6 +21,9 @@ interface UseBudgetsReturn {
 export function useBudgets(month?: () => string): UseBudgetsReturn {
   const budgets = ref<BudgetResult>([] as unknown as BudgetResult);
   const alerts = ref<AlertResult>([] as unknown as AlertResult);
+  const valuationSnapshot = computed<ValuationSnapshotDTO | null>(
+    () => alerts.value[0]?.valuationSnapshot ?? null,
+  );
   const loading = ref(true);
   const error = ref<Error | null>(null);
 
@@ -49,6 +54,7 @@ export function useBudgets(month?: () => string): UseBudgetsReturn {
   return {
     budgets: computed(() => budgets.value),
     alerts: computed(() => alerts.value),
+    valuationSnapshot,
     loading: computed(() => loading.value),
     error: computed(() => error.value),
     refetch: fetch,

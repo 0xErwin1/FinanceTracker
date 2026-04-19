@@ -1,18 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useTransactions } from '@/composables/useTransactions';
-import { useBudgets } from '@/composables/useBudgets';
-import { useGoals } from '@/composables/useGoals';
-import { useCategories } from '@/composables/useCategories';
-import { useRecurring } from '@/composables/useRecurring';
-import { useAggregations } from '@/composables/useAggregations';
-import { useAccounts } from '@/composables/useAccounts';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
+import { useAccounts } from '@/composables/useAccounts';
+import { useAggregations } from '@/composables/useAggregations';
+import { useBudgets } from '@/composables/useBudgets';
+import { useCategories } from '@/composables/useCategories';
+import { useGoals } from '@/composables/useGoals';
+import { useRecurring } from '@/composables/useRecurring';
+import { useTransactions } from '@/composables/useTransactions';
 import type { BudgetCategory } from '@/types';
 import AccountBalanceCards from './dashboard/AccountBalanceCards.vue';
-import HeroBalance from './dashboard/HeroBalance.vue';
 import BudgetsSpending from './dashboard/BudgetsSpending.vue';
 import GoalsTransactions from './dashboard/GoalsTransactions.vue';
+import HeroBalance from './dashboard/HeroBalance.vue';
+import { summarizeCurrencyMap } from './multiCurrency';
 
 const { transactions, loading: txLoading } = useTransactions();
 
@@ -23,18 +24,24 @@ const { categories, loading: categoriesLoading } = useCategories();
 const { goals, loading: goalsLoading } = useGoals();
 
 const { recurring, loading: recurringLoading } = useRecurring();
-const { summaries: accountSummaries, loading: accountsLoading } = useAccounts();
+const { summaries: accountSummaries, valuationSnapshot, loading: accountsLoading } = useAccounts();
 
 const {
-  totalIncome,
-  totalExpenses,
-  netSavings,
+  totalIncomeByCurrency,
+  totalExpensesByCurrency,
   netSavingsByCurrency,
   monthlyVelocity,
   monthlyIncomeExpenses,
   currentMonthDaily,
   spendingByCategory,
 } = useAggregations(transactions);
+
+const incomeBreakdown = computed(() => summarizeCurrencyMap(totalIncomeByCurrency.value).entries);
+const expenseBreakdown = computed(() => summarizeCurrencyMap(totalExpensesByCurrency.value).entries);
+const savingsBreakdown = computed(() => summarizeCurrencyMap(netSavingsByCurrency.value).entries);
+
+const hasMixedExpenseCurrencies = computed(() => expenseBreakdown.value.length > 1);
+const safeCategorySplits = computed(() => (hasMixedExpenseCurrencies.value ? [] : spendingByCategory.value));
 
 const recentDashboardTransactions = computed(() =>
   transactions.value.filter((transaction) => transaction.transferGroupId == null),
@@ -106,10 +113,10 @@ const isLoading = computed(
 
     <!-- Section 1: Hero Balance & Projections -->
     <HeroBalance
-      :total-income="totalIncome"
-      :total-expenses="totalExpenses"
-      :net-savings="netSavings"
-      :net-savings-by-currency="netSavingsByCurrency"
+      :income-breakdown="incomeBreakdown"
+      :expense-breakdown="expenseBreakdown"
+      :savings-breakdown="savingsBreakdown"
+      :valuation-snapshot="valuationSnapshot"
       :monthly-velocity="monthlyVelocity"
       :monthly-income-expenses="monthlyIncomeExpenses"
       :current-month-daily="currentMonthDaily"
@@ -122,8 +129,8 @@ const isLoading = computed(
     <!-- Section 2: Budgets & Spending Distribution -->
     <BudgetsSpending
       :budgets="budgetCategories"
-      :category-splits="spendingByCategory"
-      :total-expenses="totalExpenses"
+      :category-splits="safeCategorySplits"
+      :expense-breakdown="expenseBreakdown"
       :loading="isLoading"
     />
 

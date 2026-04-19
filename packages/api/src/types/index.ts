@@ -3,7 +3,10 @@ export type {
   AccountKind,
   AccountOwnership,
   AccountSummaryDTO,
+  FxRateDTO,
   InstitutionDTO,
+  ValuationCoverage,
+  ValuationSnapshotDTO,
 } from './account/model';
 export type { BudgetAlert, BudgetDTO } from './budget/model';
 export type { CategoryDTO } from './category/model';
@@ -17,4 +20,4 @@ export type {
 export type { RecurringTransactionDTO } from './recurring_transaction/model';
 export type { SessionDTO } from './session/model';
 export type { TransactionDTO } from './transaction/model';
-export type { UserDTO, UserWithPassword } from './user/model';
+export type { UserDTO, UserValuationPreferencesDTO, UserWithPassword } from './user/model';

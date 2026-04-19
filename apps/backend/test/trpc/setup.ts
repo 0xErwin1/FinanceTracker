@@ -1,10 +1,10 @@
-import { t } from '@expenses/api';
 import {
   CurrencyEnum,
   FinancialGoalsType,
   ObligationStatus,
   PlanStatus,
   TransactionType,
+  t,
 } from '@expenses/api';
 import { AppDataSource } from '../../src/data-source';
 import {
@@ -12,9 +12,9 @@ import {
   Budget,
   Category,
   FinancialGoal,
-  Institution,
   InstallmentObligation,
   InstallmentPlan,
+  Institution,
   RecurringTransaction,
   Transaction,
   User,
@@ -52,9 +52,71 @@ export function createAuthenticatedCaller(userId: string) {
   });
 }
 
+export function resolveTablesToTruncate(requestedTables: string[], existingTables: string[]): string[] {
+  const existingTableSet = new Set(existingTables);
+
+  return requestedTables.filter((table) => existingTableSet.has(table));
+}
+
+export function getMultiCurrencySchemaRepairs(
+  existingTables: string[],
+  existingUserColumns: string[],
+): string[] {
+  const repairs: string[] = [];
+  const userColumnSet = new Set(existingUserColumns);
+
+  if (!userColumnSet.has('reporting_currency')) {
+    repairs.push(
+      'ALTER TABLE public."users" ADD COLUMN IF NOT EXISTS "reporting_currency" public.currency_enum',
+    );
+  }
+
+  if (!userColumnSet.has('valuation_freshness_days')) {
+    repairs.push(
+      'ALTER TABLE public."users" ADD COLUMN IF NOT EXISTS "valuation_freshness_days" integer',
+      'UPDATE public."users" SET "valuation_freshness_days" = 3 WHERE "valuation_freshness_days" IS NULL',
+      'ALTER TABLE public."users" ALTER COLUMN "valuation_freshness_days" SET DEFAULT 3',
+      'ALTER TABLE public."users" ALTER COLUMN "valuation_freshness_days" SET NOT NULL',
+    );
+  }
+
+  if (!existingTables.includes('fx_rates')) {
+    repairs.push(
+      'CREATE TABLE IF NOT EXISTS public."fx_rates" ("id" uuid NOT NULL DEFAULT gen_random_uuid(), "user_id" uuid NOT NULL, "base_currency" public.currency_enum NOT NULL, "quote_currency" public.currency_enum NOT NULL, "rate" numeric(18,8) NOT NULL, "effective_date" date NOT NULL, "source_label" character varying(255) NOT NULL, "created_at" TIMESTAMP NOT NULL DEFAULT now(), CONSTRAINT "PK_fx_rates" PRIMARY KEY ("id"), CONSTRAINT "FK_fx_rates_user" FOREIGN KEY ("user_id") REFERENCES public."users"("id") ON DELETE CASCADE ON UPDATE NO ACTION)',
+      'CREATE INDEX IF NOT EXISTS "IDX_fx_rates_lookup" ON public."fx_rates" ("user_id", "base_currency", "quote_currency", "effective_date")',
+    );
+  }
+
+  return repairs;
+}
+
+async function ensureMultiCurrencySchema(): Promise<void> {
+  const tableRows = (await AppDataSource.query(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
+  )) as Array<{ tablename: string }>;
+  const existingTables = tableRows.map((row) => row.tablename);
+
+  if (!existingTables.includes('users')) {
+    return;
+  }
+
+  const userColumnRows = (await AppDataSource.query(
+    `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users'`,
+  )) as Array<{ column_name: string }>;
+  const repairQueries = getMultiCurrencySchemaRepairs(
+    existingTables,
+    userColumnRows.map((row) => row.column_name),
+  );
+
+  for (const query of repairQueries) {
+    await AppDataSource.query(query);
+  }
+}
+
 export async function truncateAllTables(): Promise<void> {
   const tables = [
     'transactions',
+    'fx_rates',
     'accounts',
     'institutions',
     'installment_obligations',
@@ -66,7 +128,17 @@ export async function truncateAllTables(): Promise<void> {
     'sessions',
     'users',
   ];
-  for (const table of tables) {
+  await ensureMultiCurrencySchema();
+
+  const tableRows = (await AppDataSource.query(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
+  )) as Array<{ tablename: string }>;
+  const tablesToTruncate = resolveTablesToTruncate(
+    tables,
+    tableRows.map((row) => row.tablename),
+  );
+
+  for (const table of tablesToTruncate) {
     await AppDataSource.query(`TRUNCATE public."${table}" CASCADE`);
   }
 }

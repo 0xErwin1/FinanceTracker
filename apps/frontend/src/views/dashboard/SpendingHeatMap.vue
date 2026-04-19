@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { HeatmapDay } from '@/types';
 import HeatmapCalendar from '@/components/charts/HeatmapCalendar.vue';
+import type { HeatmapDay } from '@/types';
 
 interface Props {
   heatmapData: HeatmapDay[];

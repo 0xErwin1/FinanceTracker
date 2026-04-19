@@ -1,8 +1,10 @@
+import { CurrencyEnum } from '@expenses/api';
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, OneToMany, PrimaryColumn } from 'typeorm';
 import { Account } from './account.entity';
 import { Budget } from './budget.entity';
 import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
+import { FxRate } from './fx_rate.entity';
 import { RecurringTransaction } from './recurring_transaction.entity';
 import { Session } from './session.entity';
 import { Transaction } from './transaction.entity';
@@ -23,6 +25,12 @@ export class User {
 
   @Column({ type: 'varchar', length: 255 })
   password!: string;
+
+  @Column({ type: 'enum', enum: CurrencyEnum, nullable: true })
+  reportingCurrency!: CurrencyEnum | null;
+
+  @Column({ type: 'integer', default: 3 })
+  valuationFreshnessDays!: number;
 
   @CreateDateColumn()
   createdAt!: Date;
@@ -71,4 +79,10 @@ export class User {
     (account) => account.user,
   )
   accounts!: Account[];
+
+  @OneToMany(
+    () => FxRate,
+    (fxRate) => fxRate.user,
+  )
+  fxRates!: FxRate[];
 }

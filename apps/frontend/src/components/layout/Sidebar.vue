@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router';
 import {
-  LayoutDashboard,
   ArrowLeftRight,
   Landmark,
-  Repeat,
   Layers,
-  PieChart,
-  Target,
-  Tag,
-  Settings,
+  LayoutDashboard,
   LogOut,
-  Plus,
   PanelLeftClose,
+  PieChart,
+  Plus,
+  Repeat,
+  Settings,
+  Tag,
+  Target,
 } from 'lucide-vue-next';
-import { useAuth } from '@/composables/useAuth';
 import type { Component } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useAuth } from '@/composables/useAuth';
 
 interface Props {
   open: boolean;

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import VueApexCharts from 'vue3-apexcharts';
-import { chartTheme } from '@/utils/chartTheme';
 import type { ChartDataPoint } from '@/types';
+import { chartTheme } from '@/utils/chartTheme';
 
 interface Props {
   lineData: ChartDataPoint[];

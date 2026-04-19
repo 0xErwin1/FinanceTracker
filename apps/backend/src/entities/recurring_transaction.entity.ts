@@ -10,8 +10,8 @@ import {
   OneToMany,
   PrimaryColumn,
 } from 'typeorm';
-import { Category } from './category.entity';
 import { Account } from './account.entity';
+import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
 import { Transaction } from './transaction.entity';
 import { User } from './user.entity';

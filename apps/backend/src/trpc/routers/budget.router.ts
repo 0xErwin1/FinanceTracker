@@ -32,42 +32,30 @@ export const budgetRouter = {
   create: publicProcedure
     .use(isAuthenticated)
     .input(createBudgetSchema)
-    .mutation(({ input, ctx }) =>
-      budgetController.create(input, ctx.userId),
-    ),
+    .mutation(({ input, ctx }) => budgetController.create(input, ctx.userId)),
 
   update: publicProcedure
     .use(isAuthenticated)
     .input(updateBudgetSchema)
-    .mutation(({ input, ctx }) =>
-      budgetController.update(input, ctx.userId),
-    ),
+    .mutation(({ input, ctx }) => budgetController.update(input, ctx.userId)),
 
   delete: publicProcedure
     .use(isAuthenticated)
     .input(budgetIdSchema)
-    .mutation(({ input, ctx }) =>
-      budgetController.delete(input, ctx.userId),
-    ),
+    .mutation(({ input, ctx }) => budgetController.delete(input, ctx.userId)),
 
   getById: publicProcedure
     .use(isAuthenticated)
     .input(budgetIdSchema)
-    .query(({ input, ctx }) =>
-      budgetController.getById(input, ctx.userId),
-    ),
+    .query(({ input, ctx }) => budgetController.getById(input, ctx.userId)),
 
   getAll: publicProcedure
     .use(isAuthenticated)
     .input(getBudgetsSchema)
-    .query(({ input, ctx }) =>
-      budgetController.getAll(input, ctx.userId),
-    ),
+    .query(({ input, ctx }) => budgetController.getAll(input, ctx.userId)),
 
   getAlerts: publicProcedure
     .use(isAuthenticated)
     .input(getAlertsSchema)
-    .query(({ input, ctx }) =>
-      budgetController.getAlerts(input, ctx.userId),
-    ),
+    .query(({ input, ctx }) => budgetController.getAlerts(input, ctx.userId)),
 };

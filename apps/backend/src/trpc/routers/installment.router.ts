@@ -1,7 +1,7 @@
 import { publicProcedure } from '@expenses/api';
 import { z } from 'zod';
-import { CurrencyEnum } from '../../enums';
 import { installmentController } from '../../controllers';
+import { CurrencyEnum } from '../../enums';
 import { isAuthenticated } from '../protected';
 
 const createPlanSchema = z.object({

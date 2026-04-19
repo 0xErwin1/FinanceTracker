@@ -1,7 +1,7 @@
 import { publicProcedure } from '@expenses/api';
 import { z } from 'zod';
-import { TransactionType } from '../../enums';
 import { categoryController } from '../../controllers';
+import { TransactionType } from '../../enums';
 import { isAuthenticated } from '../protected';
 
 const createCategorySchema = z.object({

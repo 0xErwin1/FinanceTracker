@@ -8,11 +8,9 @@ const loginSchema = z.object({
 });
 
 export const authRouter = {
-  login: publicProcedure.input(loginSchema).mutation(({ input, ctx }) =>
-    authController.login(input.email, input.password, ctx.req.sessionID!),
-  ),
+  login: publicProcedure
+    .input(loginSchema)
+    .mutation(({ input, ctx }) => authController.login(input.email, input.password, ctx.req.sessionID!)),
 
-  logout: publicProcedure.mutation(({ ctx }) =>
-    authController.logout(ctx.req.sessionID!),
-  ),
+  logout: publicProcedure.mutation(({ ctx }) => authController.logout(ctx.req.sessionID!)),
 };

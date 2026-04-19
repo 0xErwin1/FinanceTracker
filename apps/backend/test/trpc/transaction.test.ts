@@ -284,7 +284,11 @@ describe('transaction router', () => {
           currency: CurrencyEnum.USD,
           date: '2025-01-15',
         }),
-      ).rejects.toThrow(TRPCError);
+      ).rejects.toMatchObject({
+        code: 'CONFLICT',
+        message:
+          'Cross-currency transfers are not supported in v1. Keep both transfer accounts in the same currency.',
+      });
     });
 
     it('should reject third-party accounts as transfer sources', async () => {
