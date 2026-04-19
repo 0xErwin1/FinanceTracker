@@ -11,6 +11,7 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 import { Category } from './category.entity';
+import { Account } from './account.entity';
 import { InstallmentObligation } from './installment_obligation.entity';
 import { User } from './user.entity';
 
@@ -46,6 +47,9 @@ export class InstallmentPlan {
   @Column({ type: 'enum', enum: PlanStatus, default: PlanStatus.ACTIVE })
   status!: PlanStatus;
 
+  @Column({ type: 'uuid', nullable: true })
+  accountId!: string | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 
@@ -63,6 +67,13 @@ export class InstallmentPlan {
   @ManyToOne(() => Category)
   @JoinColumn({ name: 'category_id' })
   category!: Category;
+
+  @ManyToOne(
+    () => Account,
+    (account) => account.installmentPlans,
+  )
+  @JoinColumn({ name: 'account_id' })
+  account!: Account | null;
 
   @OneToMany(
     () => InstallmentObligation,

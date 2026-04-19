@@ -1,5 +1,5 @@
 import { type EntityManager } from 'typeorm';
-import { categoryService } from '.';
+import { accountService, categoryService } from '.';
 import { AppDataSource } from '../data-source';
 import { InstallmentObligation, InstallmentPlan } from '../entities';
 import { ApiError, CurrencyEnum, ObligationStatus, PlanStatus } from '../enums';
@@ -16,6 +16,7 @@ interface CreatePlanInput {
   categoryId?: string;
   note?: string;
   startDate: string;
+  accountId?: string;
 }
 
 async function createPlan(input: CreatePlanInput): Promise<InstallmentPlan> {
@@ -34,6 +35,12 @@ async function createPlan(input: CreatePlanInput): Promise<InstallmentPlan> {
     }
   }
 
+  if (!input.accountId) {
+    throw new CustomError(ApiError.Transaction.ACCOUNT_REQUIRED);
+  }
+
+  await accountService.getPostingAccount(input.accountId, input.userId, input.currency);
+
   return AppDataSource.transaction(async (em) => {
     const installmentAmount = Math.round((input.totalAmount / input.installmentsCount) * 100) / 100;
     const startDate = new Date(input.startDate);
@@ -46,6 +53,7 @@ async function createPlan(input: CreatePlanInput): Promise<InstallmentPlan> {
       categoryId: input.categoryId ?? null,
       note: input.note ?? null,
       status: PlanStatus.ACTIVE,
+      accountId: input.accountId,
     });
 
     await em.save(plan);
@@ -127,6 +135,12 @@ async function payObligation(
       throw new CustomError(ApiError.Installment.OBLIGATION_ALREADY_PAID);
     }
 
+    if (!obligation.plan.accountId) {
+      throw new CustomError(ApiError.Transaction.ACCOUNT_REQUIRED);
+    }
+
+    await accountService.getPostingAccount(obligation.plan.accountId, userId, obligation.plan.currency);
+
     const transaction = await transactionService.createTransactionWithManager(em, {
       type: 'EXPENSE',
       amount: obligation.amount,
@@ -134,6 +148,7 @@ async function payObligation(
       date: new Date().toISOString().split('T')[0],
       userId,
       categoryId: obligation.plan.categoryId ?? undefined,
+      accountId: obligation.plan.accountId,
       note: obligation.plan.note ?? undefined,
       obligationId: obligation.id,
     });

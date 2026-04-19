@@ -5,6 +5,7 @@ import { ArrowLeft, Repeat } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
 import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
+import { useAccounts } from '@/composables/useAccounts';
 import { useCategories } from '@/composables/useCategories';
 import { useRecurring } from '@/composables/useRecurring';
 import { TransactionType, CurrencyEnum } from '@expenses/api';
@@ -12,12 +13,14 @@ import type { CategoryDTO } from '@expenses/api';
 
 const router = useRouter();
 const { categories: rawCategories } = useCategories();
+const { accountsForCurrency, defaultAccountIdForCurrency } = useAccounts();
 const { refetch } = useRecurring();
 
 // --- Form state ---
 const formType = ref<TransactionType>(TransactionType.EXPENSE);
 const formAmount = ref<number>(0);
 const formCurrency = ref<CurrencyEnum>(CurrencyEnum.USD);
+const formAccountId = ref(defaultAccountIdForCurrency(CurrencyEnum.USD) ?? '');
 const formCategoryId = ref('');
 const formDayOfMonth = ref(1);
 const formNote = ref('');
@@ -50,6 +53,17 @@ watch(formType, () => {
   }
 });
 
+watch(
+  formCurrency,
+  (currency) => {
+    const nextAccounts = accountsForCurrency(currency);
+    if (!nextAccounts.some((account) => account.id === formAccountId.value)) {
+      formAccountId.value = nextAccounts[0]?.id ?? '';
+    }
+  },
+  { immediate: true },
+);
+
 async function handleCreate() {
   formError.value = null;
 
@@ -63,6 +77,11 @@ async function handleCreate() {
     return;
   }
 
+  if (!formAccountId.value) {
+    formError.value = 'Account is required.';
+    return;
+  }
+
   creating.value = true;
 
   try {
@@ -70,6 +89,7 @@ async function handleCreate() {
       type: formType.value,
       amount: formAmount.value,
       currency: formCurrency.value,
+      accountId: formAccountId.value,
       categoryId: formCategoryId.value || undefined,
       note: formNote.value || undefined,
       dayOfMonth: formDayOfMonth.value,
@@ -99,6 +119,11 @@ async function handleCreateAndAddAnother() {
     return;
   }
 
+  if (!formAccountId.value) {
+    formError.value = 'Account is required.';
+    return;
+  }
+
   creating.value = true;
 
   try {
@@ -106,6 +131,7 @@ async function handleCreateAndAddAnother() {
       type: formType.value,
       amount: formAmount.value,
       currency: formCurrency.value,
+      accountId: formAccountId.value,
       categoryId: formCategoryId.value || undefined,
       note: formNote.value || undefined,
       dayOfMonth: formDayOfMonth.value,
@@ -117,6 +143,7 @@ async function handleCreateAndAddAnother() {
     formType.value = TransactionType.EXPENSE;
     formAmount.value = 0;
     formCurrency.value = CurrencyEnum.USD;
+    formAccountId.value = defaultAccountIdForCurrency(CurrencyEnum.USD) ?? '';
     formCategoryId.value = '';
     formDayOfMonth.value = 1;
     formNote.value = '';
@@ -188,6 +215,16 @@ async function handleCreateAndAddAnother() {
             <option :value="CurrencyEnum.USD">USD</option>
             <option :value="CurrencyEnum.UYU">UYU</option>
             <option :value="CurrencyEnum.EUR">EUR</option>
+          </select>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="block text-sm text-text-secondary">Account</label>
+          <select v-model="formAccountId" :class="fieldClass">
+            <option value="">Select account</option>
+            <option v-for="account in accountsForCurrency(formCurrency)" :key="account.id" :value="account.id">
+              {{ account.name }}
+            </option>
           </select>
         </div>
 

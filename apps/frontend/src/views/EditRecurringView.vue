@@ -5,6 +5,7 @@ import { ArrowLeft, Repeat } from 'lucide-vue-next';
 import { trpc } from '@/api/trpc';
 import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
+import { useAccounts } from '@/composables/useAccounts';
 import { useCategories } from '@/composables/useCategories';
 import { useRecurring } from '@/composables/useRecurring';
 import { TransactionType, CurrencyEnum } from '@expenses/api';
@@ -13,12 +14,14 @@ import type { CategoryDTO } from '@expenses/api';
 const router = useRouter();
 const route = useRoute();
 const { categories: rawCategories } = useCategories();
+const { accountsForCurrency } = useAccounts();
 const { refetch } = useRecurring();
 
 // --- Form state ---
 const formType = ref<TransactionType>(TransactionType.EXPENSE);
 const formAmount = ref<number>(0);
 const formCurrency = ref<CurrencyEnum>(CurrencyEnum.USD);
+const formAccountId = ref('');
 const formCategoryId = ref('');
 const formDayOfMonth = ref(1);
 const formNote = ref('');
@@ -54,6 +57,17 @@ watch(formType, () => {
   }
 });
 
+watch(
+  formCurrency,
+  (currency) => {
+    const nextAccounts = accountsForCurrency(currency);
+    if (!nextAccounts.some((account) => account.id === formAccountId.value)) {
+      formAccountId.value = nextAccounts[0]?.id ?? '';
+    }
+  },
+  { immediate: true },
+);
+
 onMounted(async () => {
   try {
     const item = await trpc.recurring.getById.query({ id: recurringId });
@@ -61,6 +75,7 @@ onMounted(async () => {
     formType.value = item.type as TransactionType;
     formAmount.value = item.amount;
     formCurrency.value = item.currency as CurrencyEnum;
+    formAccountId.value = item.accountId ?? '';
     formCategoryId.value = item.categoryId ?? '';
     formDayOfMonth.value = item.dayOfMonth;
     formNote.value = item.note ?? '';
@@ -81,6 +96,11 @@ async function handleSave() {
     return;
   }
 
+  if (!formAccountId.value) {
+    formError.value = 'Account is required.';
+    return;
+  }
+
   saving.value = true;
 
   try {
@@ -89,6 +109,7 @@ async function handleSave() {
       type: formType.value,
       amount: formAmount.value,
       currency: formCurrency.value,
+      accountId: formAccountId.value,
       categoryId: formCategoryId.value || null,
       note: formNote.value || null,
       dayOfMonth: formDayOfMonth.value,
@@ -175,6 +196,16 @@ async function handleSave() {
             <option :value="CurrencyEnum.USD">USD</option>
             <option :value="CurrencyEnum.UYU">UYU</option>
             <option :value="CurrencyEnum.EUR">EUR</option>
+          </select>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="block text-sm text-text-secondary">Account</label>
+          <select v-model="formAccountId" :class="fieldClass">
+            <option value="">Select account</option>
+            <option v-for="account in accountsForCurrency(formCurrency)" :key="account.id" :value="account.id">
+              {{ account.name }}
+            </option>
           </select>
         </div>
 

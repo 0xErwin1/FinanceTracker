@@ -230,5 +230,37 @@ describe('budget router', () => {
       expect(result[0].isOverBudget).toBe(true);
       expect(result[0].spent).toBe(150);
     });
+
+    it('ignores transfer rows when calculating spent totals', async () => {
+      const category = await seedCategory(userId);
+
+      await caller.budget.create({
+        categoryId: category.id,
+        month: '2025-04-01',
+        amount: 300,
+        alertThreshold: 80,
+      });
+
+      await seedTransaction(userId, {
+        categoryId: category.id,
+        type: TransactionType.EXPENSE,
+        amount: 120,
+        date: '2025-04-05',
+      });
+
+      await seedTransaction(userId, {
+        categoryId: category.id,
+        type: TransactionType.EXPENSE,
+        amount: 400,
+        date: '2025-04-06',
+        transferGroupId: '11111111-1111-1111-1111-111111111111',
+      });
+
+      const result = await caller.budget.getAlerts({ month: '2025-04-01' });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].spent).toBe(120);
+      expect(result[0].isOverBudget).toBe(false);
+    });
   });
 });

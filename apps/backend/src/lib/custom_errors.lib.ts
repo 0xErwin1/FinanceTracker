@@ -151,6 +151,132 @@ customErrors[ApiError.Transaction.TRANSACTION_NOT_EXIST] = {
   HTTPStatusCode: StatusCodes.NOT_FOUND,
 };
 
+customErrors[ApiError.Transaction.ACCOUNT_REQUIRED] = {
+  message: 'Account is required for transactions',
+  showMessage: {
+    EN: 'Account is required for transactions',
+    ES: 'La cuenta es obligatoria para las transacciones',
+  },
+  HTTPStatusCode: StatusCodes.BAD_REQUEST,
+};
+
+customErrors[ApiError.Transaction.ACCOUNT_INVALID] = {
+  message: 'Account is invalid for this user',
+  showMessage: {
+    EN: 'Account is invalid for this user',
+    ES: 'La cuenta no es válida para este usuario',
+  },
+  HTTPStatusCode: StatusCodes.BAD_REQUEST,
+};
+
+customErrors[ApiError.Transaction.ACCOUNT_CURRENCY_MISMATCH] = {
+  message: 'Account currency does not match transaction currency',
+  showMessage: {
+    EN: 'Account currency does not match transaction currency',
+    ES: 'La moneda de la cuenta no coincide con la moneda de la transacción',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
+};
+
+customErrors[ApiError.Transaction.TRANSFER_ACCOUNT_REQUIRED] = {
+  message: 'Transfer requires source and destination accounts',
+  showMessage: {
+    EN: 'Transfer requires source and destination accounts',
+    ES: 'La transferencia requiere cuentas de origen y destino',
+  },
+  HTTPStatusCode: StatusCodes.BAD_REQUEST,
+};
+
+customErrors[ApiError.Transaction.TRANSFER_ACCOUNTS_MUST_DIFFER] = {
+  message: 'Transfer accounts must differ',
+  showMessage: {
+    EN: 'Transfer accounts must differ',
+    ES: 'Las cuentas de transferencia deben ser distintas',
+  },
+  HTTPStatusCode: StatusCodes.BAD_REQUEST,
+};
+
+customErrors[ApiError.Transaction.TRANSFER_CURRENCY_MISMATCH] = {
+  message: 'Transfer accounts must use the same currency',
+  showMessage: {
+    EN: 'Transfer accounts must use the same currency',
+    ES: 'Las cuentas de transferencia deben usar la misma moneda',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
+};
+
+customErrors[ApiError.Transaction.TRANSFER_GOAL_NOT_ALLOWED] = {
+  message: 'Transfers cannot be linked to financial goals',
+  showMessage: {
+    EN: 'Transfers cannot be linked to financial goals',
+    ES: 'Las transferencias no pueden vincularse a objetivos financieros',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
+};
+
+customErrors[ApiError.Transaction.TRANSFER_NOT_EXIST] = {
+  message: 'Transfer not exist',
+  showMessage: {
+    EN: 'Transfer not exist',
+    ES: 'La transferencia no existe',
+  },
+  HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+customErrors[ApiError.Transaction.TRANSFER_PAIR_INVALID] = {
+  message: 'Transfer pair is invalid',
+  showMessage: {
+    EN: 'Transfer pair is invalid',
+    ES: 'El par de transferencia no es válido',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
+};
+
+customErrors[ApiError.Account.ACCOUNT_NOT_EXIST] = {
+  message: 'Account not exist',
+  showMessage: {
+    EN: 'Account not exist',
+    ES: 'La cuenta no existe',
+  },
+  HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+customErrors[ApiError.Account.ACCOUNT_ARCHIVED] = {
+  message: 'Account is archived',
+  showMessage: {
+    EN: 'Account is archived',
+    ES: 'La cuenta está archivada',
+  },
+  HTTPStatusCode: StatusCodes.BAD_REQUEST,
+};
+
+customErrors[ApiError.Account.INSTITUTION_NOT_EXIST] = {
+  message: 'Institution not exist',
+  showMessage: {
+    EN: 'Institution not exist',
+    ES: 'La institución no existe',
+  },
+  HTTPStatusCode: StatusCodes.NOT_FOUND,
+};
+
+customErrors[ApiError.Account.INSTITUTION_IN_USE] = {
+  message: 'Institution is still linked to one or more accounts',
+  showMessage: {
+    EN: 'Institution is still linked to one or more accounts',
+    ES: 'La institución todavía está vinculada a una o más cuentas',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
+};
+
+customErrors[ApiError.Account.ACCOUNT_IN_USE] = {
+  message: 'Account is still linked to one or more records',
+  showMessage: {
+    EN: 'Account is still linked to one or more records',
+    ES: 'La cuenta todavía está vinculada a uno o más registros',
+  },
+  HTTPStatusCode: StatusCodes.CONFLICT,
+};
+
 // Category
 customErrors[ApiError.Category.CATEGORY_NOT_EXIST] = {
   message: 'Category not exist',

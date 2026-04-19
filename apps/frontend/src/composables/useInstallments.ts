@@ -1,6 +1,7 @@
 import { ref, computed, type ComputedRef, type Ref } from 'vue';
 import { trpc } from '@/api/trpc';
 import type { InstallmentPlanDTO, InstallmentObligationDTO } from '@expenses/api';
+import { useAccounts } from './useAccounts';
 
 type PlanResult = Awaited<ReturnType<typeof trpc.installment.getAllPlans.query>>;
 
@@ -15,6 +16,8 @@ interface InstallmentResult {
   loading: ComputedRef<boolean>;
   /** Refetch plans from the API. */
   refetch: () => Promise<void>;
+  /** Active accounts available for future plan creation/edit flows. */
+  activeAccounts: ReturnType<typeof useAccounts>['activeAccounts'];
 }
 
 /**
@@ -22,6 +25,7 @@ interface InstallmentResult {
  * installment tRPC router. No transaction filtering or date heuristics.
  */
 export function useInstallments(): InstallmentResult {
+  const { activeAccounts } = useAccounts();
   const plans = ref<PlanResult>([] as unknown as PlanResult);
   const loading = ref(true);
 
@@ -56,5 +60,6 @@ export function useInstallments(): InstallmentResult {
     totalRemaining,
     loading: computed(() => loading.value),
     refetch: fetch,
+    activeAccounts,
   };
 }

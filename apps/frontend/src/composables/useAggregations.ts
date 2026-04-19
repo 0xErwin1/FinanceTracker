@@ -32,18 +32,26 @@ interface AggregationResult {
  * of transactions as input.
  */
 export function useAggregations(transactions: Ref<TransactionItem[]>): AggregationResult {
+  const analyticsTransactions = computed(() =>
+    transactions.value.filter((transaction) => transaction.transferGroupId == null),
+  );
+
   const totalIncome = computed(() =>
-    transactions.value.filter((t) => t.type === 'INCOME').reduce((sum, t) => sum + Number(t.amount), 0),
+    analyticsTransactions.value
+      .filter((t) => t.type === 'INCOME')
+      .reduce((sum, t) => sum + Number(t.amount), 0),
   );
 
   const totalExpenses = computed(() =>
-    transactions.value.filter((t) => t.type === 'EXPENSE').reduce((sum, t) => sum + Number(t.amount), 0),
+    analyticsTransactions.value
+      .filter((t) => t.type === 'EXPENSE')
+      .reduce((sum, t) => sum + Number(t.amount), 0),
   );
 
   const netSavings = computed(() => totalIncome.value - totalExpenses.value);
 
   const monthlyVelocity = computed<ChartDataPoint[]>(() => {
-    const expenses = transactions.value.filter((t) => t.type === 'EXPENSE');
+    const expenses = analyticsTransactions.value.filter((t) => t.type === 'EXPENSE');
     const grouped = groupBy(expenses, (t) => {
       const d = new Date(t.date);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -67,11 +75,11 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
     };
 
     const incomesByMonth = groupBy(
-      transactions.value.filter((t) => t.type === 'INCOME'),
+      analyticsTransactions.value.filter((t) => t.type === 'INCOME'),
       monthKey,
     );
     const expensesByMonth = groupBy(
-      transactions.value.filter((t) => t.type === 'EXPENSE'),
+      analyticsTransactions.value.filter((t) => t.type === 'EXPENSE'),
       monthKey,
     );
 
@@ -99,7 +107,7 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
 
     const monthPrefix = `${year}-${String(month + 1).padStart(2, '0')}`;
 
-    const currentMonthTx = transactions.value.filter((t) => (t.date as string).startsWith(monthPrefix));
+    const currentMonthTx = analyticsTransactions.value.filter((t) => t.date.startsWith(monthPrefix));
 
     const incomesByDay = groupBy(
       currentMonthTx.filter((t) => t.type === 'INCOME'),
@@ -138,7 +146,7 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
   });
 
   const spendingByCategory = computed<CategorySplit[]>(() => {
-    const expenses = transactions.value.filter((t) => t.type === 'EXPENSE');
+    const expenses = analyticsTransactions.value.filter((t) => t.type === 'EXPENSE');
     const grouped = groupBy(
       expenses,
       (t) => (t.category as { name: string } | null)?.name ?? 'Uncategorized',
@@ -156,7 +164,7 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
   });
 
   const heatmapData = computed<HeatmapDay[]>(() => {
-    const expenses = transactions.value.filter((t) => t.type === 'EXPENSE');
+    const expenses = analyticsTransactions.value.filter((t) => t.type === 'EXPENSE');
     const grouped = groupBy(expenses, (t) => {
       const d = new Date(t.date);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -171,7 +179,7 @@ export function useAggregations(transactions: Ref<TransactionItem[]>): Aggregati
   const netSavingsByCurrency = computed<Record<string, number>>(() => {
     const result: Record<string, number> = {};
 
-    for (const t of transactions.value) {
+    for (const t of analyticsTransactions.value) {
       const code = t.currency ?? 'USD';
       const amount = Number(t.amount);
 

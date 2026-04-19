@@ -6,6 +6,7 @@ import { formatCurrency } from '@/utils/format';
 
 interface Props {
   plans: InstallmentPlanDTO[];
+  accountLabels: Record<string, string>;
   loading: boolean;
 }
 
@@ -95,6 +96,10 @@ function planStatusLabel(plan: InstallmentPlanDTO): string {
             variant="default"
           />
         </div>
+
+        <p class="mb-2 text-xs text-text-muted">
+          Account: {{ accountLabels[plan.id] ?? 'Missing account' }}
+        </p>
 
         <!-- Progress -->
         <ProgressBar

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAccounts } from '@/composables/useAccounts';
 import { useRecurring } from '@/composables/useRecurring';
 import { useCategories } from '@/composables/useCategories';
 import { trpc } from '@/api/trpc';
@@ -8,10 +9,12 @@ import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import type { CategoryDTO } from '@expenses/api';
 import { Repeat, Plus, Pause, Play, Trash2, Pencil, Check, X } from 'lucide-vue-next';
 import { formatCurrency } from '@/utils/format';
+import { resolveLinkedAccountLabel } from './installments/installmentPlanForm';
 
 const router = useRouter();
 const { recurring, loading, error, refetch } = useRecurring();
 const { categories: rawCategories } = useCategories();
+const { accounts } = useAccounts();
 
 const recurringList = computed(() => {
   const items = recurring.value;
@@ -31,6 +34,13 @@ const categoryMap = computed(() => {
 });
 
 const activeCount = computed(() => recurringList.value.filter((r) => r.active).length);
+
+const accountLabelByRecurringId = computed<Record<string, string>>(() => {
+  return recurringList.value.reduce<Record<string, string>>((labels, item) => {
+    labels[item.id] = resolveLinkedAccountLabel(item.accountId ?? null, accounts.value);
+    return labels;
+  }, {});
+});
 
 // --- Actions ---
 const togglingId = ref<string | null>(null);
@@ -171,6 +181,10 @@ function formatDay(day: number): string {
               </p>
 
               <p class="text-sm text-text-muted">
+                {{ accountLabelByRecurringId[item.id] }}
+              </p>
+
+              <p class="text-sm text-text-muted">
                 {{ item.note || '--' }}
               </p>
             </div>
@@ -248,6 +262,9 @@ function formatDay(day: number): string {
               Day
             </th>
             <th class="text-left text-xs font-medium text-text-muted px-5 py-3">
+              Account
+            </th>
+            <th class="text-left text-xs font-medium text-text-muted px-5 py-3">
               Status
             </th>
             <th class="text-left text-xs font-medium text-text-muted px-5 py-3">
@@ -284,6 +301,9 @@ function formatDay(day: number): string {
             </td>
             <td class="px-5 py-3 text-sm text-text-muted font-mono">
               {{ formatDay(item.dayOfMonth) }}
+            </td>
+            <td class="px-5 py-3 text-sm text-text-muted">
+              {{ accountLabelByRecurringId[item.id] }}
             </td>
             <td class="px-5 py-3">
               <span
@@ -373,7 +393,7 @@ function formatDay(day: number): string {
           </tr>
           <tr v-if="recurringList.length === 0">
             <td
-              colspan="7"
+              colspan="8"
               class="px-5 py-8 text-center text-sm text-text-muted"
             >
               No recurring transactions yet. Click "New Recurring" to create one.

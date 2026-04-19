@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
+  seedAccount,
   seedCategory,
   seedInstallmentObligation,
   seedInstallmentPlan,
@@ -24,9 +25,12 @@ describe('installment router', () => {
 
   describe('createPlan', () => {
     it('should create a plan with 3 obligations with correct amounts and dueDates', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
       const result = await caller.installment.createPlan({
         totalAmount: 300,
         currency: CurrencyEnum.USD,
+        accountId: account.id,
         installmentsCount: 3,
         startDate: '2026-01-01',
         note: 'Test plan',
@@ -36,6 +40,7 @@ describe('installment router', () => {
       expect(result.totalAmount).toBe(300);
       expect(result.installmentsCount).toBe(3);
       expect(result.status).toBe(PlanStatus.ACTIVE);
+      expect(result.accountId).toBe(account.id);
       expect(result.obligations).toHaveLength(3);
 
       // Verify obligation amounts are evenly distributed
@@ -61,10 +66,12 @@ describe('installment router', () => {
 
     it('should create plan with categoryId', async () => {
       const category = await seedCategory(userId);
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
 
       const result = await caller.installment.createPlan({
         totalAmount: 1200,
         currency: CurrencyEnum.USD,
+        accountId: account.id,
         installmentsCount: 12,
         startDate: '2026-01-01',
         categoryId: category.id,
@@ -75,10 +82,13 @@ describe('installment router', () => {
     });
 
     it('should reject installmentsCount < 2', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
       await expect(
         caller.installment.createPlan({
           totalAmount: 100,
           currency: CurrencyEnum.USD,
+          accountId: account.id,
           installmentsCount: 1,
           startDate: '2026-01-01',
         }),
@@ -86,10 +96,13 @@ describe('installment router', () => {
     });
 
     it('should reject without authentication', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
       await expect(
         publicCaller.installment.createPlan({
           totalAmount: 100,
           currency: CurrencyEnum.USD,
+          accountId: account.id,
           installmentsCount: 3,
           startDate: '2026-01-01',
         }),
@@ -97,9 +110,12 @@ describe('installment router', () => {
     });
 
     it('should handle non-divisible amounts with rounding', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
       const result = await caller.installment.createPlan({
         totalAmount: 100,
         currency: CurrencyEnum.USD,
+        accountId: account.id,
         installmentsCount: 3,
         startDate: '2026-01-01',
       });
@@ -109,6 +125,37 @@ describe('installment router', () => {
       // Sum of obligations should equal totalAmount (within rounding)
       const sum = result.obligations!.reduce((acc, o) => acc + o.amount, 0);
       expect(sum).toBe(100);
+    });
+
+    it('should reject archived accounts', async () => {
+      const archivedAccount = await seedAccount(userId, { archivedAt: new Date() });
+
+      await expect(
+        caller.installment.createPlan({
+          totalAmount: 100,
+          currency: CurrencyEnum.USD,
+          accountId: archivedAccount.id,
+          installmentsCount: 3,
+          startDate: '2026-01-01',
+        }),
+      ).rejects.toThrow(TRPCError);
+    });
+
+    it('should reject third-party destination accounts', async () => {
+      const landlordAccount = await seedAccount(userId, {
+        currency: CurrencyEnum.USD,
+        ownership: 'third_party',
+      });
+
+      await expect(
+        caller.installment.createPlan({
+          totalAmount: 100,
+          currency: CurrencyEnum.USD,
+          accountId: landlordAccount.id,
+          installmentsCount: 3,
+          startDate: '2026-01-01',
+        }),
+      ).rejects.toThrow(TRPCError);
     });
   });
 
@@ -260,7 +307,7 @@ describe('installment router', () => {
         .getOne();
 
       expect(tx).toBeDefined();
-    });
+    }, 15000);
   });
 
   describe('isolation', () => {

@@ -3,6 +3,7 @@ import { useRoute, useRouter } from 'vue-router';
 import {
   LayoutDashboard,
   ArrowLeftRight,
+  Landmark,
   Repeat,
   Layers,
   PieChart,
@@ -40,6 +41,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard },
   { label: 'Transactions', to: '/transactions', icon: ArrowLeftRight },
+  { label: 'Banking', to: '/accounts', icon: Landmark },
   { label: 'Recurring', to: '/recurring', icon: Repeat },
   { label: 'Installments', to: '/installments', icon: Layers },
   { label: 'Budgets', to: '/budgets', icon: PieChart },

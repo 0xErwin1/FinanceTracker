@@ -1,13 +1,20 @@
-export type { UserDTO, UserWithPassword } from './user/model';
-export type { SessionDTO } from './session/model';
-export type { CategoryDTO } from './category/model';
-export type { TransactionDTO } from './transaction/model';
-export type { FinancialGoalDTO } from './financial_goal/model';
-export type { BudgetDTO, BudgetAlert } from './budget/model';
-export type { RecurringTransactionDTO } from './recurring_transaction/model';
 export type {
-  InstallmentPlanDTO,
+  AccountDTO,
+  AccountKind,
+  AccountOwnership,
+  AccountSummaryDTO,
+  InstitutionDTO,
+} from './account/model';
+export type { BudgetAlert, BudgetDTO } from './budget/model';
+export type { CategoryDTO } from './category/model';
+export type { FinancialGoalDTO } from './financial_goal/model';
+export type {
   InstallmentObligationDTO,
-  PlanStatus,
+  InstallmentPlanDTO,
   ObligationStatus,
+  PlanStatus,
 } from './installment_plan/model';
+export type { RecurringTransactionDTO } from './recurring_transaction/model';
+export type { SessionDTO } from './session/model';
+export type { TransactionDTO } from './transaction/model';
+export type { UserDTO, UserWithPassword } from './user/model';

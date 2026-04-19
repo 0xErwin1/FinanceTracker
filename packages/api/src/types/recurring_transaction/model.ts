@@ -15,5 +15,6 @@ export interface RecurringTransactionDTO {
   lastGeneratedAt: Date | null;
   exchangeRate: number | null;
   goalId: string | null;
+  accountId: string | null;
   createdAt: Date;
 }

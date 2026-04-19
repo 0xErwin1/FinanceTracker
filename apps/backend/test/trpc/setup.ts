@@ -8,9 +8,11 @@ import {
 } from '@expenses/api';
 import { AppDataSource } from '../../src/data-source';
 import {
+  Account,
   Budget,
   Category,
   FinancialGoal,
+  Institution,
   InstallmentObligation,
   InstallmentPlan,
   RecurringTransaction,
@@ -53,6 +55,8 @@ export function createAuthenticatedCaller(userId: string) {
 export async function truncateAllTables(): Promise<void> {
   const tables = [
     'transactions',
+    'accounts',
+    'institutions',
     'installment_obligations',
     'installment_plans',
     'recurring_transactions',
@@ -65,6 +69,33 @@ export async function truncateAllTables(): Promise<void> {
   for (const table of tables) {
     await AppDataSource.query(`TRUNCATE public."${table}" CASCADE`);
   }
+}
+
+export async function seedInstitution(overrides: Record<string, unknown> = {}): Promise<Institution> {
+  const defaults = {
+    name: `Test Institution ${++_seedCounter}`,
+    code: `TEST-${_seedCounter}`,
+  };
+
+  const repo = AppDataSource.getRepository(Institution);
+  const institution = repo.create({ ...defaults, ...overrides } as Institution);
+  return repo.save(institution);
+}
+
+export async function seedAccount(userId: string, overrides: Record<string, unknown> = {}): Promise<Account> {
+  const defaults = {
+    userId,
+    name: `Test Account ${++_seedCounter}`,
+    currency: CurrencyEnum.USD,
+    kind: 'checking',
+    ownership: 'self',
+    institutionId: null,
+    archivedAt: null,
+  };
+
+  const repo = AppDataSource.getRepository(Account);
+  const account = repo.create({ ...defaults, ...overrides } as Account);
+  return repo.save(account);
 }
 
 export async function seedUser(overrides: Record<string, unknown> = {}): Promise<User> {
@@ -102,6 +133,11 @@ export async function seedTransaction(
   userId: string,
   overrides: Record<string, unknown> = {},
 ): Promise<Transaction> {
+  if (!overrides.accountId) {
+    const account = await seedAccount(userId, { currency: overrides.currency ?? CurrencyEnum.USD });
+    overrides.accountId = account.id;
+  }
+
   if (!overrides.categoryId) {
     const cat = await seedCategory(userId);
     overrides.categoryId = cat.id;
@@ -163,6 +199,11 @@ export async function seedRecurring(
   userId: string,
   overrides: Record<string, unknown> = {},
 ): Promise<RecurringTransaction> {
+  if (!overrides.accountId) {
+    const account = await seedAccount(userId, { currency: overrides.currency ?? CurrencyEnum.USD });
+    overrides.accountId = account.id;
+  }
+
   const defaults = {
     userId,
     type: TransactionType.EXPENSE,
@@ -184,6 +225,11 @@ export async function seedInstallmentPlan(
   userId: string,
   overrides: Record<string, unknown> = {},
 ): Promise<InstallmentPlan> {
+  if (!overrides.accountId) {
+    const account = await seedAccount(userId, { currency: overrides.currency ?? CurrencyEnum.USD });
+    overrides.accountId = account.id;
+  }
+
   const defaults = {
     userId,
     totalAmount: 300,

@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, OneToMany, PrimaryColumn } from 'typeorm';
+import { Account } from './account.entity';
 import { Budget } from './budget.entity';
 import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
@@ -64,4 +65,10 @@ export class User {
     (recurringTransaction) => recurringTransaction.user,
   )
   recurringTransactions!: RecurringTransaction[];
+
+  @OneToMany(
+    () => Account,
+    (account) => account.user,
+  )
+  accounts!: Account[];
 }

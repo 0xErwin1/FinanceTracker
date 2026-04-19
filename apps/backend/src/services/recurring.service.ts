@@ -5,7 +5,7 @@ import { ApiError } from '../enums';
 import { CustomError, cacheInvalidateUser } from '../lib';
 import { scheduleRecurringJob, unscheduleRecurringJob } from '../queues';
 import type { RecurringTransactionDTO } from '../types/DTOs';
-import { categoryService } from '.';
+import { accountService, categoryService } from '.';
 
 const repo = () => AppDataSource.getRepository(RecurringTransaction);
 
@@ -21,6 +21,7 @@ interface CreateRecurringInput {
   endDate?: string;
   exchangeRate?: number;
   goalId?: string;
+  accountId?: string;
 }
 
 interface UpdateRecurringInput {
@@ -34,6 +35,7 @@ interface UpdateRecurringInput {
   endDate?: string | null;
   exchangeRate?: number | null;
   goalId?: string | null;
+  accountId?: string | null;
 }
 
 async function createRecurring(input: CreateRecurringInput): Promise<RecurringTransactionDTO> {
@@ -58,6 +60,12 @@ async function createRecurring(input: CreateRecurringInput): Promise<RecurringTr
     }
   }
 
+  if (!input.accountId) {
+    throw new CustomError(ApiError.Transaction.ACCOUNT_REQUIRED);
+  }
+
+  await accountService.getPostingAccount(input.accountId, input.userId, input.currency);
+
   const template = repo().create({
     ...input,
     active: true,
@@ -66,6 +74,7 @@ async function createRecurring(input: CreateRecurringInput): Promise<RecurringTr
     endDate: input.endDate ?? null,
     exchangeRate: input.exchangeRate ?? null,
     goalId: input.goalId ?? null,
+    accountId: input.accountId,
   });
 
   await repo().save(template);
@@ -108,6 +117,10 @@ async function updateRecurring(
       error.message = `Category '${category.name}' is for ${category.type} transactions, not ${effectiveType}`;
       throw error;
     }
+  }
+
+  if (data.accountId !== undefined && data.accountId !== null) {
+    await accountService.getPostingAccount(data.accountId, userId, data.currency ?? template.currency);
   }
 
   Object.assign(template, data);

@@ -16,6 +16,7 @@ export const recurringController = {
       endDate?: string;
       exchangeRate?: number;
       goalId?: string;
+      accountId?: string;
     },
     userId: string,
   ) {
@@ -39,6 +40,7 @@ export const recurringController = {
       endDate?: string | null;
       exchangeRate?: number | null;
       goalId?: string | null;
+      accountId?: string | null;
     },
     userId: string,
   ) {

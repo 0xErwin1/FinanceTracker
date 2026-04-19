@@ -1,6 +1,6 @@
 import { Queue, Worker } from 'bullmq';
 import { AppDataSource } from '../data-source';
-import { Category, RecurringTransaction, Transaction } from '../entities';
+import { Account, Category, RecurringTransaction, Transaction } from '../entities';
 import { logger } from '../lib';
 import { closeBullMQConnection, getBullMQConnection } from './connection';
 
@@ -88,6 +88,20 @@ async function processor(job: { data: RecurringJobData }): Promise<void> {
     }
   }
 
+  if (!template.accountId) {
+    logger.error({ recurringTransactionId }, 'recurring_account_required');
+    return;
+  }
+
+  const account = await AppDataSource.getRepository(Account).findOne({
+    where: { id: template.accountId, userId: template.userId },
+  });
+
+  if (!account || account.archivedAt || account.currency !== template.currency) {
+    logger.error({ recurringTransactionId, accountId: template.accountId }, 'recurring_account_invalid');
+    return;
+  }
+
   const transaction = transactionRepo.create({
     type: template.type,
     amount: template.amount,
@@ -96,6 +110,7 @@ async function processor(job: { data: RecurringJobData }): Promise<void> {
     date: targetDate,
     exchangeRate: template.exchangeRate ?? null,
     userId: template.userId,
+    accountId: template.accountId,
     categoryId: template.categoryId,
     goalId: template.goalId ?? null,
     recurringTransactionId: template.id,

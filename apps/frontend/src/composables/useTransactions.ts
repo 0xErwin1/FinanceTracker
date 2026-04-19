@@ -1,9 +1,10 @@
-import { ref, computed, type Ref } from 'vue';
+import type { CurrencyEnum, TransactionType } from '@expenses/api';
+import { computed, type Ref, ref } from 'vue';
 import { trpc } from '@/api/trpc';
-import type { TransactionType } from '@expenses/api';
 
 interface TransactionFilters {
   type?: TransactionType;
+  accountId?: string;
   dateFrom?: string;
   dateTo?: string;
 }
@@ -15,6 +16,23 @@ interface UseTransactionsReturn {
   loading: Ref<boolean>;
   error: Ref<Error | null>;
   refetch: () => Promise<void>;
+  createTransfer: (input: {
+    sourceAccountId: string;
+    destinationAccountId: string;
+    amount: number;
+    currency: CurrencyEnum;
+    date: string;
+    note?: string;
+  }) => Promise<void>;
+  updateTransfer: (input: {
+    transactionId: string;
+    sourceAccountId: string;
+    destinationAccountId: string;
+    amount: number;
+    currency: CurrencyEnum;
+    date: string;
+    note?: string;
+  }) => Promise<void>;
 }
 
 /**
@@ -40,6 +58,31 @@ export function useTransactions(filters?: () => TransactionFilters): UseTransact
     }
   }
 
+  async function createTransfer(input: {
+    sourceAccountId: string;
+    destinationAccountId: string;
+    amount: number;
+    currency: CurrencyEnum;
+    date: string;
+    note?: string;
+  }) {
+    await trpc.transaction.createTransfer.mutate(input);
+    await fetch();
+  }
+
+  async function updateTransfer(input: {
+    transactionId: string;
+    sourceAccountId: string;
+    destinationAccountId: string;
+    amount: number;
+    currency: CurrencyEnum;
+    date: string;
+    note?: string;
+  }) {
+    await trpc.transaction.updateTransfer.mutate(input);
+    await fetch();
+  }
+
   fetch();
 
   return {
@@ -47,5 +90,7 @@ export function useTransactions(filters?: () => TransactionFilters): UseTransact
     loading: computed(() => loading.value),
     error: computed(() => error.value),
     refetch: fetch,
+    createTransfer,
+    updateTransfer,
   };
 }

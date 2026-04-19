@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import AppLayout from '@/components/layout/AppLayout.vue';
+import AppToastRegion from '@/components/feedback/AppToastRegion.vue';
 import { provideAuth, clearAuthState } from '@/composables/useAuth';
+import { provideToast } from '@/composables/useToast';
 import { setOnUnauthorized } from '@/api/trpc';
 import router from '@/router';
 
 const auth = provideAuth();
+provideToast();
 
 // Clear local auth state and navigate to login via SPA navigation.
 // Uses clearAuthState() instead of auth.logout() to avoid firing an
@@ -50,4 +53,6 @@ const showLayout = computed(() => auth.isAuthenticated.value);
 
   <!-- Unauthenticated: bare router view (LoginView) -->
   <RouterView v-else />
+
+  <AppToastRegion />
 </template>

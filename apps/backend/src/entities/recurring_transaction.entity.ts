@@ -11,6 +11,7 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 import { Category } from './category.entity';
+import { Account } from './account.entity';
 import { FinancialGoal } from './financial_goal.entity';
 import { Transaction } from './transaction.entity';
 import { User } from './user.entity';
@@ -65,6 +66,9 @@ export class RecurringTransaction {
   @Column({ type: 'uuid', nullable: true })
   goalId!: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  accountId!: string | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 
@@ -86,6 +90,13 @@ export class RecurringTransaction {
   @ManyToOne(() => FinancialGoal)
   @JoinColumn({ name: 'goal_id' })
   financialGoal!: FinancialGoal;
+
+  @ManyToOne(
+    () => Account,
+    (account) => account.recurringTransactions,
+  )
+  @JoinColumn({ name: 'account_id' })
+  account!: Account | null;
 
   @OneToMany(
     () => Transaction,

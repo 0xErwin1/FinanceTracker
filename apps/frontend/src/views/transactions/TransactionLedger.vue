@@ -15,6 +15,10 @@ export interface TransactionDisplay {
   amount: number;
   currency: string;
   type: string;
+  accountName: string;
+  counterpartyAccountName: string | null;
+  transferGroupId: string | null;
+  transferDirection: 'OUTGOING' | 'INCOMING' | null;
 }
 
 export interface DayGroup {
@@ -81,6 +85,14 @@ function typeBadgeText(type: string): string {
 function dailyTotalClass(total: number): string {
   return total >= 0 ? 'text-accent-green' : 'text-accent-red';
 }
+
+function transferBadgeText(tx: TransactionDisplay): string | null {
+  if (!tx.transferGroupId) {
+    return null;
+  }
+
+  return tx.transferDirection === 'INCOMING' ? 'Transfer In' : 'Transfer Out';
+}
 </script>
 
 <template>
@@ -146,6 +158,11 @@ function dailyTotalClass(total: number): string {
               <p class="text-sm font-medium text-text-primary">
                 {{ tx.note || 'No note provided' }}
               </p>
+
+              <p class="text-xs text-text-muted">
+                {{ tx.accountName }}
+                <span v-if="tx.counterpartyAccountName">→ {{ tx.counterpartyAccountName }}</span>
+              </p>
             </div>
 
             <span
@@ -157,16 +174,20 @@ function dailyTotalClass(total: number): string {
             </span>
           </div>
 
-          <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-text-secondary">
+            <div class="mt-3 grid grid-cols-2 gap-3 text-xs text-text-secondary">
             <div>
               <p class="text-text-muted">Date</p>
               <p class="mt-1 text-text-primary">{{ formatDate(tx.date) }}</p>
             </div>
 
-            <div>
-              <p class="text-text-muted">Currency</p>
-              <p class="mt-1 text-text-primary">{{ tx.currency }}</p>
+              <div>
+                <p class="text-text-muted">Account</p>
+                <p class="mt-1 text-text-primary">{{ tx.accountName }}</p>
+              </div>
             </div>
+
+          <div v-if="transferBadgeText(tx)" class="mt-3">
+            <Badge :text="transferBadgeText(tx) ?? ''" variant="info" />
           </div>
 
           <div class="mt-3 border-t border-border-default/50 pt-3">
@@ -242,6 +263,10 @@ function dailyTotalClass(total: number): string {
 
               <td class="px-4 py-2.5 text-text-secondary">
                 {{ tx.note || '\u2014' }}
+                <p class="mt-1 text-xs text-text-muted">
+                  {{ tx.accountName }}
+                  <span v-if="tx.counterpartyAccountName">→ {{ tx.counterpartyAccountName }}</span>
+                </p>
               </td>
 
               <td class="px-4 py-2.5 text-right font-mono">
@@ -261,8 +286,8 @@ function dailyTotalClass(total: number): string {
 
               <td class="w-28 px-4 py-2.5">
                 <Badge
-                  :text="typeBadgeText(tx.type)"
-                  :variant="typeBadgeVariant(tx.type)"
+                  :text="transferBadgeText(tx) ?? typeBadgeText(tx.type)"
+                  :variant="tx.transferGroupId ? 'info' : typeBadgeVariant(tx.type)"
                 />
               </td>
 

@@ -4,6 +4,17 @@ import { ApiError, type CurrencyEnum, type FinancialGoalsType } from '../enums';
 import { CustomError } from '../lib';
 import type { FinancialGoalDTO } from '../types/DTOs';
 
+function filterTransferTransactions<T extends FinancialGoalDTO>(goal: T): T {
+  if (!goal.transactions) {
+    return goal;
+  }
+
+  return {
+    ...goal,
+    transactions: goal.transactions.filter((transaction) => transaction.transferGroupId == null),
+  };
+}
+
 const repo = () => AppDataSource.getRepository(FinancialGoal);
 
 interface CreateFinancialGoalInput {
@@ -53,14 +64,21 @@ async function getFinancialGoal(
   relations: string[] = [],
 ): Promise<FinancialGoalDTO | null> {
   const goal = await repo().findOne({ where: where as any, relations });
-  return goal ?? null;
+
+  if (!goal) {
+    return null;
+  }
+
+  return filterTransferTransactions(goal);
 }
 
 async function getAllFinancialGoals(
   where: Partial<Pick<FinancialGoal, 'userId'>>,
   relations: string[] = [],
 ): Promise<FinancialGoalDTO[]> {
-  return repo().find({ where: where as any, relations });
+  const goals = await repo().find({ where: where as any, relations });
+
+  return goals.map((goal) => filterTransferTransactions(goal));
 }
 
 async function deleteFinancialGoal(goalId: string, userId: string): Promise<void> {

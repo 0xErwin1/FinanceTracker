@@ -7,6 +7,7 @@ import { isAuthenticated } from '../protected';
 const createPlanSchema = z.object({
   totalAmount: z.number().min(0),
   currency: z.nativeEnum(CurrencyEnum),
+  accountId: z.string().uuid(),
   installmentsCount: z.number().int().min(1),
   categoryId: z.string().uuid().optional(),
   note: z.string().optional(),

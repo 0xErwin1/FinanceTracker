@@ -1,3 +1,5 @@
+export { Institution } from './institution.entity';
+export { Account } from './account.entity';
 export { User } from './user.entity';
 export { Session } from './session.entity';
 export { Category } from './category.entity';

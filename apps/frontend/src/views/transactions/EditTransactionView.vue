@@ -1,18 +1,21 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { CurrencyEnum, TransactionType } from '@expenses/api';
 import { ArrowLeft } from 'lucide-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { trpc } from '@/api/trpc';
 import ResponsiveFormSection from '@/components/base/ResponsiveFormSection.vue';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
+import { useAccounts } from '@/composables/useAccounts';
 import { useCategories } from '@/composables/useCategories';
 import { useTransactions } from '@/composables/useTransactions';
-import { TransactionType, CurrencyEnum } from '@expenses/api';
+import { getTransferConstraintMessage, resolveTransferAccountOptions } from './transferForm';
 
 const router = useRouter();
 const route = useRoute();
 const { categories } = useCategories();
-const { refetch } = useTransactions();
+const { refetch, updateTransfer } = useTransactions();
+const { accounts, postingAccountsForCurrency } = useAccounts();
 
 const transactionId = route.params.id as string;
 
@@ -21,8 +24,13 @@ const formType = ref<TransactionType>(TransactionType.EXPENSE);
 const formAmount = ref<number>(0);
 const formCurrency = ref<CurrencyEnum>(CurrencyEnum.USD);
 const formCategoryId = ref('');
+const formAccountId = ref('');
 const formDate = ref('');
 const formNote = ref('');
+const transferGroupId = ref<string | null>(null);
+const transferCounterpartyName = ref<string | null>(null);
+const transferSourceAccountId = ref('');
+const transferDestinationAccountId = ref('');
 const formError = ref<string | null>(null);
 const saving = ref(false);
 const loadingItem = ref(true);
@@ -31,6 +39,20 @@ const fieldClass =
   'w-full rounded-base border border-border-default bg-bg-card px-4 py-2 text-sm text-text-primary outline-none transition-colors focus:border-accent-gold/50';
 
 const dateFieldClass = `${fieldClass} [color-scheme:dark]`;
+
+const isTransfer = computed(() => transferGroupId.value !== null);
+
+const accountOptions = computed(() => postingAccountsForCurrency(formCurrency.value));
+const transferOptions = computed(() =>
+  resolveTransferAccountOptions(
+    accounts.value,
+    formCurrency.value,
+    transferSourceAccountId.value || undefined,
+  ),
+);
+const transferConstraintMessage = computed(() =>
+  getTransferConstraintMessage(transferOptions.value, formCurrency.value),
+);
 
 const filteredCategoryOptions = computed(() => {
   const items = categories.value;
@@ -43,6 +65,10 @@ const filteredCategoryOptions = computed(() => {
 });
 
 watch(formType, () => {
+  if (isTransfer.value) {
+    return;
+  }
+
   if (formCategoryId.value) {
     const valid = filteredCategoryOptions.value.some((c) => c.id === formCategoryId.value);
     if (!valid) {
@@ -51,6 +77,45 @@ watch(formType, () => {
   }
 });
 
+watch(formCurrency, (currency) => {
+  const availableAccounts = postingAccountsForCurrency(currency);
+
+  if (isTransfer.value) {
+    if (transferSourceAccountId.value !== transferOptions.value.selectedSourceAccountId) {
+      transferSourceAccountId.value = transferOptions.value.selectedSourceAccountId;
+    }
+
+    if (
+      !transferOptions.value.destinationAccounts.some(
+        (account) => account.id === transferDestinationAccountId.value,
+      )
+    ) {
+      transferDestinationAccountId.value = transferOptions.value.destinationAccounts[0]?.id ?? '';
+    }
+
+    return;
+  }
+
+  if (!availableAccounts.some((account) => account.id === formAccountId.value)) {
+    formAccountId.value = availableAccounts[0]?.id ?? '';
+  }
+});
+
+function assignTransferAccounts(item: {
+  accountId: string | null;
+  counterpartyAccountId?: string | null;
+  transferDirection?: 'OUTGOING' | 'INCOMING' | null;
+}) {
+  if (item.transferDirection === 'INCOMING') {
+    transferSourceAccountId.value = item.counterpartyAccountId ?? '';
+    transferDestinationAccountId.value = item.accountId ?? '';
+    return;
+  }
+
+  transferSourceAccountId.value = item.accountId ?? '';
+  transferDestinationAccountId.value = item.counterpartyAccountId ?? '';
+}
+
 onMounted(async () => {
   try {
     const item = await trpc.transaction.getById.query({ id: transactionId });
@@ -58,9 +123,16 @@ onMounted(async () => {
     formType.value = item.type as TransactionType;
     formAmount.value = Number(item.amount);
     formCurrency.value = item.currency as CurrencyEnum;
+    formAccountId.value = item.accountId ?? '';
     formCategoryId.value = item.categoryId ?? '';
     formDate.value = item.date ?? '';
     formNote.value = item.note ?? '';
+    transferGroupId.value = item.transferGroupId ?? null;
+    transferCounterpartyName.value = item.counterpartyAccount?.name ?? null;
+
+    if (item.transferGroupId) {
+      assignTransferAccounts(item);
+    }
   } catch (err) {
     formError.value = err instanceof Error ? err.message : 'Failed to load transaction';
   } finally {
@@ -76,18 +148,51 @@ async function handleSave() {
     return;
   }
 
+  if (!isTransfer.value && !formAccountId.value) {
+    formError.value = 'Account is required.';
+    return;
+  }
+
   saving.value = true;
 
   try {
-    await trpc.transaction.update.mutate({
-      id: transactionId,
-      type: formType.value,
-      amount: formAmount.value,
-      currency: formCurrency.value,
-      categoryId: formCategoryId.value || null,
-      date: formDate.value || undefined,
-      note: formNote.value || null,
-    });
+    if (isTransfer.value) {
+      if (!transferSourceAccountId.value || !transferDestinationAccountId.value) {
+        formError.value = 'Source and destination accounts are required for transfers.';
+        return;
+      }
+
+      if (transferSourceAccountId.value === transferDestinationAccountId.value) {
+        formError.value = 'Source and destination accounts must differ.';
+        return;
+      }
+
+      if (!formDate.value) {
+        formError.value = 'Date is required.';
+        return;
+      }
+
+      await updateTransfer({
+        transactionId,
+        sourceAccountId: transferSourceAccountId.value,
+        destinationAccountId: transferDestinationAccountId.value,
+        amount: formAmount.value,
+        currency: formCurrency.value,
+        date: formDate.value,
+        note: formNote.value || undefined,
+      });
+    } else {
+      await trpc.transaction.update.mutate({
+        id: transactionId,
+        type: formType.value,
+        amount: formAmount.value,
+        currency: formCurrency.value,
+        accountId: formAccountId.value,
+        categoryId: formCategoryId.value || null,
+        date: formDate.value || undefined,
+        note: formNote.value || null,
+      });
+    }
 
     await refetch();
     await router.push('/transactions');
@@ -141,7 +246,20 @@ async function handleSave() {
           <p class="text-sm text-accent-red">{{ formError }}</p>
         </div>
 
-        <div class="space-y-1.5">
+        <div v-if="transferGroupId" class="rounded-base border border-border-default/60 bg-bg-primary/60 px-4 py-3 shell:col-span-2 xl:col-span-3">
+          <p class="text-sm text-text-primary">Transfer pair detected</p>
+          <p class="mt-1 text-xs text-text-muted">
+            This edit updates both transfer legs together so the movement stays balanced {{ transferCounterpartyName ? `with ${transferCounterpartyName}` : 'between accounts' }}.
+          </p>
+        </div>
+
+        <div v-if="isTransfer && transferConstraintMessage" class="rounded-base border border-accent-red/30 bg-accent-red/10 px-4 py-3 shell:col-span-2 xl:col-span-3">
+          <p class="text-sm text-accent-red">
+            {{ transferConstraintMessage }}
+          </p>
+        </div>
+
+        <div v-if="!isTransfer" class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Type</label>
           <select v-model="formType" :class="fieldClass">
             <option :value="TransactionType.EXPENSE">Expense</option>
@@ -172,7 +290,41 @@ async function handleSave() {
           </select>
         </div>
 
-        <div class="space-y-1.5">
+        <div v-if="!isTransfer" class="space-y-1.5">
+          <label class="block text-sm text-text-secondary">Account</label>
+          <select v-model="formAccountId" :class="fieldClass">
+            <option value="">Select account</option>
+            <option v-for="account in accountOptions" :key="account.id" :value="account.id">
+              {{ account.name }}
+            </option>
+          </select>
+        </div>
+
+        <div v-else class="space-y-1.5">
+          <label class="block text-sm text-text-secondary">Source account</label>
+          <select v-model="transferSourceAccountId" :class="fieldClass">
+            <option value="">Select source account</option>
+            <option v-for="account in transferOptions.sourceAccounts" :key="`${account.id}-source`" :value="account.id">
+              {{ account.name }}
+            </option>
+          </select>
+        </div>
+
+        <div v-if="isTransfer" class="space-y-1.5">
+          <label class="block text-sm text-text-secondary">Destination account</label>
+          <select v-model="transferDestinationAccountId" :class="fieldClass">
+            <option value="">Select destination account</option>
+            <option
+              v-for="account in transferOptions.destinationAccounts"
+              :key="`${account.id}-destination`"
+              :value="account.id"
+            >
+              {{ account.name }}
+            </option>
+          </select>
+        </div>
+
+        <div v-if="!isTransfer" class="space-y-1.5">
           <label class="block text-sm text-text-secondary">Category</label>
           <select v-model="formCategoryId" :class="fieldClass">
             <option value="">None</option>

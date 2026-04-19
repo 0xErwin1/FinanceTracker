@@ -1,4 +1,4 @@
-import { Between } from 'typeorm';
+import { Between, IsNull } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { Budget, Category, Transaction } from '../entities';
 import { ApiError, TransactionType } from '../enums';
@@ -109,6 +109,7 @@ async function getBudgetAlerts(userId: string, month: string): Promise<BudgetAle
         userId,
         categoryId: budget.categoryId,
         type: TransactionType.EXPENSE as any,
+        transferGroupId: IsNull(),
         date: Between(startDate, endDate),
       },
     });

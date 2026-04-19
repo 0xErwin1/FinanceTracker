@@ -1,11 +1,12 @@
+import { randomUUID } from 'node:crypto';
 import { Between, type EntityManager } from 'typeorm';
-import { categoryService, financialGoalService } from '.';
 import { AppDataSource } from '../data-source';
-import { Category, FinancialGoal, Transaction } from '../entities';
+import { Transaction } from '../entities';
 import { ApiError, CurrencyEnum, FinancialGoalsType, TransactionType } from '../enums';
 import { CustomError, cacheGet, cacheInvalidateUser, cacheSet, logger } from '../lib';
 import type { CategoryDTO, TransactionDTO } from '../types/DTOs';
 import type { Balances, TransactionBalances } from '../types/response/transactions';
+import { accountService, categoryService, financialGoalService } from '.';
 
 interface TransactionInput {
   type: TransactionType;
@@ -20,6 +21,24 @@ interface TransactionInput {
   goalId?: string;
   recurringTransactionId?: string;
   obligationId?: string;
+  accountId?: string;
+  transferGroupId?: string;
+  transferDirection?: 'OUTGOING' | 'INCOMING';
+  counterpartyAccountId?: string;
+}
+
+interface CreateTransferInput {
+  sourceAccountId: string;
+  destinationAccountId: string;
+  amount: number;
+  currency: CurrencyEnum;
+  date: string;
+  userId: string;
+  note?: string;
+}
+
+interface UpdateTransferInput extends CreateTransferInput {
+  transactionId: string;
 }
 
 const repo = () => AppDataSource.getRepository(Transaction);
@@ -79,6 +98,25 @@ async function createTransactionWithManager(
   em: EntityManager,
   input: TransactionInput,
 ): Promise<TransactionDTO> {
+  if (!input.accountId) {
+    throw new CustomError(ApiError.Transaction.ACCOUNT_REQUIRED);
+  }
+
+  const accountValidator =
+    input.transferGroupId && input.transferDirection === 'INCOMING'
+      ? accountService.getTransferDestinationAccount
+      : accountService.getPostingAccount;
+
+  await accountValidator(input.accountId, input.userId, input.currency);
+
+  if (input.counterpartyAccountId) {
+    await accountService.getTransferDestinationAccount(
+      input.counterpartyAccountId,
+      input.userId,
+      input.currency,
+    );
+  }
+
   let category: CategoryDTO | null;
 
   if (input.categoryId) {
@@ -125,10 +163,14 @@ async function createTransactionWithManager(
     date: input.date,
     exchangeRate: input.exchangeRate ?? null,
     userId: input.userId,
+    accountId: input.accountId,
     categoryId: category.id,
     goalId: input.goalId ?? null,
     recurringTransactionId: input.recurringTransactionId ?? null,
     obligationId: input.obligationId ?? null,
+    transferGroupId: input.transferGroupId ?? null,
+    transferDirection: input.transferDirection ?? null,
+    counterpartyAccountId: input.counterpartyAccountId ?? null,
   });
 
   await em.save(transaction);
@@ -136,6 +178,75 @@ async function createTransactionWithManager(
   await cacheInvalidateUser(input.userId);
 
   return transaction;
+}
+
+async function validateTransferAccounts(
+  sourceAccountId: string,
+  destinationAccountId: string,
+  userId: string,
+  currency: CurrencyEnum,
+) {
+  if (!sourceAccountId || !destinationAccountId) {
+    throw new CustomError(ApiError.Transaction.TRANSFER_ACCOUNT_REQUIRED);
+  }
+
+  if (sourceAccountId === destinationAccountId) {
+    throw new CustomError(ApiError.Transaction.TRANSFER_ACCOUNTS_MUST_DIFFER);
+  }
+
+  const sourceAccount = await accountService.getTransferSourceAccount(sourceAccountId, userId, currency);
+  const destinationAccount = await accountService.getTransferDestinationAccount(
+    destinationAccountId,
+    userId,
+    currency,
+  );
+
+  if (sourceAccount.currency !== destinationAccount.currency || sourceAccount.currency !== currency) {
+    throw new CustomError(ApiError.Transaction.TRANSFER_CURRENCY_MISMATCH);
+  }
+
+  return { sourceAccount, destinationAccount };
+}
+
+async function getTransferPairWithManager(
+  em: EntityManager,
+  transactionId: string,
+  userId: string,
+): Promise<{ outgoing: Transaction; incoming: Transaction }> {
+  const transactionRepo = em.getRepository(Transaction);
+
+  const transaction = await transactionRepo.findOne({
+    where: { id: transactionId, userId },
+  });
+
+  if (!transaction) {
+    throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
+  }
+
+  if (!transaction.transferGroupId) {
+    throw new CustomError(ApiError.Transaction.TRANSFER_NOT_EXIST);
+  }
+
+  const pair = await transactionRepo.find({
+    where: {
+      userId,
+      transferGroupId: transaction.transferGroupId,
+    },
+    order: { createdAt: 'ASC' },
+  });
+
+  if (pair.length !== 2) {
+    throw new CustomError(ApiError.Transaction.TRANSFER_PAIR_INVALID);
+  }
+
+  const outgoing = pair.find((item) => item.transferDirection === 'OUTGOING');
+  const incoming = pair.find((item) => item.transferDirection === 'INCOMING');
+
+  if (!outgoing || !incoming) {
+    throw new CustomError(ApiError.Transaction.TRANSFER_PAIR_INVALID);
+  }
+
+  return { outgoing, incoming };
 }
 
 async function getBalance(userId: string, dateFrom?: string, dateTo?: string): Promise<TransactionBalances> {
@@ -187,6 +298,10 @@ function calculateBalances(transactions: TransactionDTO[]): TransactionBalances 
   const savings: Balances = { total: 0, eur: 0, usd: 0, uyu: 0 };
 
   for (const transaction of transactions) {
+    if (transaction.transferGroupId) {
+      continue;
+    }
+
     switch (transaction.type) {
       case TransactionType.EXPENSE:
         calculateBalance(transaction, expenses);
@@ -278,7 +393,7 @@ async function getMonthsAndYears(userId: string): Promise<MonthByYear> {
     const yearKey = String(d.getFullYear());
     const monthName = monthNames[d.getMonth()];
 
-    if (!Object.prototype.hasOwnProperty.call(monthByYear, yearKey)) {
+    if (!Object.hasOwn(monthByYear, yearKey)) {
       monthByYear[yearKey] = [];
     }
 
@@ -304,6 +419,14 @@ async function updateTransaction(
     throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
   }
 
+  if (data.accountId) {
+    await accountService.getPostingAccount(
+      data.accountId,
+      transaction.userId,
+      data.currency ?? transaction.currency,
+    );
+  }
+
   Object.assign(transaction, data);
   await repo().save(transaction);
 
@@ -312,11 +435,101 @@ async function updateTransaction(
   return transaction;
 }
 
+async function createTransfer(input: CreateTransferInput): Promise<TransactionDTO[]> {
+  await validateTransferAccounts(
+    input.sourceAccountId,
+    input.destinationAccountId,
+    input.userId,
+    input.currency,
+  );
+
+  return AppDataSource.transaction(async (em) => {
+    const transferGroupId = randomUUID();
+
+    const outgoing = await createTransactionWithManager(em, {
+      type: TransactionType.EXPENSE,
+      amount: input.amount,
+      currency: input.currency,
+      date: input.date,
+      note: input.note,
+      userId: input.userId,
+      accountId: input.sourceAccountId,
+      transferGroupId,
+      transferDirection: 'OUTGOING',
+      counterpartyAccountId: input.destinationAccountId,
+      category: { name: 'Transfer Out', type: TransactionType.EXPENSE },
+    });
+
+    const incoming = await createTransactionWithManager(em, {
+      type: TransactionType.INCOME,
+      amount: input.amount,
+      currency: input.currency,
+      date: input.date,
+      note: input.note,
+      userId: input.userId,
+      accountId: input.destinationAccountId,
+      transferGroupId,
+      transferDirection: 'INCOMING',
+      counterpartyAccountId: input.sourceAccountId,
+      category: { name: 'Transfer In', type: TransactionType.INCOME },
+    });
+
+    return [outgoing, incoming];
+  });
+}
+
+async function updateTransfer(input: UpdateTransferInput): Promise<TransactionDTO[]> {
+  await validateTransferAccounts(
+    input.sourceAccountId,
+    input.destinationAccountId,
+    input.userId,
+    input.currency,
+  );
+
+  return AppDataSource.transaction(async (em) => {
+    const { outgoing, incoming } = await getTransferPairWithManager(em, input.transactionId, input.userId);
+
+    Object.assign(outgoing, {
+      amount: input.amount,
+      currency: input.currency,
+      date: input.date,
+      note: input.note ?? '',
+      accountId: input.sourceAccountId,
+      counterpartyAccountId: input.destinationAccountId,
+    });
+
+    Object.assign(incoming, {
+      amount: input.amount,
+      currency: input.currency,
+      date: input.date,
+      note: input.note ?? '',
+      accountId: input.destinationAccountId,
+      counterpartyAccountId: input.sourceAccountId,
+    });
+
+    const saved = await em.save([outgoing, incoming]);
+
+    await cacheInvalidateUser(input.userId);
+
+    return saved.sort((left, right) => {
+      if (left.transferDirection === right.transferDirection) {
+        return left.createdAt.getTime() - right.createdAt.getTime();
+      }
+
+      return left.transferDirection === 'OUTGOING' ? -1 : 1;
+    });
+  });
+}
+
 async function setGoalIdInTransaction(transactionId: string, goalId: string, userId: string): Promise<void> {
   const transaction = await getTransaction({ id: transactionId, userId });
 
   if (!transaction) {
     throw new CustomError(ApiError.Transaction.TRANSACTION_NOT_EXIST);
+  }
+
+  if (transaction.transferGroupId) {
+    throw new CustomError(ApiError.Transaction.TRANSFER_GOAL_NOT_ALLOWED);
   }
 
   const financialGoal = await financialGoalService.getFinancialGoal({ id: goalId, userId });
@@ -375,4 +588,6 @@ export const transactionService = {
   getBalance,
   setGoalIdInTransaction,
   getTotalSavings,
+  createTransfer,
+  updateTransfer,
 };

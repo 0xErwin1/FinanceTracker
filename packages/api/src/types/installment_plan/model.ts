@@ -10,6 +10,7 @@ export interface InstallmentPlanDTO {
   currency: CurrencyEnum;
   installmentsCount: number;
   categoryId: string | null;
+  accountId: string | null;
   note: string | null;
   status: PlanStatus;
   obligations?: InstallmentObligationDTO[];

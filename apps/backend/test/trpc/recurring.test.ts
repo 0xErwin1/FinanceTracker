@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
+  seedAccount,
   seedCategory,
   seedRecurring,
   seedUser,
@@ -23,10 +24,13 @@ describe('recurring router', () => {
 
   describe('create', () => {
     it('should create a recurring transaction', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
       const result = await caller.recurring.create({
         type: TransactionType.EXPENSE,
         amount: 1500,
         currency: CurrencyEnum.USD,
+        accountId: account.id,
         dayOfMonth: 1,
         startDate: '2025-01-01',
         note: 'Rent',
@@ -36,14 +40,18 @@ describe('recurring router', () => {
       expect(result.amount).toBe(1500);
       expect(result.dayOfMonth).toBe(1);
       expect(result.active).toBe(true);
+      expect(result.accountId).toBe(account.id);
     });
 
     it('should create with categoryId and goalId', async () => {
       const category = await seedCategory(userId);
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
       const result = await caller.recurring.create({
         type: TransactionType.EXPENSE,
         amount: 500,
         currency: CurrencyEnum.USD,
+        accountId: account.id,
         categoryId: category.id,
         dayOfMonth: 15,
         startDate: '2025-01-01',
@@ -54,11 +62,14 @@ describe('recurring router', () => {
     });
 
     it('should reject invalid dayOfMonth (0)', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
       await expect(
         caller.recurring.create({
           type: TransactionType.EXPENSE,
           amount: 100,
           currency: CurrencyEnum.USD,
+          accountId: account.id,
           dayOfMonth: 0,
           startDate: '2025-01-01',
         }),
@@ -66,11 +77,14 @@ describe('recurring router', () => {
     });
 
     it('should reject invalid dayOfMonth (32)', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
       await expect(
         caller.recurring.create({
           type: TransactionType.EXPENSE,
           amount: 100,
           currency: CurrencyEnum.USD,
+          accountId: account.id,
           dayOfMonth: 32,
           startDate: '2025-01-01',
         }),
@@ -78,11 +92,47 @@ describe('recurring router', () => {
     });
 
     it('should reject without authentication', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
       await expect(
         publicCaller.recurring.create({
           type: TransactionType.EXPENSE,
           amount: 100,
           currency: CurrencyEnum.USD,
+          accountId: account.id,
+          dayOfMonth: 15,
+          startDate: '2025-01-01',
+        }),
+      ).rejects.toThrow(TRPCError);
+    });
+
+    it('should reject archived accounts', async () => {
+      const archivedAccount = await seedAccount(userId, { archivedAt: new Date() });
+
+      await expect(
+        caller.recurring.create({
+          type: TransactionType.EXPENSE,
+          amount: 100,
+          currency: CurrencyEnum.USD,
+          accountId: archivedAccount.id,
+          dayOfMonth: 15,
+          startDate: '2025-01-01',
+        }),
+      ).rejects.toThrow(TRPCError);
+    });
+
+    it('should reject third-party destination accounts', async () => {
+      const landlordAccount = await seedAccount(userId, {
+        currency: CurrencyEnum.USD,
+        ownership: 'third_party',
+      });
+
+      await expect(
+        caller.recurring.create({
+          type: TransactionType.EXPENSE,
+          amount: 100,
+          currency: CurrencyEnum.USD,
+          accountId: landlordAccount.id,
           dayOfMonth: 15,
           startDate: '2025-01-01',
         }),

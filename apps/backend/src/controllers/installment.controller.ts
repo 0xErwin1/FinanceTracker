@@ -12,6 +12,7 @@ export const installmentController = {
       categoryId?: string;
       note?: string;
       startDate: string;
+      accountId?: string;
     },
     userId: string,
   ) {

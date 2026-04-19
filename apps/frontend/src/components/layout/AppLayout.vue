@@ -78,7 +78,9 @@ onBeforeUnmount(() => {
       @click="closeSidebar"
     />
 
-    <div class="flex min-h-dvh min-w-0 flex-1 flex-col shell:pl-[var(--app-sidebar-width)]">
+    <div
+      class="flex min-h-dvh min-w-0 flex-1 flex-col shell:ml-[var(--app-sidebar-width)] shell:max-w-[calc(100%-var(--app-sidebar-width))]"
+    >
       <Topbar
         :show-menu-button="!isDesktop"
         @toggle-sidebar="toggleSidebar"

@@ -6,8 +6,10 @@ import { useGoals } from '@/composables/useGoals';
 import { useCategories } from '@/composables/useCategories';
 import { useRecurring } from '@/composables/useRecurring';
 import { useAggregations } from '@/composables/useAggregations';
+import { useAccounts } from '@/composables/useAccounts';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import type { BudgetCategory } from '@/types';
+import AccountBalanceCards from './dashboard/AccountBalanceCards.vue';
 import HeroBalance from './dashboard/HeroBalance.vue';
 import BudgetsSpending from './dashboard/BudgetsSpending.vue';
 import GoalsTransactions from './dashboard/GoalsTransactions.vue';
@@ -21,6 +23,7 @@ const { categories, loading: categoriesLoading } = useCategories();
 const { goals, loading: goalsLoading } = useGoals();
 
 const { recurring, loading: recurringLoading } = useRecurring();
+const { summaries: accountSummaries, loading: accountsLoading } = useAccounts();
 
 const {
   totalIncome,
@@ -32,6 +35,10 @@ const {
   currentMonthDaily,
   spendingByCategory,
 } = useAggregations(transactions);
+
+const recentDashboardTransactions = computed(() =>
+  transactions.value.filter((transaction) => transaction.transferGroupId == null),
+);
 
 /** Category name lookup by ID. */
 const categoryLookup = computed(() => {
@@ -82,6 +89,7 @@ const budgetCategories = computed<BudgetCategory[]>(() => {
 const isLoading = computed(
   () =>
     txLoading.value ||
+    accountsLoading.value ||
     budgetsLoading.value ||
     goalsLoading.value ||
     recurringLoading.value ||
@@ -109,6 +117,8 @@ const isLoading = computed(
       :loading="isLoading"
     />
 
+    <AccountBalanceCards :summaries="accountSummaries" :loading="isLoading" />
+
     <!-- Section 2: Budgets & Spending Distribution -->
     <BudgetsSpending
       :budgets="budgetCategories"
@@ -119,7 +129,7 @@ const isLoading = computed(
 
     <!-- Section 3: Goals & Transactions -->
     <GoalsTransactions
-      :transactions="transactions"
+      :transactions="recentDashboardTransactions"
       :goals="goals"
       :loading="isLoading"
     />

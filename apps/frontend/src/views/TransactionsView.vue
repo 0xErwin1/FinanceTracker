@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import { useRoute } from 'vue-router';
 import { useTransactions } from '@/composables/useTransactions';
 import { useCategories } from '@/composables/useCategories';
+import { useAccounts } from '@/composables/useAccounts';
 import { formatDate } from '@/utils/format';
 import TransactionFilterBar from './transactions/TransactionFilterBar.vue';
 import TransactionLedger from './transactions/TransactionLedger.vue';
@@ -17,6 +18,7 @@ const router = useRouter();
 
 const typeFilter = ref('ALL');
 const categoryFilter = ref('');
+const accountFilter = ref('');
 const searchFilter = ref((route.query.q as string) || '');
 
 // Default date range: last 30 days
@@ -31,6 +33,7 @@ const dateTo = ref('');
 
 const { transactions, loading, refetch } = useTransactions();
 const { categories } = useCategories();
+const { accounts } = useAccounts();
 
 // --- Category lookup --------------------------------------------------------
 
@@ -60,6 +63,13 @@ const categoryOptions = computed(() => {
   }));
 });
 
+const accountOptions = computed(() =>
+  accounts.value.map((account) => ({
+    id: account.id,
+    name: account.archivedAt === null ? account.name : `${account.name} (archived)`,
+  })),
+);
+
 // --- Client-side filtering --------------------------------------------------
 
 const filteredTransactions = computed(() => {
@@ -74,6 +84,10 @@ const filteredTransactions = computed(() => {
 
   if (categoryFilter.value) {
     result = result.filter((t) => (t as { categoryId?: string }).categoryId === categoryFilter.value);
+  }
+
+  if (accountFilter.value) {
+    result = result.filter((t) => (t as { accountId?: string | null }).accountId === accountFilter.value);
   }
 
   if (dateFrom.value) {
@@ -96,10 +110,14 @@ const filteredTransactions = computed(() => {
       const tx = t as {
         note?: string | null;
         category?: { name?: string } | null;
+        account?: { name?: string } | null;
+        counterpartyAccount?: { name?: string } | null;
       };
       const note = tx.note?.toLowerCase() ?? '';
       const catName = tx.category?.name?.toLowerCase() ?? '';
-      return note.includes(q) || catName.includes(q);
+      const accountName = tx.account?.name?.toLowerCase() ?? '';
+      const counterparty = tx.counterpartyAccount?.name?.toLowerCase() ?? '';
+      return note.includes(q) || catName.includes(q) || accountName.includes(q) || counterparty.includes(q);
     });
   }
 
@@ -121,6 +139,10 @@ const groupedTransactions = computed<DayGroup[]>(() => {
       amount?: number;
       currency?: string;
       type?: string;
+      account?: { name?: string } | null;
+      counterpartyAccount?: { name?: string } | null;
+      transferGroupId?: string | null;
+      transferDirection?: 'OUTGOING' | 'INCOMING' | null;
     };
 
     const dateKey = tx.date ? tx.date.split('T')[0] : 'unknown';
@@ -135,6 +157,10 @@ const groupedTransactions = computed<DayGroup[]>(() => {
       amount: Number(tx.amount ?? 0),
       currency: tx.currency ?? 'USD',
       type: tx.type ?? '',
+      accountName: tx.account?.name ?? 'No account',
+      counterpartyAccountName: tx.counterpartyAccount?.name ?? null,
+      transferGroupId: tx.transferGroupId ?? null,
+      transferDirection: tx.transferDirection ?? null,
     };
 
     let group = groups.get(dateKey);
@@ -176,12 +202,15 @@ const lastSync = computed(() => {
       :search-filter="searchFilter"
       :type-filter="typeFilter"
       :category-filter="categoryFilter"
+      :account-filter="accountFilter"
       :date-from="dateFrom"
       :date-to="dateTo"
       :categories="categoryOptions"
+      :accounts="accountOptions"
       @update:search-filter="searchFilter = $event"
       @update:type-filter="typeFilter = $event"
       @update:category-filter="categoryFilter = $event"
+      @update:account-filter="accountFilter = $event"
       @update:date-from="dateFrom = $event"
       @update:date-to="dateTo = $event"
       @export="() => {}"

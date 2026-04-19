@@ -34,7 +34,7 @@ export const transactionController = {
           id: input.id,
           userId,
         },
-        ['category'],
+        ['category', 'account', 'counterpartyAccount'],
       );
 
       if (!transaction) {
@@ -47,15 +47,23 @@ export const transactionController = {
     }
   },
 
-  async getAll(input: { type?: any; dateFrom?: string; dateTo?: string }, userId: string) {
+  async getAll(
+    input: { type?: any; dateFrom?: string; dateTo?: string; accountId?: string },
+    userId: string,
+  ) {
     try {
       const where: Record<string, any> = { userId };
       if (input.type) where.type = input.type;
+      if (input.accountId) where.accountId = input.accountId;
       if (input.dateFrom || input.dateTo) {
         where.date = Between(input.dateFrom ?? '1970-01-01', input.dateTo ?? '2999-12-31');
       }
 
-      return await transactionService.getAllTransactions(where);
+      return await transactionService.getAllTransactions(where, [
+        'category',
+        'account',
+        'counterpartyAccount',
+      ]);
     } catch (error) {
       mapServiceError(error);
     }
@@ -76,6 +84,7 @@ export const transactionController = {
       amount?: number;
       currency?: any;
       categoryId?: string | null;
+      accountId?: string | null;
       date?: string;
       note?: string | null;
       exchangeRate?: number | null;
@@ -120,6 +129,43 @@ export const transactionController = {
     try {
       await transactionService.setGoalIdInTransaction(input.id, input.goalId, userId);
       return { success: true };
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
+
+  async createTransfer(
+    input: {
+      sourceAccountId: string;
+      destinationAccountId: string;
+      amount: number;
+      currency: any;
+      date: string;
+      note?: string;
+    },
+    userId: string,
+  ) {
+    try {
+      return await transactionService.createTransfer({ ...input, userId });
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
+
+  async updateTransfer(
+    input: {
+      transactionId: string;
+      sourceAccountId: string;
+      destinationAccountId: string;
+      amount: number;
+      currency: any;
+      date: string;
+      note?: string;
+    },
+    userId: string,
+  ) {
+    try {
+      return await transactionService.updateTransfer({ ...input, userId });
     } catch (error) {
       mapServiceError(error);
     }

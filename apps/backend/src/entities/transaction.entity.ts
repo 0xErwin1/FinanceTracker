@@ -10,6 +10,7 @@ import {
   PrimaryColumn,
 } from 'typeorm';
 import { Category } from './category.entity';
+import { Account } from './account.entity';
 import { FinancialGoal } from './financial_goal.entity';
 import { InstallmentObligation } from './installment_obligation.entity';
 import { RecurringTransaction } from './recurring_transaction.entity';
@@ -60,6 +61,18 @@ export class Transaction {
   @Column({ type: 'uuid', nullable: true })
   obligationId!: string | null;
 
+  @Column({ type: 'uuid', nullable: true })
+  accountId!: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  transferGroupId!: string | null;
+
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  transferDirection!: 'OUTGOING' | 'INCOMING' | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  counterpartyAccountId!: string | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 
@@ -98,4 +111,15 @@ export class Transaction {
   @ManyToOne(() => InstallmentObligation)
   @JoinColumn({ name: 'obligation_id' })
   obligation!: InstallmentObligation | null;
+
+  @ManyToOne(
+    () => Account,
+    (account) => account.transactions,
+  )
+  @JoinColumn({ name: 'account_id' })
+  account!: Account | null;
+
+  @ManyToOne(() => Account)
+  @JoinColumn({ name: 'counterparty_account_id' })
+  counterpartyAccount!: Account | null;
 }

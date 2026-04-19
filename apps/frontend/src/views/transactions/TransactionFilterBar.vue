@@ -6,13 +6,20 @@ interface CategoryOption {
   name: string;
 }
 
+interface AccountOption {
+  id: string;
+  name: string;
+}
+
 interface Props {
   searchFilter: string;
   typeFilter: string;
   categoryFilter: string;
+  accountFilter: string;
   dateFrom: string;
   dateTo: string;
   categories: CategoryOption[];
+  accounts: AccountOption[];
 }
 
 defineProps<Props>();
@@ -21,6 +28,7 @@ const emit = defineEmits<{
   'update:searchFilter': [value: string];
   'update:typeFilter': [value: string];
   'update:categoryFilter': [value: string];
+  'update:accountFilter': [value: string];
   'update:dateFrom': [value: string];
   'update:dateTo': [value: string];
   export: [];
@@ -31,6 +39,7 @@ const typeOptions = [
   { value: 'ALL', label: 'All Types' },
   { value: 'INCOME', label: 'Income' },
   { value: 'EXPENSE', label: 'Expense' },
+  { value: 'SAVING', label: 'Saving' },
 ];
 
 const selectClass =
@@ -41,8 +50,8 @@ const selectClass =
   <div
     class="rounded-base border border-border-default bg-bg-card p-4 sm:p-5"
   >
-    <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
-      <div class="grid gap-4 shell:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))]">
+      <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-end">
+      <div class="grid gap-4 shell:grid-cols-2 xl:grid-cols-[minmax(0,1.4fr)_repeat(4,minmax(0,1fr))]">
         <!-- Search -->
         <div class="flex flex-col gap-1.5 shell:col-span-2 xl:col-span-1">
           <label for="filter-search" class="text-xs font-medium text-text-muted">
@@ -112,6 +121,25 @@ const selectClass =
 
             <option v-for="cat in categories" :key="cat.id" :value="cat.id">
               {{ cat.name }}
+            </option>
+          </select>
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <label for="filter-account" class="text-xs font-medium text-text-muted">
+            Account
+          </label>
+
+          <select
+            id="filter-account"
+            :value="accountFilter"
+            :class="selectClass"
+            @change="emit('update:accountFilter', ($event.target as HTMLSelectElement).value)"
+          >
+            <option value="">All Accounts</option>
+
+            <option v-for="account in accounts" :key="account.id" :value="account.id">
+              {{ account.name }}
             </option>
           </select>
         </div>

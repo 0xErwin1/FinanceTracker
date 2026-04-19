@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
+    "test": "vitest run",
     "preview": "vite preview",
     "lint": "biome check src/**/{*.ts,*.vue}",
     "format": "pnpm biome format --write src/**/{*.ts,*.vue}"
@@ -26,6 +27,7 @@
     "@vitejs/plugin-vue": "^5",
     "typescript": "^5.8",
     "vite": "^6",
+    "vitest": "^2.1.9",
     "vue-tsc": "^2"
   }
 }

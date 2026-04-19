@@ -15,8 +15,8 @@ const TestDataSource = new DataSource({
 
 module.exports = async () => {
   await TestDataSource.initialize();
-  await TestDataSource.query('DROP SCHEMA public CASCADE');
-  await TestDataSource.query('CREATE SCHEMA public');
+  await TestDataSource.query('DROP SCHEMA IF EXISTS public CASCADE');
+  await TestDataSource.query('CREATE SCHEMA IF NOT EXISTS public');
   await TestDataSource.runMigrations({ transaction: 'all' });
   await TestDataSource.destroy();
 };

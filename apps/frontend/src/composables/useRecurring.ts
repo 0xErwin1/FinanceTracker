@@ -1,5 +1,6 @@
 import { ref, computed, type Ref } from 'vue';
 import { trpc } from '@/api/trpc';
+import { useAccounts } from './useAccounts';
 
 type RecurringResult = Awaited<ReturnType<typeof trpc.recurring.getAll.query>>;
 
@@ -8,6 +9,7 @@ interface UseRecurringReturn {
   loading: Ref<boolean>;
   error: Ref<Error | null>;
   refetch: () => Promise<void>;
+  activeAccounts: ReturnType<typeof useAccounts>['activeAccounts'];
 }
 
 /**
@@ -15,6 +17,7 @@ interface UseRecurringReturn {
  * reactive state for recurring transactions.
  */
 export function useRecurring(filters?: () => { active?: boolean }): UseRecurringReturn {
+  const { activeAccounts } = useAccounts();
   const recurring = ref<RecurringResult>([] as unknown as RecurringResult);
   const loading = ref(true);
   const error = ref<Error | null>(null);
@@ -40,5 +43,6 @@ export function useRecurring(filters?: () => { active?: boolean }): UseRecurring
     loading: computed(() => loading.value),
     error: computed(() => error.value),
     refetch: fetch,
+    activeAccounts,
   };
 }

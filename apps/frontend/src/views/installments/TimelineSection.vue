@@ -5,6 +5,7 @@ import { formatCurrency, formatDate } from '@/utils/format';
 
 interface Props {
   plans: InstallmentPlanDTO[];
+  accountLabels: Record<string, string>;
   loading: boolean;
 }
 
@@ -124,9 +125,14 @@ function isMuted(status: EntryStatus): boolean {
         class="rounded-base border border-border-default bg-bg-card p-4"
       >
         <!-- Plan heading -->
-        <h3 class="mb-3 text-sm font-medium text-text-primary">
-          {{ plan.note ?? `Plan ${plan.id.slice(0, 8)}` }}
-        </h3>
+        <div class="mb-3">
+          <h3 class="text-sm font-medium text-text-primary">
+            {{ plan.note ?? `Plan ${plan.id.slice(0, 8)}` }}
+          </h3>
+          <p class="mt-1 text-xs text-text-muted">
+            Account: {{ accountLabels[plan.id] ?? 'Missing account' }}
+          </p>
+        </div>
 
         <!-- Vertical timeline -->
         <div class="relative pl-5">

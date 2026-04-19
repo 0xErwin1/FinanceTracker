@@ -1,7 +1,7 @@
 import { publicProcedure } from '@expenses/api';
 import { z } from 'zod';
-import { CurrencyEnum, TransactionType } from '../../enums';
 import { transactionController } from '../../controllers';
+import { CurrencyEnum, TransactionType } from '../../enums';
 import { isAuthenticated } from '../protected';
 
 const categoryInlineSchema = z.object({
@@ -13,6 +13,7 @@ const singleTransactionSchema = z.object({
   type: z.nativeEnum(TransactionType),
   amount: z.number().min(0),
   currency: z.nativeEnum(CurrencyEnum),
+  accountId: z.string().uuid(),
   note: z.string().optional().default(''),
   date: z.string(),
   exchangeRate: z.number().positive().optional(),
@@ -34,8 +35,28 @@ const createTransactionSchema = z.discriminatedUnion('mode', [
 
 const getTransactionsSchema = z.object({
   type: z.nativeEnum(TransactionType).optional(),
+  accountId: z.string().uuid().optional(),
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
+});
+
+const createTransferSchema = z.object({
+  sourceAccountId: z.string().uuid(),
+  destinationAccountId: z.string().uuid(),
+  amount: z.number().positive(),
+  currency: z.nativeEnum(CurrencyEnum),
+  date: z.string(),
+  note: z.string().optional(),
+});
+
+const updateTransferSchema = z.object({
+  transactionId: z.string().uuid(),
+  sourceAccountId: z.string().uuid(),
+  destinationAccountId: z.string().uuid(),
+  amount: z.number().positive(),
+  currency: z.nativeEnum(CurrencyEnum),
+  date: z.string(),
+  note: z.string().optional(),
 });
 
 const getBalanceSchema = z.object({
@@ -58,6 +79,7 @@ const updateTransactionSchema = z.object({
   amount: z.number().min(0).optional(),
   currency: z.nativeEnum(CurrencyEnum).optional(),
   categoryId: z.string().uuid().nullable().optional(),
+  accountId: z.string().uuid().nullable().optional(),
   date: z.string().optional(),
   note: z.string().nullable().optional(),
   exchangeRate: z.number().positive().nullable().optional(),
@@ -106,4 +128,14 @@ export const transactionRouter = {
     .use(isAuthenticated)
     .input(setGoalSchema)
     .mutation(({ input, ctx }) => transactionController.setGoal(input, ctx.userId)),
+
+  createTransfer: publicProcedure
+    .use(isAuthenticated)
+    .input(createTransferSchema)
+    .mutation(({ input, ctx }) => transactionController.createTransfer(input, ctx.userId)),
+
+  updateTransfer: publicProcedure
+    .use(isAuthenticated)
+    .input(updateTransferSchema)
+    .mutation(({ input, ctx }) => transactionController.updateTransfer(input, ctx.userId)),
 };
