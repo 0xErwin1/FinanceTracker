@@ -1,23 +1,26 @@
-# Expenses Project
+# Expenses Backend
 
-This was a simple project for managing my expenses.
-The goal is to have a project in my portfolio and use it for my personal expenses.
+The backend is the Express/tRPC service for Expenses Project. It owns authentication, session context, domain services, TypeORM entities, migrations, and PostgreSQL/Redis integration.
 
-## Technologies
+For full project setup, architecture, and coding standards, start with the repository root documentation:
 
-It is made with Node.js and TypeScript with Express.js framework, sequelize as ORM,
-and [Rome](https://rome.tools) as linter and formatter. And as database PostgreSQL and Redis for the sessions.
+- `../../README.md`
+- `../../ARCHITECTURE.md`
+- `../../CODE_STYLE.md`
 
-It is deployed in [Railway](https://railway.app) and is running on Docker.
-In development we used docker-compose to build the whole project. And to run the tests in Github Actions.
+## Local commands
 
-## Diagrams
+Run these from the repository root:
 
-![Backend diagram](https://expenses-github-assets.s3.amazonaws.com/expense-manager-backend-diagram.png)
+```bash
+pnpm --filter @expenses/backend dev
+pnpm --filter @expenses/backend test
+pnpm --filter @expenses/backend build
+pnpm --filter @expenses/backend lint
+```
 
-### Diagram of database
+## Runtime dependencies
 
-- [Diagram in dbdiagram](https://dbdiagram.io/d/63c448db296d97641d79c610)
-- [Dbdoc](https://dbdocs.io/ignacio.perez2123/Expenses-Manager)
+The backend expects PostgreSQL and Redis. The root `docker-compose.yml` starts the development services, and `docker-compose.test.yml` defines isolated services for tests.
 
-![Diagram of database](https://expenses-github-assets.s3.amazonaws.com/expenses-managar-database-diagram.png)
+Environment variables are documented in `.env.sample`. Keep `.env` and `.env.test` local.
