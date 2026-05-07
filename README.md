@@ -102,3 +102,7 @@ Backend tests load `apps/backend/.env.test`. Create that local file with test da
 - `CODE_STYLE.md` documents coding, formatting, testing, and TypeScript conventions.
 - `AGENTS.md` gives project-specific instructions for AI coding agents.
 - `CLAUDE.md` points Claude-compatible tools at the same project instructions.
+
+## License
+
+This project is dual-licensed under either Apache License 2.0 or MIT, at your option. See `LICENSE-APACHE` and `LICENSE-MIT` for details.

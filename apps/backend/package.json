@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "main": "dist/server.js",
   "types": "dist/trpc/root.d.ts",
-  "license": "MIT",
+  "license": "MIT OR Apache-2.0",
   "exports": {
     ".": {
       "types": "./dist/trpc/root.d.ts"
