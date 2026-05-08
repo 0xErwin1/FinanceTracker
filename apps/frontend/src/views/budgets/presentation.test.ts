@@ -71,7 +71,33 @@ describe('buildBudgetCardItem', () => {
     });
   });
 
-  it('keeps mixed-currency spend as native subtotals and only exposes estimates with labels', () => {
+  it('keeps mixed-currency spend as native subtotals when no valuation snapshot is available', () => {
+    const item = buildBudgetCardItem(
+      makeAlert({
+        spent: 160,
+        percentage: 32,
+        nativeSpentByCurrency: { USD: 120, EUR: 40 },
+      }),
+      'Travel',
+    );
+
+    expect(item).toMatchObject({
+      categoryName: 'Travel',
+      currency: null,
+      spent: null,
+      percentage: null,
+      hasMixedSpend: true,
+      nativeSpent: [
+        { currency: CurrencyEnum.EUR, amount: 40 },
+        { currency: CurrencyEnum.USD, amount: 120 },
+      ],
+      estimatedSpent: null,
+      estimatedSpentCurrency: null,
+      estimatedPercentage: null,
+    });
+  });
+
+  it('keeps mixed-currency spend as native subtotals when valuation coverage is stale', () => {
     const item = buildBudgetCardItem(
       makeAlert({
         spent: 160,
@@ -92,8 +118,36 @@ describe('buildBudgetCardItem', () => {
         { currency: CurrencyEnum.EUR, amount: 40 },
         { currency: CurrencyEnum.USD, amount: 120 },
       ],
+      estimatedSpent: null,
+      estimatedSpentCurrency: null,
+      estimatedPercentage: null,
+    });
+  });
+
+  it('exposes estimated totals only when mixed-currency valuation coverage is complete', () => {
+    const item = buildBudgetCardItem(
+      makeAlert({
+        spent: 160,
+        percentage: 32,
+        nativeSpentByCurrency: { USD: 120, EUR: 40 },
+        valuationSnapshot: makeValuationSnapshot({ coverage: 'complete', estimatedTotal: 168 }),
+      }),
+      'Travel',
+    );
+
+    expect(item).toMatchObject({
+      categoryName: 'Travel',
+      currency: null,
+      spent: null,
+      percentage: null,
+      hasMixedSpend: true,
+      nativeSpent: [
+        { currency: CurrencyEnum.EUR, amount: 40 },
+        { currency: CurrencyEnum.USD, amount: 120 },
+      ],
       estimatedSpent: 168,
       estimatedSpentCurrency: CurrencyEnum.USD,
+      estimatedPercentage: 33.6,
     });
   });
 });

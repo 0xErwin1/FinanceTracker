@@ -34,6 +34,14 @@ export interface BudgetCardItem {
   month: string;
 }
 
+function canUseEstimatedValuation(snapshot: ValuationSnapshotDTO | null): snapshot is ValuationSnapshotDTO {
+  if (!snapshot || snapshot.coverage !== 'complete' || snapshot.estimatedTotal === null) {
+    return false;
+  }
+
+  return snapshot.sourceLabels.length > 0 && snapshot.effectiveDates.length > 0;
+}
+
 function toPercentage(amount: number | null, budgeted: number): number | null {
   if (amount === null || budgeted <= 0) {
     return null;
@@ -47,11 +55,12 @@ export function buildBudgetCardItem(alert: BudgetCardAlertInput, categoryName: s
   const nativeSpentSummary = summarizeCurrencyMap(alert.nativeSpentByCurrency ?? {});
   const singleCurrencySpend = nativeSpentSummary.entries.length === 1 ? nativeSpentSummary.entries[0] : null;
   const valuationSnapshot = alert.valuationSnapshot ?? null;
-  const estimatedSpent = nativeSpentSummary.hasMultipleCurrencies
-    ? (valuationSnapshot?.estimatedTotal ?? null)
-    : null;
-  const estimatedSpentCurrency =
-    estimatedSpent !== null ? (valuationSnapshot?.reportingCurrency ?? null) : null;
+  const comparableValuation =
+    nativeSpentSummary.hasMultipleCurrencies && canUseEstimatedValuation(valuationSnapshot)
+      ? valuationSnapshot
+      : null;
+  const estimatedSpent = comparableValuation !== null ? comparableValuation.estimatedTotal : null;
+  const estimatedSpentCurrency = comparableValuation?.reportingCurrency ?? null;
   const spent =
     singleCurrencySpend?.amount ??
     (nativeSpentSummary.entries.length === 0 ? Number(alert.spent ?? 0) : null);

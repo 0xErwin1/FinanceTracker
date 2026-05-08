@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// biome-ignore-all lint/correctness/noUnusedImports: Vue <script setup> component imports are consumed by the template.
+// biome-ignore-all lint/correctness/noUnusedVariables: Vue <script setup> bindings are consumed by the template.
 import { computed } from 'vue';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useAccounts } from '@/composables/useAccounts';
@@ -8,7 +10,7 @@ import { useCategories } from '@/composables/useCategories';
 import { useGoals } from '@/composables/useGoals';
 import { useRecurring } from '@/composables/useRecurring';
 import { useTransactions } from '@/composables/useTransactions';
-import type { BudgetCategory } from '@/types';
+import { type BudgetCardItem, buildBudgetCardItem } from './budgets/presentation';
 import AccountBalanceCards from './dashboard/AccountBalanceCards.vue';
 import BudgetsSpending from './dashboard/BudgetsSpending.vue';
 import GoalsTransactions from './dashboard/GoalsTransactions.vue';
@@ -17,7 +19,7 @@ import { summarizeCurrencyMap } from './multiCurrency';
 
 const { transactions, loading: txLoading } = useTransactions();
 
-const { budgets, alerts, loading: budgetsLoading } = useBudgets();
+const { alerts, loading: budgetsLoading } = useBudgets();
 
 const { categories, loading: categoriesLoading } = useCategories();
 
@@ -69,26 +71,15 @@ const recurringTotal = computed(() => {
     .reduce((sum, r) => sum + Number((r as { amount?: number }).amount ?? 0), 0);
 });
 
-/** Build BudgetCategory[] from budget alerts with category name lookup. */
-const budgetCategories = computed<BudgetCategory[]>(() => {
+/** Build dashboard budget items from alerts with category name lookup. */
+const budgetCategories = computed<BudgetCardItem[]>(() => {
   const alertItems = alerts.value;
   if (!Array.isArray(alertItems)) return [];
 
-  return alertItems.map((a) => {
-    const alert = a as {
-      budget?: { categoryId?: string; amount?: number };
-      spent?: number;
-      percentage?: number;
-    };
-    const budget = alert.budget;
-    const catId = budget?.categoryId ?? '';
-    return {
-      categoryId: catId,
-      categoryName: categoryLookup.value.get(catId) ?? 'Unknown',
-      budgeted: Number(budget?.amount ?? 0),
-      spent: Number(alert.spent ?? 0),
-      currency: 'USD',
-    };
+  return alertItems.map((alert) => {
+    const categoryId = alert.budget?.categoryId ?? '';
+
+    return buildBudgetCardItem(alert, categoryLookup.value.get(categoryId) ?? 'Unknown');
   });
 });
 

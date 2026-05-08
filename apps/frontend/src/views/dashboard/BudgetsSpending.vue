@@ -1,14 +1,18 @@
 <script setup lang="ts">
+// biome-ignore-all lint/correctness/noUnusedImports: Vue <script setup> component imports are consumed by the template.
+// biome-ignore-all lint/correctness/noUnusedVariables: Vue <script setup> bindings are consumed by the template.
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
 import ProgressBar from '@/components/base/ProgressBar.vue';
 import DonutChart from '@/components/charts/DonutChart.vue';
-import type { BudgetCategory, CategorySplit } from '@/types';
+import type { CategorySplit } from '@/types';
 import { formatCurrency } from '@/utils/format';
+import type { BudgetCardItem } from '../budgets/presentation';
 import type { CurrencyAmount } from '../multiCurrency';
+import { getBudgetDisplayState, getTopBudgetItems } from './budgetPresentation';
 
 interface Props {
-  budgets: BudgetCategory[];
+  budgets: BudgetCardItem[];
   categorySplits: CategorySplit[];
   expenseBreakdown: CurrencyAmount[];
   loading: boolean;
@@ -17,16 +21,8 @@ interface Props {
 const props = defineProps<Props>();
 const router = useRouter();
 
-/** Top 3 budget items by percentage spent. */
-const topBudgets = computed(() =>
-  props.budgets
-    .map((b) => ({
-      ...b,
-      percentage: b.budgeted > 0 ? (b.spent / b.budgeted) * 100 : 0,
-    }))
-    .sort((a, b) => b.percentage - a.percentage)
-    .slice(0, 3),
-);
+/** Top 3 budget items by comparable native or estimated percentage. */
+const topBudgets = computed(() => getTopBudgetItems(props.budgets));
 
 /** Top 6 categories for the 2x3 grid display. */
 const topCategories = computed(() => props.categorySplits.slice(0, 6));
@@ -36,6 +32,18 @@ function barColor(pct: number): string {
   if (pct >= 90) return 'bg-accent-red';
   if (pct >= 70) return 'bg-accent-orange';
   return 'bg-accent-green';
+}
+
+function formatNativeSpentLine(entry: CurrencyAmount): string {
+  return `${entry.currency} ${formatCurrency(entry.amount, entry.currency)}`;
+}
+
+function formatBudgetLimit(amount: number, currency: string | null): string {
+  if (!currency) {
+    return amount.toFixed(2);
+  }
+
+  return formatCurrency(amount, currency);
 }
 </script>
 
@@ -76,19 +84,85 @@ function barColor(pct: number): string {
 
         <div v-else class="space-y-4">
           <div v-for="budget in topBudgets" :key="budget.categoryId">
-            <div class="mb-1 flex items-center justify-between">
-              <span class="text-xs text-text-secondary">
-                {{ budget.categoryName }}
-              </span>
-              <span class="font-mono text-xs text-text-muted">
-                {{ budget.percentage.toFixed(0) }}%
+            <div class="mb-1 flex items-start justify-between gap-3">
+              <div>
+                <span class="text-xs text-text-secondary">
+                  {{ budget.categoryName }}
+                </span>
+                <p v-if="getBudgetDisplayState(budget).isEstimated" class="mt-1 text-[11px] text-accent-gold">
+                  Estimated valuation
+                </p>
+                <p
+                  v-else-if="getBudgetDisplayState(budget).mode === 'native-only'"
+                  class="mt-1 text-[11px] text-text-muted"
+                >
+                  Native subtotals only
+                </p>
+              </div>
+              <span v-if="getBudgetDisplayState(budget).percentage !== null" class="font-mono text-xs text-text-muted">
+                {{ getBudgetDisplayState(budget).percentage?.toFixed(0) }}%
               </span>
             </div>
+
             <ProgressBar
-              :value="budget.spent"
-              :max="budget.budgeted"
-              :color="barColor(budget.percentage)"
+              v-if="
+                getBudgetDisplayState(budget).progressValue !== null &&
+                getBudgetDisplayState(budget).progressMax !== null
+              "
+              :value="getBudgetDisplayState(budget).progressValue ?? 0"
+              :max="getBudgetDisplayState(budget).progressMax ?? 0"
+              :color="barColor(getBudgetDisplayState(budget).percentage ?? 0)"
             />
+
+            <div
+              v-if="getBudgetDisplayState(budget).mode === 'native-only'"
+              class="mt-2 space-y-1 rounded-base border border-border-default bg-bg-surface px-3 py-2 text-[11px] text-text-muted"
+            >
+              <p
+                v-for="entry in budget.nativeSpent"
+                :key="`${budget.id}-${entry.currency}`"
+                class="font-mono text-text-primary"
+              >
+                {{ formatNativeSpentLine(entry) }}
+              </p>
+            </div>
+
+            <div v-else class="mt-2 space-y-1 text-[11px] text-text-muted">
+              <p class="font-mono text-text-primary">
+                <template v-if="getBudgetDisplayState(budget).isEstimated">
+                  Estimated
+                  {{
+                    formatCurrency(
+                      getBudgetDisplayState(budget).amount ?? 0,
+                      getBudgetDisplayState(budget).currency ?? 'USD',
+                    )
+                  }}
+                </template>
+                <template v-else>
+                  {{
+                    formatCurrency(
+                      getBudgetDisplayState(budget).amount ?? 0,
+                      getBudgetDisplayState(budget).currency ?? 'USD',
+                    )
+                  }}
+                </template>
+                of
+                {{
+                  formatBudgetLimit(
+                    budget.budgeted,
+                    getBudgetDisplayState(budget).isEstimated
+                      ? null
+                      : getBudgetDisplayState(budget).currency,
+                  )
+                }}
+              </p>
+
+              <template v-if="budget.hasMixedSpend">
+                <p v-for="entry in budget.nativeSpent" :key="`${budget.id}-native-${entry.currency}`" class="font-mono">
+                  {{ formatNativeSpentLine(entry) }}
+                </p>
+              </template>
+            </div>
           </div>
         </div>
       </div>
@@ -107,11 +181,11 @@ function barColor(pct: number): string {
               :center-value="formatCurrency(expenseBreakdown[0]?.amount ?? 0, expenseBreakdown[0]?.currency ?? 'USD')"
               height="220"
             />
-            <div
-              v-else-if="expenseBreakdown.length > 1"
-              class="flex h-[220px] w-full flex-col items-center justify-center rounded-base bg-bg-primary px-4 text-center text-xs text-text-muted xl:w-[220px] xl:rounded-full"
-            >
-              Mixed native currencies
+              <div
+                v-else-if="expenseBreakdown.length > 1"
+                class="flex h-[220px] w-full flex-col items-center justify-center rounded-base bg-bg-primary px-4 text-center text-xs text-text-muted xl:w-[220px] xl:rounded-full"
+              >
+                Mixed native currencies
 
               <span class="mt-2 block">
                 Category totals stay hidden until an estimated valuation is available.
