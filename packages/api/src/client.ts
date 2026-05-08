@@ -27,5 +27,22 @@ export type { FinancialGoalDTO } from './types/financial_goal/model';
 export type { InstallmentObligationDTO, InstallmentPlanDTO } from './types/installment_plan/model';
 export type { RecurringTransactionDTO } from './types/recurring_transaction/model';
 export type { SessionDTO } from './types/session/model';
+export type {
+  TransactionImportCommitRequestDTO,
+  TransactionImportCommitResponseDTO,
+  TransactionImportCommitRowDTO,
+  TransactionImportDefaultsDTO,
+  TransactionImportField,
+  TransactionImportIssueCode,
+  TransactionImportIssueDTO,
+  TransactionImportMappingDTO,
+  TransactionImportNormalizedRowDTO,
+  TransactionImportPreviewRequestDTO,
+  TransactionImportPreviewResponseDTO,
+  TransactionImportPreviewRowDTO,
+  TransactionImportPreviewSummaryDTO,
+  TransactionImportRowStatus,
+  TransactionImportTypeStrategy,
+} from './types/transaction/import';
 export type { TransactionDTO } from './types/transaction/model';
 export type { UserDTO, UserValuationPreferencesDTO, UserWithPassword } from './types/user/model';
