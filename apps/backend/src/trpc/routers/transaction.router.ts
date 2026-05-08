@@ -118,6 +118,25 @@ const importPreviewSchema = z.object({
   source: z.string().min(1),
 });
 
+const importCommitRowSchema = z.object({
+  rowNumber: z.number().int().positive(),
+  fingerprint: z.string().min(1),
+  categoryId: z.string().uuid().nullable().optional(),
+  normalized: z.object({
+    amount: z.number().nullable(),
+    date: z.string().nullable(),
+    description: z.string().nullable(),
+    externalReference: z.string().nullable(),
+    type: z.nativeEnum(TransactionType).nullable(),
+  }),
+});
+
+const importCommitSchema = z.object({
+  accountId: z.string().uuid(),
+  idempotencyKey: z.string().min(1),
+  approvedRows: z.array(importCommitRowSchema).min(1),
+});
+
 export const transactionRouter = {
   create: publicProcedure
     .use(isAuthenticated)
@@ -171,6 +190,11 @@ export const transactionRouter = {
     .use(isAuthenticated)
     .input(importPreviewSchema)
     .mutation(({ input, ctx }) => transactionController.importPreview(input, ctx.userId)),
+
+  importCommit: publicProcedure
+    .use(isAuthenticated)
+    .input(importCommitSchema)
+    .mutation(({ input, ctx }) => transactionController.importCommit(input, ctx.userId)),
 
   updateTransfer: publicProcedure
     .use(isAuthenticated)

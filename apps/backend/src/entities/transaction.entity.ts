@@ -24,6 +24,10 @@ const decimalTransformer = {
 @Entity('transactions')
 @Index('IDX_transactions_user_date', ['userId', 'date'])
 @Index('IDX_transactions_user_type', ['userId', 'type'])
+@Index('UQ_transactions_user_import_fingerprint_active', ['userId', 'importFingerprint'], {
+  unique: true,
+  where: 'deleted_at IS NULL AND import_fingerprint IS NOT NULL',
+})
 export class Transaction {
   @PrimaryColumn({ type: 'uuid', default: () => 'gen_random_uuid()' })
   id!: string;
@@ -39,6 +43,9 @@ export class Transaction {
 
   @Column({ type: 'text', nullable: true })
   note!: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  externalReference!: string | null;
 
   @Column({ type: 'date' })
   date!: string;
@@ -72,6 +79,15 @@ export class Transaction {
 
   @Column({ type: 'uuid', nullable: true })
   counterpartyAccountId!: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  importSource!: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  importBatchId!: string | null;
+
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  importFingerprint!: string | null;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -1,4 +1,4 @@
-import type { TransactionImportPreviewRequestDTO } from '@expenses/api';
+import type { TransactionImportCommitRequestDTO, TransactionImportPreviewRequestDTO } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
 import { Between } from 'typeorm';
 import { transactionImportService, transactionService } from '../services';
@@ -156,6 +156,14 @@ export const transactionController = {
   async importPreview(input: TransactionImportPreviewRequestDTO, userId: string) {
     try {
       return await transactionImportService.importPreview(input, userId);
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
+
+  async importCommit(input: TransactionImportCommitRequestDTO, userId: string) {
+    try {
+      return await transactionImportService.importCommit(input, userId);
     } catch (error) {
       mapServiceError(error);
     }

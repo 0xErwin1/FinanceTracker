@@ -3,6 +3,9 @@ import {
   type CategoryDTO,
   type CurrencyEnum,
   type TransactionDTO,
+  type TransactionImportCommitRequestDTO,
+  type TransactionImportCommitResponseDTO,
+  type TransactionImportCommitRowDTO,
   type TransactionImportDefaultsDTO,
   type TransactionImportIssueDTO,
   type TransactionImportMappingDTO,
@@ -14,11 +17,13 @@ import {
   TransactionType,
 } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
+import type { EntityManager } from 'typeorm';
 import { AppDataSource } from '../data-source';
 import { Transaction } from '../entities';
 import { CSVParserError, type ParsedCSVTextResult, parseCSVText } from '../utils/csv.util';
 import { accountService } from './account.service';
 import { categoryService } from './category.service';
+import { transactionService } from './transactions.service';
 
 const HEADER_ALIASES: Record<keyof TransactionImportMappingDTO, string[]> = {
   amount: ['amount', 'importe', 'monto', 'total', 'netamount'],
@@ -59,6 +64,24 @@ interface EvaluatePreviewRowInput {
   existingFingerprints: Set<string>;
   fileFingerprints: Set<string>;
 }
+
+interface ExistingTransactionFingerprintEntry {
+  fingerprint: string;
+  transaction: ImportAwareTransaction;
+}
+
+interface CommitValidationResult {
+  categoryId: string | null;
+  normalized: {
+    amount: number;
+    date: string;
+    description: string;
+    externalReference: string | null;
+    type: TransactionType;
+  };
+}
+
+type ImportAwareTransaction = TransactionDTO & Pick<Transaction, 'importBatchId' | 'importFingerprint'>;
 
 export class TransactionImportMappingError extends Error {
   readonly issues: TransactionImportIssueDTO[];
@@ -171,18 +194,10 @@ async function importPreview(
   }
 
   const defaultCategory = await loadDefaultCategory(input.defaults, userId);
-  const existingTransactions = await AppDataSource.getRepository(Transaction).find({
-    where: {
-      accountId: input.defaults.accountId,
-      currency: input.defaults.currency,
-      userId,
-    },
-  });
-
   const existingFingerprints = new Set(
-    existingTransactions
-      .map((transaction) => fingerprintExistingTransaction(transaction))
-      .filter((fingerprint): fingerprint is string => fingerprint !== null),
+    (
+      await loadExistingTransactionFingerprints(input.defaults.accountId, input.defaults.currency, userId)
+    ).map((entry) => entry.fingerprint),
   );
   const fileFingerprints = new Set<string>();
   const rowNumberOffset = parsed.response.hasHeader ? 2 : 1;
@@ -275,7 +290,11 @@ async function loadDefaultCategory(
   return category;
 }
 
-function fingerprintExistingTransaction(transaction: TransactionDTO): string | null {
+function fingerprintExistingTransaction(transaction: ImportAwareTransaction): string | null {
+  if (transaction.importFingerprint) {
+    return transaction.importFingerprint;
+  }
+
   if (!transaction.accountId || !transaction.note) {
     return null;
   }
@@ -292,6 +311,30 @@ function fingerprintExistingTransaction(transaction: TransactionDTO): string | n
     },
     userId: transaction.userId,
   });
+}
+
+async function loadExistingTransactionFingerprints(
+  accountId: string,
+  currency: CurrencyEnum,
+  userId: string,
+  entityManager?: EntityManager,
+): Promise<ExistingTransactionFingerprintEntry[]> {
+  const repo = (entityManager ?? AppDataSource).getRepository(Transaction);
+  const existingTransactions = (await repo.find({
+    where: {
+      accountId,
+      currency,
+      userId,
+    },
+  })) as ImportAwareTransaction[];
+
+  return existingTransactions
+    .map((transaction) => {
+      const fingerprint = fingerprintExistingTransaction(transaction);
+
+      return fingerprint ? { fingerprint, transaction } : null;
+    })
+    .filter((entry): entry is ExistingTransactionFingerprintEntry => entry !== null);
 }
 
 function evaluatePreviewRow(input: EvaluatePreviewRowInput): TransactionImportPreviewRowDTO {
@@ -689,6 +732,251 @@ function normalizeReference(value: string | null): string {
   return value?.trim().toLowerCase() ?? '';
 }
 
+async function importCommit(
+  input: TransactionImportCommitRequestDTO,
+  userId: string,
+): Promise<TransactionImportCommitResponseDTO> {
+  if (input.approvedRows.length === 0) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'At least one approved row is required to commit an import.',
+    });
+  }
+
+  const account = await accountService.getPostingAccount(input.accountId, userId);
+
+  return AppDataSource.transaction(async (entityManager) => {
+    const validatedRows = await validateCommitRows(
+      input.approvedRows,
+      input.accountId,
+      account.currency,
+      userId,
+    );
+    const existingEntries = await loadExistingTransactionFingerprints(
+      input.accountId,
+      account.currency,
+      userId,
+      entityManager,
+    );
+    const existingByFingerprint = new Map(
+      existingEntries.map((entry) => [entry.fingerprint, entry.transaction]),
+    );
+    const existingBatchTransactions = validatedRows
+      .map(({ row }) => existingByFingerprint.get(row.fingerprint))
+      .filter((transaction): transaction is ImportAwareTransaction => {
+        if (!transaction) {
+          return false;
+        }
+
+        return transaction.importBatchId === input.idempotencyKey;
+      });
+
+    if (existingBatchTransactions.length > 0) {
+      if (existingBatchTransactions.length !== validatedRows.length) {
+        throw new TRPCError({
+          code: 'CONFLICT',
+          message: `Idempotency key '${input.idempotencyKey}' is already associated with a different import payload.`,
+        });
+      }
+
+      return buildCommitResponse(input.idempotencyKey, existingBatchTransactions);
+    }
+
+    const blockingIssues: string[] = [];
+
+    for (const { row } of validatedRows) {
+      if (existingByFingerprint.has(row.fingerprint)) {
+        blockingIssues.push(
+          `Row ${row.rowNumber} now matches an existing transaction and cannot be imported again.`,
+        );
+      }
+    }
+
+    if (blockingIssues.length > 0) {
+      throw new TRPCError({
+        code: 'CONFLICT',
+        message: blockingIssues.join(' '),
+      });
+    }
+
+    const createdTransactions: TransactionDTO[] = [];
+
+    for (const { categoryId, normalized, row } of validatedRows) {
+      try {
+        const created = await transactionService.createTransactionWithManager(entityManager, {
+          accountId: input.accountId,
+          amount: normalized.amount,
+          categoryId: categoryId ?? undefined,
+          currency: account.currency,
+          date: normalized.date,
+          disableCategoryAutoCreate: true,
+          importMetadata: {
+            batchId: input.idempotencyKey,
+            externalReference: normalized.externalReference,
+            fingerprint: row.fingerprint,
+            source: 'csv',
+          },
+          note: normalized.description,
+          type: normalized.type,
+          userId,
+        });
+
+        createdTransactions.push(created);
+      } catch (error) {
+        if (isImportFingerprintConflict(error)) {
+          throw new TRPCError({
+            code: 'CONFLICT',
+            message: `Row ${row.rowNumber} now matches an existing transaction and cannot be imported again.`,
+            cause: error,
+          });
+        }
+
+        throw error;
+      }
+    }
+
+    return buildCommitResponse(input.idempotencyKey, createdTransactions);
+  });
+}
+
+async function validateCommitRows(
+  rows: TransactionImportCommitRowDTO[],
+  accountId: string,
+  currency: CurrencyEnum,
+  userId: string,
+): Promise<
+  Array<{
+    row: TransactionImportCommitRowDTO;
+    normalized: CommitValidationResult['normalized'];
+    categoryId: string | null;
+  }>
+> {
+  const seenFingerprints = new Set<string>();
+  const validatedRows: Array<{
+    row: TransactionImportCommitRowDTO;
+    normalized: CommitValidationResult['normalized'];
+    categoryId: string | null;
+  }> = [];
+
+  for (const row of rows) {
+    if (seenFingerprints.has(row.fingerprint)) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: `Approved rows contain a duplicate fingerprint at row ${row.rowNumber}.`,
+      });
+    }
+
+    seenFingerprints.add(row.fingerprint);
+    const validated = await validateCommitRow(row, accountId, currency, userId);
+
+    validatedRows.push({
+      categoryId: validated.categoryId,
+      normalized: validated.normalized,
+      row,
+    });
+  }
+
+  return validatedRows;
+}
+
+async function validateCommitRow(
+  row: TransactionImportCommitRowDTO,
+  accountId: string,
+  currency: CurrencyEnum,
+  userId: string,
+): Promise<CommitValidationResult> {
+  const { normalized } = row;
+
+  if (
+    normalized.amount === null ||
+    normalized.date === null ||
+    normalized.description === null ||
+    normalized.type === null
+  ) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: `Row ${row.rowNumber} is no longer valid for commit and must be previewed again.`,
+    });
+  }
+
+  const rebuiltFingerprint = buildImportFingerprint({
+    accountId,
+    currency,
+    normalized: {
+      amount: normalized.amount,
+      date: normalized.date,
+      description: normalized.description,
+      externalReference: normalized.externalReference,
+      type: normalized.type,
+    },
+    userId,
+  });
+
+  if (rebuiltFingerprint !== row.fingerprint) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: `Row ${row.rowNumber} fingerprint no longer matches the approved preview payload.`,
+    });
+  }
+
+  if (!row.categoryId) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: `Row ${row.rowNumber} is missing a category assignment and must be reviewed before commit.`,
+    });
+  }
+
+  const category = await categoryService.getCategory({ id: row.categoryId, userId });
+
+  if (!category) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: `Row ${row.rowNumber} references a category that no longer exists.`,
+    });
+  }
+
+  if (category.type !== normalized.type) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: `Row ${row.rowNumber} category '${category.name}' is for ${category.type} transactions, not ${normalized.type}.`,
+    });
+  }
+
+  return {
+    categoryId: category.id,
+    normalized: {
+      amount: normalized.amount,
+      date: normalized.date,
+      description: normalized.description,
+      externalReference: normalized.externalReference,
+      type: normalized.type,
+    },
+  };
+}
+
+function buildCommitResponse(
+  batchId: string,
+  transactions: TransactionDTO[],
+): TransactionImportCommitResponseDTO {
+  const sortedTransactions = [...transactions].sort((left, right) => {
+    if (left.date === right.date) {
+      return left.id.localeCompare(right.id);
+    }
+
+    return left.date.localeCompare(right.date);
+  });
+
+  return {
+    batchId,
+    createdCount: sortedTransactions.length,
+    createdTransactionIds: sortedTransactions.map((transaction) => transaction.id),
+  };
+}
+
+function isImportFingerprintConflict(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('UQ_transactions_user_import_fingerprint_active');
+}
+
 function toParserIssue(error: CSVParserError): TransactionImportIssueDTO {
   return {
     code: error.code === 'ROW_LIMIT_EXCEEDED' ? 'row_limit_exceeded' : 'parser_error',
@@ -697,5 +985,6 @@ function toParserIssue(error: CSVParserError): TransactionImportIssueDTO {
 }
 
 export const transactionImportService = {
+  importCommit,
   importPreview,
 };

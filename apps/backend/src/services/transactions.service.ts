@@ -25,6 +25,13 @@ interface TransactionInput {
   transferGroupId?: string;
   transferDirection?: 'OUTGOING' | 'INCOMING';
   counterpartyAccountId?: string;
+  disableCategoryAutoCreate?: boolean;
+  importMetadata?: {
+    batchId: string;
+    fingerprint: string;
+    source: string;
+    externalReference?: string | null;
+  };
 }
 
 interface CreateTransferInput {
@@ -136,6 +143,8 @@ async function createTransactionWithManager(
       error.message = `Category '${category.name}' is for ${category.type} transactions, not ${input.type}`;
       throw error;
     }
+  } else if (input.disableCategoryAutoCreate) {
+    category = null;
   } else {
     if (input.category?.type && input.category.type !== input.type) {
       throw new CustomError(ApiError.Transaction.TRANSACTION_AND_CATEGORY_NOT_SAME_TYPE);
@@ -160,17 +169,21 @@ async function createTransactionWithManager(
     amount: input.amount,
     currency: input.currency,
     note: input.note ?? '',
+    externalReference: input.importMetadata?.externalReference ?? null,
     date: input.date,
     exchangeRate: input.exchangeRate ?? null,
     userId: input.userId,
     accountId: input.accountId,
-    categoryId: category.id,
+    categoryId: category?.id ?? null,
     goalId: input.goalId ?? null,
     recurringTransactionId: input.recurringTransactionId ?? null,
     obligationId: input.obligationId ?? null,
     transferGroupId: input.transferGroupId ?? null,
     transferDirection: input.transferDirection ?? null,
     counterpartyAccountId: input.counterpartyAccountId ?? null,
+    importSource: input.importMetadata?.source ?? null,
+    importBatchId: input.importMetadata?.batchId ?? null,
+    importFingerprint: input.importMetadata?.fingerprint ?? null,
   });
 
   await em.save(transaction);

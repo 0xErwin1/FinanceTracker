@@ -1,5 +1,7 @@
 import { CurrencyEnum, TransactionType } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
+import { AppDataSource } from '../../src/data-source';
+import { Transaction } from '../../src/entities';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
@@ -10,6 +12,34 @@ import {
   seedUser,
   truncateAllTables,
 } from './setup';
+
+function buildApprovedRows(
+  previewRows: Array<{
+    rowNumber: number;
+    fingerprint?: string;
+    normalized: {
+      amount: number | null;
+      date: string | null;
+      description: string | null;
+      externalReference: string | null;
+      type: TransactionType | null;
+    };
+  }>,
+  categoryId: string,
+) {
+  return previewRows.map((row) => {
+    if (!row.fingerprint) {
+      throw new Error(`Expected preview row ${row.rowNumber} to include a fingerprint`);
+    }
+
+    return {
+      categoryId,
+      fingerprint: row.fingerprint,
+      normalized: row.normalized,
+      rowNumber: row.rowNumber,
+    };
+  });
+}
 
 describe('transaction router', () => {
   let userId: string;
@@ -342,6 +372,172 @@ describe('transaction router', () => {
         expect.objectContaining({
           code: 'duplicate_in_file',
           rowNumber: 4,
+        }),
+      ]);
+    }, 15000);
+  });
+
+  describe('importCommit', () => {
+    it('rolls back the whole commit when a preview-approved row becomes duplicate before insert', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const category = await seedCategory(userId, { type: TransactionType.EXPENSE });
+
+      const preview = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source:
+          'Date,Description,Amount,Reference\n2026-05-08,Coffee,-12.50,coffee-1\n2026-05-09,Groceries,-40.00,groceries-1',
+      });
+
+      expect(preview.summary).toEqual({
+        duplicate: 0,
+        invalid: 0,
+        ready: 2,
+        reviewRequired: 0,
+        total: 2,
+      });
+
+      const approvedRows = buildApprovedRows(preview.rows, category.id);
+
+      await seedTransaction(userId, {
+        accountId: account.id,
+        amount: 40,
+        categoryId: category.id,
+        currency: CurrencyEnum.USD,
+        date: '2026-05-09',
+        externalReference: 'groceries-1',
+        importBatchId: 'competing-import-batch',
+        importFingerprint: approvedRows[1]?.fingerprint,
+        importSource: 'csv',
+        note: 'Groceries',
+        type: TransactionType.EXPENSE,
+      });
+
+      await expect(
+        caller.transaction.importCommit({
+          accountId: account.id,
+          approvedRows,
+          idempotencyKey: 'retry-blocked-batch',
+        }),
+      ).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+
+      const importedTransactions = await AppDataSource.getRepository(Transaction).find({
+        where: {
+          importBatchId: 'retry-blocked-batch',
+          userId,
+        },
+        order: { date: 'ASC' },
+      });
+
+      expect(importedTransactions).toEqual([]);
+    }, 15000);
+
+    it('returns the original batch result when the same idempotency key is retried', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const category = await seedCategory(userId, { type: TransactionType.EXPENSE });
+
+      const preview = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source:
+          'Date,Description,Amount,Reference\n2026-05-11,Coffee,-12.50,coffee-2\n2026-05-12,Groceries,-40.00,groceries-2',
+      });
+
+      const approvedRows = buildApprovedRows(preview.rows, category.id);
+
+      const firstCommit = await caller.transaction.importCommit({
+        accountId: account.id,
+        approvedRows,
+        idempotencyKey: 'stable-import-batch',
+      });
+
+      const secondCommit = await caller.transaction.importCommit({
+        accountId: account.id,
+        approvedRows,
+        idempotencyKey: 'stable-import-batch',
+      });
+
+      expect(secondCommit).toEqual(firstCommit);
+
+      const importedTransactions = await AppDataSource.getRepository(Transaction).find({
+        where: {
+          importBatchId: 'stable-import-batch',
+          userId,
+        },
+        order: { date: 'ASC' },
+      });
+
+      expect(importedTransactions).toHaveLength(2);
+      expect(importedTransactions.map((transaction) => transaction.importFingerprint)).toEqual(
+        approvedRows.map((row) => row.fingerprint),
+      );
+    }, 15000);
+
+    it('stores durable import metadata and reuses it for later duplicate previews', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const category = await seedCategory(userId, { type: TransactionType.EXPENSE });
+
+      const preview = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'Date,Description,Amount,Reference\n2026-05-13,Coffee,-12.50,coffee-3',
+      });
+
+      const approvedRows = buildApprovedRows(preview.rows, category.id);
+
+      const commit = await caller.transaction.importCommit({
+        accountId: account.id,
+        approvedRows,
+        idempotencyKey: 'traceable-import-batch',
+      });
+
+      const importedTransaction = await AppDataSource.getRepository(Transaction).findOneByOrFail({
+        id: commit.createdTransactionIds[0],
+        userId,
+      });
+
+      expect(importedTransaction).toMatchObject({
+        externalReference: 'coffee-3',
+        importBatchId: 'traceable-import-batch',
+        importFingerprint: approvedRows[0]?.fingerprint,
+        importSource: 'csv',
+      });
+
+      await AppDataSource.getRepository(Transaction).update(importedTransaction.id, {
+        note: 'Edited note after import',
+      });
+
+      const duplicatePreview = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'Date,Description,Amount,Reference\n2026-05-13,Coffee,-12.50,coffee-3',
+      });
+
+      expect(duplicatePreview.summary).toEqual({
+        duplicate: 1,
+        invalid: 0,
+        ready: 0,
+        reviewRequired: 0,
+        total: 1,
+      });
+      expect(duplicatePreview.rows[0]?.issues).toEqual([
+        expect.objectContaining({
+          code: 'duplicate_existing',
+          rowNumber: 2,
         }),
       ]);
     }, 15000);
