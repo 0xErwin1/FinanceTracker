@@ -6,6 +6,7 @@ export { financialGoalService } from './financial_goal.service';
 export { installmentService } from './installment.service';
 export { middlewareService } from './middleware.service';
 export { recurringService } from './recurring.service';
+export { transactionImportService } from './transaction-import.service';
 export { transactionService } from './transactions.service';
 export { userService } from './user.service';
 export { valuationService } from './valuation.service';

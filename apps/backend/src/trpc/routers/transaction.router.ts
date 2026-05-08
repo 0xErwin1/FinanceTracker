@@ -85,6 +85,39 @@ const updateTransactionSchema = z.object({
   exchangeRate: z.number().positive().nullable().optional(),
 });
 
+const importPreviewMappingSchema = z.object({
+  amount: z.string().min(1).optional(),
+  credit: z.string().min(1).optional(),
+  date: z.string().min(1).optional(),
+  debit: z.string().min(1).optional(),
+  description: z.string().min(1).optional(),
+  externalReference: z.string().min(1).optional(),
+});
+
+const importPreviewDefaultsSchema = z
+  .object({
+    accountId: z.string().uuid(),
+    categoryId: z.string().uuid().nullable().optional(),
+    currency: z.nativeEnum(CurrencyEnum),
+    fixedType: z.nativeEnum(TransactionType).nullable().optional(),
+    typeStrategy: z.enum(['signed_amount', 'fixed_type']),
+  })
+  .superRefine((value, ctx) => {
+    if (value.typeStrategy === 'fixed_type' && !value.fixedType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'fixedType is required when typeStrategy is fixed_type.',
+        path: ['fixedType'],
+      });
+    }
+  });
+
+const importPreviewSchema = z.object({
+  defaults: importPreviewDefaultsSchema,
+  mapping: importPreviewMappingSchema.optional(),
+  source: z.string().min(1),
+});
+
 export const transactionRouter = {
   create: publicProcedure
     .use(isAuthenticated)
@@ -133,6 +166,11 @@ export const transactionRouter = {
     .use(isAuthenticated)
     .input(createTransferSchema)
     .mutation(({ input, ctx }) => transactionController.createTransfer(input, ctx.userId)),
+
+  importPreview: publicProcedure
+    .use(isAuthenticated)
+    .input(importPreviewSchema)
+    .mutation(({ input, ctx }) => transactionController.importPreview(input, ctx.userId)),
 
   updateTransfer: publicProcedure
     .use(isAuthenticated)

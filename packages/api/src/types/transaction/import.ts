@@ -17,6 +17,7 @@ export type TransactionImportIssueCode =
   | 'mapping_required'
   | 'invalid_date'
   | 'invalid_amount'
+  | 'category_type_mismatch'
   | 'duplicate_in_file'
   | 'duplicate_existing'
   | 'review_required'

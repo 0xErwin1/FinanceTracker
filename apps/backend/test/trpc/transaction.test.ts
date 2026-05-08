@@ -208,6 +208,145 @@ describe('transaction router', () => {
     });
   });
 
+  describe('importPreview', () => {
+    it('rejects preview requests for foreign accounts', async () => {
+      const otherUser = await seedUser({ email: 'import-foreign@example.com' });
+      const foreignAccount = await seedAccount(otherUser.id, { currency: CurrencyEnum.USD });
+
+      await expect(
+        caller.transaction.importPreview({
+          defaults: {
+            accountId: foreignAccount.id,
+            currency: CurrencyEnum.USD,
+            typeStrategy: 'signed_amount',
+          },
+          source: 'Date,Description,Amount\n2026-05-08,Coffee,-12.50',
+        }),
+      ).rejects.toThrow(TRPCError);
+    });
+
+    it('rejects preview when required mappings cannot be resolved', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      await expect(
+        caller.transaction.importPreview({
+          defaults: {
+            accountId: account.id,
+            currency: CurrencyEnum.USD,
+            typeStrategy: 'signed_amount',
+          },
+          source: 'Booked On,Money In,Reference\n2026-05-08,200,payroll',
+        }),
+      ).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      });
+    });
+
+    it('marks invalid rows without blocking valid rows in the same preview', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      const result = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source:
+          'Date,Description,Amount\n2026-05-08,Coffee,-12.50\nnot-a-date,Invalid Row,-5.00\n2026-05-09,Salary,2000',
+      });
+
+      expect(result.summary).toEqual({
+        duplicate: 0,
+        invalid: 1,
+        ready: 2,
+        reviewRequired: 0,
+        total: 3,
+      });
+
+      expect(result.rows.map((row) => row.status)).toEqual(['ready', 'invalid', 'ready']);
+      expect(result.rows[1]?.issues).toEqual([
+        expect.objectContaining({
+          code: 'invalid_date',
+          rowNumber: 3,
+        }),
+      ]);
+    });
+
+    it('rejects category defaults that do not match the row transaction type', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const incomeCategory = await seedCategory(userId, {
+        name: 'Salary Bucket',
+        type: TransactionType.INCOME,
+      });
+
+      const result = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          categoryId: incomeCategory.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'Date,Description,Amount\n2026-05-08,Coffee,-12.50',
+      });
+
+      expect(result.rows).toHaveLength(1);
+      expect(result.rows[0]).toMatchObject({
+        rowNumber: 2,
+        status: 'invalid',
+      });
+      expect(result.rows[0]?.issues).toEqual([
+        expect.objectContaining({
+          code: 'category_type_mismatch',
+          rowNumber: 2,
+        }),
+      ]);
+    });
+
+    it('classifies duplicate rows from existing transactions and repeated file rows', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      await seedTransaction(userId, {
+        accountId: account.id,
+        amount: 12.5,
+        currency: CurrencyEnum.USD,
+        date: '2026-05-08',
+        note: 'Coffee',
+        type: TransactionType.EXPENSE,
+      });
+
+      const result = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source:
+          'Date,Description,Amount\n2026-05-08,Coffee,-12.50\n2026-05-10,Groceries,-40.00\n2026-05-10,Groceries,-40.00',
+      });
+
+      expect(result.summary).toEqual({
+        duplicate: 2,
+        invalid: 0,
+        ready: 1,
+        reviewRequired: 0,
+        total: 3,
+      });
+
+      expect(result.rows[0]?.issues).toEqual([
+        expect.objectContaining({
+          code: 'duplicate_existing',
+          rowNumber: 2,
+        }),
+      ]);
+      expect(result.rows[1]).toMatchObject({ status: 'ready' });
+      expect(result.rows[2]?.issues).toEqual([
+        expect.objectContaining({
+          code: 'duplicate_in_file',
+          rowNumber: 4,
+        }),
+      ]);
+    }, 15000);
+  });
+
   describe('createTransfer', () => {
     it('should create same-currency transfer pairs', async () => {
       const source = await seedAccount(userId, { currency: CurrencyEnum.USD, name: 'Source' });
