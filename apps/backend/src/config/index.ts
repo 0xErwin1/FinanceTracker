@@ -1,1 +1,2 @@
-export { config } from './config';
+export type { AppConfig, AppEnv } from './config';
+export { config, parseConfig } from './config';

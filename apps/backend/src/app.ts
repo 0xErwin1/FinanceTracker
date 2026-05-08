@@ -10,7 +10,7 @@ import { logger } from './lib';
 import { redisKeyLifetime, redisStore } from './redis';
 import { appRouter, createContext } from './trpc';
 
-const env = config.env ?? '';
+const env = config.env;
 
 export class App {
   public server: express.Application;

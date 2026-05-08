@@ -13,18 +13,17 @@ function onlyLogin(_req: Request, res: Response, next: NextFunction): void {
 
 async function authorization(req: Request, res: Response, next: NextFunction): Promise<void> {
   const sessionId = req.sessionID;
-
-  logger.debug({ sessionId });
+  const hasSession = Boolean(sessionId);
 
   if (!sessionId) {
+    logger.debug({ hasSession, hasUser: false }, 'auth_middleware_authorization_resolved');
     return next();
   }
 
   const userId = await redisClient.get(`user:${sessionId}`);
+  const hasUser = Boolean(userId);
 
-  logger.debug({
-    userId,
-  });
+  logger.debug({ hasSession, hasUser }, 'auth_middleware_authorization_resolved');
 
   if (!userId) {
     return next();

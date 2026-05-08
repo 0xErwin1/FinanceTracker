@@ -18,7 +18,7 @@ export async function createContext({ req, res }: { req: Request; res: Response 
     }
   }
 
-  logger.debug({ sessionId, userId }, 'tRPC context created');
+  logger.debug({ hasSession: Boolean(sessionId), hasUser: Boolean(userId) }, 'trpc_context_created');
 
   return {
     req,

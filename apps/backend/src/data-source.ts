@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { config } from './config';
 
-const isDev = ['LOCAL', 'TEST'].includes(config.env ?? '');
+const isDev = ['LOCAL', 'TEST'].includes(config.env);
 
 export const AppDataSource = new DataSource({
   type: 'postgres',

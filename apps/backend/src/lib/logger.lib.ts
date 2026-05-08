@@ -1,7 +1,7 @@
 import pino, { type TransportSingleOptions } from 'pino';
 import { config } from '../config';
 
-const transport: TransportSingleOptions | undefined = ['LOCAL', 'TEST'].includes(config.env ?? '')
+const transport: TransportSingleOptions | undefined = ['LOCAL', 'TEST'].includes(config.env)
   ? {
       target: 'pino-pretty',
       options: {
