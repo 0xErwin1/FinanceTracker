@@ -2,7 +2,7 @@ import { Queue, Worker } from 'bullmq';
 import { AppDataSource } from '../data-source';
 import { Account, Category, RecurringTransaction, Transaction } from '../entities';
 import { logger } from '../lib';
-import { closeBullMQConnection, getBullMQConnection } from './connection';
+import { closeBullMQConnection, getBullMQConnection, isTest } from './connection';
 
 const QUEUE_NAME = 'recurring-transactions';
 
@@ -153,6 +153,10 @@ export async function stopWorker(): Promise<void> {
 }
 
 export async function scheduleRecurringJob(template: { id: string; dayOfMonth: number }): Promise<void> {
+  if (isTest) {
+    return;
+  }
+
   try {
     const q = getQueue();
     const cron = `0 0 ${template.dayOfMonth} * *`;
@@ -172,6 +176,10 @@ export async function scheduleRecurringJob(template: { id: string; dayOfMonth: n
 }
 
 export async function unscheduleRecurringJob(templateId: string): Promise<void> {
+  if (isTest) {
+    return;
+  }
+
   try {
     const q = getQueue();
     await q.removeRepeatableByKey(`recurring:${templateId}`);

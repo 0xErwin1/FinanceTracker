@@ -456,7 +456,7 @@ async function getAccountValuationSnapshot(userId: string) {
     nativeTotals,
     reportingCurrency: user.reportingCurrency,
     freshnessDays: user.valuationFreshnessDays,
-    valuationDate: new Date().toISOString().slice(0, 10),
+    valuationDate: new Date(Date.now()).toISOString().slice(0, 10),
   });
 }
 

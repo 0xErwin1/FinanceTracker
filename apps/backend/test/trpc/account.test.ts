@@ -265,21 +265,27 @@ describe('account router', () => {
       }),
     );
 
-    await expect(valuationCaller.account.getValuationSnapshot()).resolves.toEqual({
-      reportingCurrency: CurrencyEnum.USD,
-      valuationDate: '2026-04-19',
-      coverage: 'complete',
-      estimatedTotal: 255,
-      nativeTotals: {
-        EUR: 50,
-        USD: 200,
-      },
-      coveredCurrencies: [CurrencyEnum.EUR, CurrencyEnum.USD],
-      missingCurrencies: [],
-      staleCurrencies: [],
-      sourceLabels: ['Manual close'],
-      effectiveDates: ['2026-04-18'],
-    });
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-04-19T12:00:00.000Z').getTime());
+
+    try {
+      await expect(valuationCaller.account.getValuationSnapshot()).resolves.toEqual({
+        reportingCurrency: CurrencyEnum.USD,
+        valuationDate: '2026-04-19',
+        coverage: 'complete',
+        estimatedTotal: 255,
+        nativeTotals: {
+          EUR: 50,
+          USD: 200,
+        },
+        coveredCurrencies: [CurrencyEnum.EUR, CurrencyEnum.USD],
+        missingCurrencies: [],
+        staleCurrencies: [],
+        sourceLabels: ['Manual close'],
+        effectiveDates: ['2026-04-18'],
+      });
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('archives accounts without removing them from summaries', async () => {
