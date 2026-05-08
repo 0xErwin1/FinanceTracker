@@ -4,6 +4,7 @@ import { InitialSchema1744500000000 } from '../../src/migrations/1744500000000-I
 import { RecurringTransactions1744600000000 } from '../../src/migrations/1744600000000-RecurringTransactions';
 import { InstallmentsRedesign1744700000000 } from '../../src/migrations/1744700000000-InstallmentsRedesign';
 import { AccountsBankingFoundation1744800000000 } from '../../src/migrations/1744800000000-AccountsBankingFoundation';
+import { InstitutionOwnership1761000000000 } from '../../src/migrations/1761000000000-InstitutionOwnership';
 
 jest.setTimeout(30000);
 
@@ -172,5 +173,172 @@ describe('accounts banking foundation migration', () => {
     expect(String(mappedTransactionOne.date)).toBe(String(txOneDate));
     expect(String(mappedTransactionTwo.amount)).toBe(String(txTwoAmount));
     expect(String(mappedTransactionTwo.date)).toBe(String(txTwoDate));
+  }, 20000);
+});
+
+describe('institution ownership migration', () => {
+  let dataSource: DataSource;
+
+  async function resetSchema(migrations: MigrationInterface[]): Promise<void> {
+    if (dataSource?.isInitialized) {
+      await dataSource.destroy();
+    }
+
+    dataSource = new DataSource({
+      type: 'postgres',
+      url: config.databaseUrl,
+      synchronize: false,
+      logging: false,
+      migrations: [],
+    });
+
+    await dataSource.initialize();
+    await dataSource.query('DROP SCHEMA IF EXISTS public CASCADE');
+    await dataSource.query('CREATE SCHEMA IF NOT EXISTS public');
+
+    const queryRunner = dataSource.createQueryRunner();
+
+    try {
+      for (const migration of migrations) {
+        await migration.up(queryRunner);
+      }
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  beforeEach(async () => {
+    await resetSchema(latestMigrations);
+  });
+
+  afterAll(async () => {
+    await resetSchema([...latestMigrations, new InstitutionOwnership1761000000000()]);
+    await dataSource.destroy();
+  });
+
+  it('preserves account links for a legacy institution used by one user', async () => {
+    const [{ id: userId }] = await dataSource.query(
+      `
+        INSERT INTO "users" ("email", "first_name", "last_name", "password")
+        VALUES ('solo-owner@example.com', 'Solo', 'Owner', 'hashed-password')
+        RETURNING "id"
+      `,
+    );
+    const [{ id: institutionId }] = await dataSource.query(
+      `
+        INSERT INTO "institutions" ("name", "code")
+        VALUES ('Solo Bank', 'SOLO')
+        RETURNING "id"
+      `,
+    );
+    const [{ id: accountId }] = await dataSource.query(
+      `
+        INSERT INTO "accounts" ("user_id", "name", "currency", "institution_id")
+        VALUES ($1, 'Primary checking', 'USD', $2)
+        RETURNING "id"
+      `,
+      [userId, institutionId],
+    );
+
+    const queryRunner = dataSource.createQueryRunner();
+
+    try {
+      await new InstitutionOwnership1761000000000().up(queryRunner);
+    } finally {
+      await queryRunner.release();
+    }
+
+    await expect(
+      dataSource.query(
+        `
+          SELECT i."user_id", a."institution_id"
+          FROM "institutions" i
+          JOIN "accounts" a ON a."institution_id" = i."id"
+          WHERE a."id" = $1
+        `,
+        [accountId],
+      ),
+    ).resolves.toEqual([
+      expect.objectContaining({
+        user_id: userId,
+        institution_id: institutionId,
+      }),
+    ]);
+  });
+
+  it('splits a shared legacy institution into one owned row per user', async () => {
+    const [{ id: firstUserId }] = await dataSource.query(
+      `
+        INSERT INTO "users" ("email", "first_name", "last_name", "password")
+        VALUES ('first-owner@example.com', 'First', 'Owner', 'hashed-password')
+        RETURNING "id"
+      `,
+    );
+    const [{ id: secondUserId }] = await dataSource.query(
+      `
+        INSERT INTO "users" ("email", "first_name", "last_name", "password")
+        VALUES ('second-owner@example.com', 'Second', 'Owner', 'hashed-password')
+        RETURNING "id"
+      `,
+    );
+    const [{ id: institutionId }] = await dataSource.query(
+      `
+        INSERT INTO "institutions" ("name", "code")
+        VALUES ('Shared Bank', 'SHARED')
+        RETURNING "id"
+      `,
+    );
+
+    await dataSource.query(
+      `
+        INSERT INTO "accounts" ("user_id", "name", "currency", "institution_id")
+        VALUES
+          ($1, 'First account', 'USD', $3),
+          ($2, 'Second account', 'USD', $3)
+      `,
+      [firstUserId, secondUserId, institutionId],
+    );
+
+    const queryRunner = dataSource.createQueryRunner();
+
+    try {
+      await new InstitutionOwnership1761000000000().up(queryRunner);
+    } finally {
+      await queryRunner.release();
+    }
+
+    await expect(
+      dataSource.query(
+        `
+          SELECT i."user_id", COUNT(*)::int AS owned_count
+          FROM "institutions" i
+          WHERE i."code" = 'SHARED'
+          GROUP BY i."user_id"
+          ORDER BY i."user_id" ASC
+        `,
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ user_id: firstUserId, owned_count: 1 }),
+        expect.objectContaining({ user_id: secondUserId, owned_count: 1 }),
+      ]),
+    );
+
+    await expect(
+      dataSource.query(
+        `
+          SELECT a."user_id", i."user_id" AS institution_owner_id
+          FROM "accounts" a
+          JOIN "institutions" i ON i."id" = a."institution_id"
+          WHERE a."name" IN ('First account', 'Second account')
+          ORDER BY a."user_id" ASC
+        `,
+      ),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ user_id: firstUserId, institution_owner_id: firstUserId }),
+        expect.objectContaining({ user_id: secondUserId, institution_owner_id: secondUserId }),
+      ]),
+    );
   }, 20000);
 });

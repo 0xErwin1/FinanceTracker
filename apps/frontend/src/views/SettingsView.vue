@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// biome-ignore-all lint/correctness/noUnusedImports: Vue <script setup> component imports are consumed by the template.
+// biome-ignore-all lint/correctness/noUnusedVariables: Vue <script setup> bindings are consumed by the template.
 import { CurrencyEnum } from '@expenses/api';
 import { Lock, LogOut, Save, User } from 'lucide-vue-next';
 import { ref } from 'vue';
@@ -6,6 +8,7 @@ import { useRouter } from 'vue-router';
 import { trpc } from '@/api/trpc';
 import ResponsivePageHeader from '@/components/base/ResponsivePageHeader.vue';
 import { useAuth } from '@/composables/useAuth';
+import { saveProfileAndRefreshUser, saveValuationPreferencesAndRefreshUser } from './settingsView';
 
 const router = useRouter();
 const auth = useAuth();
@@ -33,11 +36,17 @@ async function saveProfile() {
   profileSuccess.value = false;
 
   try {
-    await trpc.user.updateProfile.mutate({
-      firstName: editFirstName.value,
-      lastName: editLastName.value,
-    });
-    await auth.fetchUser();
+    await saveProfileAndRefreshUser(
+      {
+        firstName: editFirstName.value,
+        lastName: editLastName.value,
+      },
+      {
+        updateProfile: (input) => trpc.user.updateProfile.mutate(input),
+        refreshUser: auth.refreshUser,
+      },
+    );
+
     editingProfile.value = false;
     profileSuccess.value = true;
     setTimeout(() => {
@@ -162,12 +171,18 @@ async function saveValuationPreferences() {
   valuationSuccess.value = false;
 
   try {
-    await trpc.user.updateValuationPreferences.mutate({
-      reportingCurrency: reportingCurrency.value || null,
-      valuationFreshnessDays: valuationFreshnessDays.value,
-    });
-    await auth.fetchUser();
-    await fetchValuationSettings();
+    await saveValuationPreferencesAndRefreshUser(
+      {
+        reportingCurrency: reportingCurrency.value || null,
+        valuationFreshnessDays: valuationFreshnessDays.value,
+      },
+      {
+        updateValuationPreferences: (input) => trpc.user.updateValuationPreferences.mutate(input),
+        refreshUser: auth.refreshUser,
+        reloadValuationSettings: fetchValuationSettings,
+      },
+    );
+
     valuationSuccess.value = true;
   } catch (err) {
     valuationError.value = err instanceof Error ? err.message : 'Failed to save valuation preferences';

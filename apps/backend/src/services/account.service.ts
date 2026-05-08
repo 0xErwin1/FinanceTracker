@@ -8,17 +8,20 @@ import { userService } from './user.service';
 import { valuationService } from './valuation.service';
 
 interface CreateInstitutionInput {
+  userId: string;
   name: string;
   code?: string;
 }
 
 interface UpdateInstitutionInput {
+  userId: string;
   id: string;
   name: string;
   code?: string;
 }
 
 interface DeleteInstitutionInput {
+  userId: string;
   id: string;
 }
 
@@ -116,6 +119,7 @@ function formatBlockedDeletionMessage(blockers: AccountDeletionBlockers): string
 
 async function createInstitution(input: CreateInstitutionInput): Promise<InstitutionDTO> {
   const institution = institutionRepo().create({
+    userId: input.userId,
     name: normalizeInstitutionName(input.name),
     code: normalizeInstitutionCode(input.code),
   });
@@ -124,7 +128,7 @@ async function createInstitution(input: CreateInstitutionInput): Promise<Institu
 }
 
 async function updateInstitution(input: UpdateInstitutionInput): Promise<InstitutionDTO> {
-  const institution = await institutionRepo().findOne({ where: { id: input.id } });
+  const institution = await institutionRepo().findOne({ where: { id: input.id, userId: input.userId } });
 
   if (!institution) {
     throw new CustomError(ApiError.Account.INSTITUTION_NOT_EXIST);
@@ -136,12 +140,12 @@ async function updateInstitution(input: UpdateInstitutionInput): Promise<Institu
   return institutionRepo().save(institution);
 }
 
-async function getInstitutions(): Promise<InstitutionDTO[]> {
-  return institutionRepo().find({ order: { name: 'ASC' } });
+async function getInstitutions(userId: string): Promise<InstitutionDTO[]> {
+  return institutionRepo().find({ where: { userId }, order: { name: 'ASC' } });
 }
 
-async function getInstitutionOrFail(institutionId: string): Promise<Institution> {
-  const institution = await institutionRepo().findOne({ where: { id: institutionId } });
+async function getInstitutionOrFail(institutionId: string, userId: string): Promise<Institution> {
+  const institution = await institutionRepo().findOne({ where: { id: institutionId, userId } });
 
   if (!institution) {
     throw new CustomError(ApiError.Account.INSTITUTION_NOT_EXIST);
@@ -151,8 +155,10 @@ async function getInstitutionOrFail(institutionId: string): Promise<Institution>
 }
 
 async function deleteInstitution(input: DeleteInstitutionInput): Promise<InstitutionDTO> {
-  const institution = await getInstitutionOrFail(input.id);
-  const linkedAccounts = await accountRepo().count({ where: { institutionId: input.id } });
+  const institution = await getInstitutionOrFail(input.id, input.userId);
+  const linkedAccounts = await accountRepo().count({
+    where: { institutionId: input.id, userId: input.userId },
+  });
 
   if (linkedAccounts > 0) {
     throw new CustomError(ApiError.Account.INSTITUTION_IN_USE);
@@ -170,16 +176,16 @@ async function deleteInstitution(input: DeleteInstitutionInput): Promise<Institu
   return deletedInstitution;
 }
 
-async function ensureInstitutionExists(institutionId?: string): Promise<void> {
+async function ensureInstitutionExists(userId: string, institutionId?: string): Promise<void> {
   if (!institutionId) {
     return;
   }
 
-  await getInstitutionOrFail(institutionId);
+  await getInstitutionOrFail(institutionId, userId);
 }
 
 async function createAccount(input: CreateAccountInput): Promise<AccountDTO> {
-  await ensureInstitutionExists(input.institutionId);
+  await ensureInstitutionExists(input.userId, input.institutionId);
 
   const account = accountRepo().create({
     userId: input.userId,
@@ -233,7 +239,7 @@ async function getAccountOrFail(accountId: string, userId: string): Promise<Acco
 }
 
 async function updateAccount(input: UpdateAccountInput): Promise<AccountDTO> {
-  await ensureInstitutionExists(input.institutionId);
+  await ensureInstitutionExists(input.userId, input.institutionId);
 
   const account = await getAccountOrFail(input.id, input.userId);
 

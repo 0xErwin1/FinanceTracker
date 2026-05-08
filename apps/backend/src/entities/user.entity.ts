@@ -5,6 +5,7 @@ import { Budget } from './budget.entity';
 import { Category } from './category.entity';
 import { FinancialGoal } from './financial_goal.entity';
 import { FxRate } from './fx_rate.entity';
+import { Institution } from './institution.entity';
 import { RecurringTransaction } from './recurring_transaction.entity';
 import { Session } from './session.entity';
 import { Transaction } from './transaction.entity';
@@ -79,6 +80,12 @@ export class User {
     (account) => account.user,
   )
   accounts!: Account[];
+
+  @OneToMany(
+    () => Institution,
+    (institution) => institution.user,
+  )
+  institutions!: Institution[];
 
   @OneToMany(
     () => FxRate,

@@ -27,7 +27,7 @@ describe('account router', () => {
   });
 
   it('creates an account with an optional institution', async () => {
-    const institution = await seedInstitution();
+    const institution = await seedInstitution(userId);
 
     const result = await caller.account.create({
       name: 'Main Checking',
@@ -70,7 +70,7 @@ describe('account router', () => {
   });
 
   it('updates institution metadata for management screens', async () => {
-    const institution = await seedInstitution({ name: 'Old Bank', code: 'OLD' });
+    const institution = await seedInstitution(userId, { name: 'Old Bank', code: 'OLD' });
 
     const result = await caller.account.updateInstitution({
       id: institution.id,
@@ -92,7 +92,7 @@ describe('account router', () => {
   });
 
   it('deletes an institution when no accounts still reference it', async () => {
-    const institution = await seedInstitution({ name: 'Disposable Bank', code: 'DISP' });
+    const institution = await seedInstitution(userId, { name: 'Disposable Bank', code: 'DISP' });
 
     await expect(caller.account.deleteInstitution({ id: institution.id })).resolves.toMatchObject({
       id: institution.id,
@@ -107,7 +107,7 @@ describe('account router', () => {
   });
 
   it('rejects deleting an institution while accounts still reference it', async () => {
-    const institution = await seedInstitution({ name: 'Sticky Bank', code: 'STICKY' });
+    const institution = await seedInstitution(userId, { name: 'Sticky Bank', code: 'STICKY' });
 
     await seedAccount(userId, {
       name: 'Primary checking',
@@ -130,8 +130,8 @@ describe('account router', () => {
   });
 
   it('updates account metadata and linked institution without changing account identity', async () => {
-    const originalInstitution = await seedInstitution({ name: 'First Bank', code: 'FIRST' });
-    const replacementInstitution = await seedInstitution({ name: 'Second Bank', code: 'SECOND' });
+    const originalInstitution = await seedInstitution(userId, { name: 'First Bank', code: 'FIRST' });
+    const replacementInstitution = await seedInstitution(userId, { name: 'Second Bank', code: 'SECOND' });
     const account = await seedAccount(userId, {
       name: 'Daily Cash',
       currency: CurrencyEnum.USD,
@@ -429,5 +429,63 @@ describe('account router', () => {
         institutionId: uuidv4(),
       }),
     ).rejects.toThrow(TRPCError);
+  });
+
+  it('lists only the institutions owned by the authenticated user', async () => {
+    const otherUser = await seedUser({ email: 'other-institutions@example.com' });
+
+    await seedInstitution(userId, { name: 'Bravo Bank', code: 'BRV' });
+    await seedInstitution(otherUser.id, { name: 'Alpha Bank', code: 'ALP' });
+    await seedInstitution(userId, { name: 'Aurora Bank', code: 'AUR' });
+
+    await expect(caller.account.getInstitutions()).resolves.toEqual([
+      expect.objectContaining({ name: 'Aurora Bank', code: 'AUR' }),
+      expect.objectContaining({ name: 'Bravo Bank', code: 'BRV' }),
+    ]);
+  });
+
+  it('rejects cross-user institution updates and deletes without exposing ownership', async () => {
+    const otherUser = await seedUser({ email: 'other-owner@example.com' });
+    const foreignInstitution = await seedInstitution(otherUser.id, {
+      name: 'Foreign Bank',
+      code: 'FOR',
+    });
+
+    await expect(
+      caller.account.updateInstitution({
+        id: foreignInstitution.id,
+        name: 'Still Foreign',
+        code: 'FOR',
+      }),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      message: 'Institution not exist',
+    });
+
+    await expect(caller.account.deleteInstitution({ id: foreignInstitution.id })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      message: 'Institution not exist',
+    });
+  });
+
+  it("rejects linking an account to another user's institution", async () => {
+    const otherUser = await seedUser({ email: 'other-link@example.com' });
+    const foreignInstitution = await seedInstitution(otherUser.id, {
+      name: 'Foreign Link Bank',
+      code: 'FLB',
+    });
+
+    await expect(
+      caller.account.create({
+        name: 'Blocked Link',
+        currency: CurrencyEnum.USD,
+        kind: 'checking',
+        ownership: 'self',
+        institutionId: foreignInstitution.id,
+      }),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      message: 'Institution not exist',
+    });
   });
 });

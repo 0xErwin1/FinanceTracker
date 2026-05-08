@@ -25,6 +25,7 @@ export interface UseAuthReturn {
   register(data: { firstName: string; lastName: string; email: string; password: string }): Promise<void>;
   logout(): Promise<void>;
   fetchUser(): Promise<void>;
+  refreshUser(): Promise<void>;
 }
 
 const AUTH_KEY: InjectionKey<UseAuthReturn> = Symbol('auth');
@@ -117,6 +118,21 @@ async function fetchUser(): Promise<void> {
   }
 }
 
+async function refreshUser(): Promise<void> {
+  initialized.value = true;
+  loading.value = true;
+  error.value = null;
+
+  try {
+    const result = (await trpc.user.me.query()) as MeResponse;
+    user.value = toAuthUser(result);
+  } catch {
+    user.value = null;
+  } finally {
+    loading.value = false;
+  }
+}
+
 const authState: UseAuthReturn = {
   user: computed(() => user.value),
   isAuthenticated,
@@ -127,6 +143,7 @@ const authState: UseAuthReturn = {
   register,
   logout,
   fetchUser,
+  refreshUser,
 };
 
 /**

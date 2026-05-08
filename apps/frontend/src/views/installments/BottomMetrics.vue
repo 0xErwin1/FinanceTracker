@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { InstallmentObligationDTO, InstallmentPlanDTO } from '@expenses/api';
+import type { InstallmentPlanDTO } from '@expenses/api';
 import { computed } from 'vue';
-import { formatCurrency, formatDate } from '@/utils/format';
+import { buildBottomMetricsCards } from './bottomMetrics';
 
 interface Props {
   plans: InstallmentPlanDTO[];
@@ -11,35 +11,8 @@ interface Props {
 
 const props = defineProps<Props>();
 
-/** Find the earliest upcoming PENDING obligation due date across all plans. */
-const nextPaymentDate = computed<string | null>(() => {
-  const upcoming: string[] = [];
-  for (const plan of props.plans) {
-    for (const obligation of plan.obligations ?? []) {
-      if (obligation.status === 'PENDING' && obligation.dueDate) {
-        upcoming.push(obligation.dueDate);
-      }
-    }
-  }
-  if (upcoming.length === 0) return null;
-  upcoming.sort();
-  return upcoming[0];
-});
-
-/** Compute a mock interest rate (not available from backend). */
-const interestRate = computed(() => {
-  if (props.plans.length === 0) return 'N/A';
-  return '~2.5%';
-});
-
-/** Total remaining PENDING obligations across all plans. */
-const remainingPayments = computed(() => {
-  return props.plans.reduce(
-    (sum, plan) =>
-      sum + (plan.obligations ?? []).filter((o: InstallmentObligationDTO) => o.status === 'PENDING').length,
-    0,
-  );
-});
+// biome-ignore lint/correctness/noUnusedVariables: Vue template consumes this computed binding.
+const metricCards = computed(() => buildBottomMetricsCards(props.plans, props.totalRemaining));
 </script>
 
 <template>
@@ -60,43 +33,16 @@ const remainingPayments = computed(() => {
     </div>
 
     <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <!-- Upcoming 30D -->
-      <div class="rounded-base border border-border-default bg-bg-card p-3">
+      <div
+        v-for="card in metricCards"
+        :key="card.label"
+        class="rounded-base border border-border-default bg-bg-card p-3"
+      >
         <p class="text-[10px] font-medium tracking-wider text-text-muted">
-          NEXT PAYMENT
+          {{ card.label }}
         </p>
         <p class="mt-0.5 font-mono text-base font-semibold text-text-primary">
-          {{ nextPaymentDate ? formatDate(nextPaymentDate) : 'None' }}
-        </p>
-      </div>
-
-      <!-- Projected zero -->
-      <div class="rounded-base border border-border-default bg-bg-card p-3">
-        <p class="text-[10px] font-medium tracking-wider text-text-muted">
-          REMAINING
-        </p>
-        <p class="mt-0.5 font-mono text-base font-semibold text-text-primary">
-          {{ plans.length > 0 ? `${remainingPayments} payments` : 'N/A' }}
-        </p>
-      </div>
-
-      <!-- Interest rate -->
-      <div class="rounded-base border border-border-default bg-bg-card p-3">
-        <p class="text-[10px] font-medium tracking-wider text-text-muted">
-          INTEREST RATE
-        </p>
-        <p class="mt-0.5 font-mono text-base font-semibold text-text-primary">
-          {{ interestRate }}
-        </p>
-      </div>
-
-      <!-- Remaining debt -->
-      <div class="rounded-base border border-border-default bg-bg-card p-3">
-        <p class="text-[10px] font-medium tracking-wider text-text-muted">
-          REMAINING DEBT
-        </p>
-        <p class="mt-0.5 font-mono text-base font-semibold text-text-primary">
-          {{ formatCurrency(totalRemaining) }}
+          {{ card.value }}
         </p>
       </div>
     </div>

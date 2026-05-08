@@ -3,33 +3,33 @@ import { accountService } from '../services';
 import { mapServiceError } from '../trpc/errors';
 
 export const accountController = {
-  async createInstitution(input: { name: string; code?: string }) {
+  async createInstitution(input: { name: string; code?: string }, userId: string) {
     try {
-      return await accountService.createInstitution(input);
+      return await accountService.createInstitution({ ...input, userId });
     } catch (error) {
       mapServiceError(error);
     }
   },
 
-  async updateInstitution(input: { id: string; name: string; code?: string }) {
+  async updateInstitution(input: { id: string; name: string; code?: string }, userId: string) {
     try {
-      return await accountService.updateInstitution(input);
+      return await accountService.updateInstitution({ ...input, userId });
     } catch (error) {
       mapServiceError(error);
     }
   },
 
-  async getInstitutions() {
+  async getInstitutions(userId: string) {
     try {
-      return await accountService.getInstitutions();
+      return await accountService.getInstitutions(userId);
     } catch (error) {
       mapServiceError(error);
     }
   },
 
-  async deleteInstitution(input: { id: string }) {
+  async deleteInstitution(input: { id: string }, userId: string) {
     try {
-      return await accountService.deleteInstitution(input);
+      return await accountService.deleteInstitution({ ...input, userId });
     } catch (error) {
       mapServiceError(error);
     }

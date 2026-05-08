@@ -46,19 +46,21 @@ export const accountRouter = {
   createInstitution: publicProcedure
     .use(isAuthenticated)
     .input(createInstitutionSchema)
-    .mutation(({ input }) => accountController.createInstitution(input)),
+    .mutation(({ input, ctx }) => accountController.createInstitution(input, ctx.userId)),
 
   updateInstitution: publicProcedure
     .use(isAuthenticated)
     .input(updateInstitutionSchema)
-    .mutation(({ input }) => accountController.updateInstitution(input)),
+    .mutation(({ input, ctx }) => accountController.updateInstitution(input, ctx.userId)),
 
-  getInstitutions: publicProcedure.use(isAuthenticated).query(() => accountController.getInstitutions()),
+  getInstitutions: publicProcedure
+    .use(isAuthenticated)
+    .query(({ ctx }) => accountController.getInstitutions(ctx.userId)),
 
   deleteInstitution: publicProcedure
     .use(isAuthenticated)
     .input(accountIdSchema)
-    .mutation(({ input }) => accountController.deleteInstitution(input)),
+    .mutation(({ input, ctx }) => accountController.deleteInstitution(input, ctx.userId)),
 
   create: publicProcedure
     .use(isAuthenticated)

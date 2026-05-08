@@ -6,6 +6,7 @@ import {
   TransactionType,
   t,
 } from '@expenses/api';
+import type { DeepPartial, EntityTarget } from 'typeorm';
 import { AppDataSource } from '../../src/data-source';
 import {
   Account,
@@ -56,6 +57,14 @@ export function resolveTablesToTruncate(requestedTables: string[], existingTable
   const existingTableSet = new Set(existingTables);
 
   return requestedTables.filter((table) => existingTableSet.has(table));
+}
+
+export function buildTruncateTablesQuery(tables: string[]): string | null {
+  if (tables.length === 0) {
+    return null;
+  }
+
+  return `TRUNCATE ${tables.map((table) => `public."${table}"`).join(', ')} CASCADE`;
 }
 
 export function getMultiCurrencySchemaRepairs(
@@ -138,20 +147,33 @@ export async function truncateAllTables(): Promise<void> {
     tableRows.map((row) => row.tablename),
   );
 
-  for (const table of tablesToTruncate) {
-    await AppDataSource.query(`TRUNCATE public."${table}" CASCADE`);
+  const truncateQuery = buildTruncateTablesQuery(tablesToTruncate);
+
+  if (truncateQuery) {
+    await AppDataSource.query(truncateQuery);
   }
 }
 
-export async function seedInstitution(overrides: Record<string, unknown> = {}): Promise<Institution> {
+async function createAndSaveEntity<Entity extends object>(
+  entityClass: EntityTarget<Entity>,
+  input: DeepPartial<Entity>,
+): Promise<Entity> {
+  const repo = AppDataSource.getRepository(entityClass);
+
+  return repo.save(repo.create(input)) as Promise<Entity>;
+}
+
+export async function seedInstitution(
+  userId: string,
+  overrides: Record<string, unknown> = {},
+): Promise<Institution> {
   const defaults = {
+    userId,
     name: `Test Institution ${++_seedCounter}`,
     code: `TEST-${_seedCounter}`,
-  };
+  } satisfies DeepPartial<Institution>;
 
-  const repo = AppDataSource.getRepository(Institution);
-  const institution = repo.create({ ...defaults, ...overrides } as Institution);
-  return repo.save(institution);
+  return createAndSaveEntity(Institution, { ...defaults, ...overrides } as DeepPartial<Institution>);
 }
 
 export async function seedAccount(userId: string, overrides: Record<string, unknown> = {}): Promise<Account> {
@@ -163,11 +185,9 @@ export async function seedAccount(userId: string, overrides: Record<string, unkn
     ownership: 'self',
     institutionId: null,
     archivedAt: null,
-  };
+  } satisfies DeepPartial<Account>;
 
-  const repo = AppDataSource.getRepository(Account);
-  const account = repo.create({ ...defaults, ...overrides } as Account);
-  return repo.save(account);
+  return createAndSaveEntity(Account, { ...defaults, ...overrides } as DeepPartial<Account>);
 }
 
 export async function seedUser(overrides: Record<string, unknown> = {}): Promise<User> {
@@ -176,11 +196,9 @@ export async function seedUser(overrides: Record<string, unknown> = {}): Promise
     firstName: 'Test',
     lastName: 'User',
     password: await hashPassword('password123'),
-  };
+  } satisfies DeepPartial<User>;
 
-  const repo = AppDataSource.getRepository(User);
-  const user = repo.create({ ...defaults, ...overrides } as any);
-  return (await repo.save(user)) as unknown as User;
+  return createAndSaveEntity(User, { ...defaults, ...overrides } as DeepPartial<User>);
 }
 
 let _seedCounter = 0;
@@ -194,11 +212,9 @@ export async function seedCategory(
     name: `Test Category ${++_seedCounter}`,
     note: '',
     userId,
-  };
+  } satisfies DeepPartial<Category>;
 
-  const repo = AppDataSource.getRepository(Category);
-  const category = repo.create({ ...defaults, ...overrides } as any);
-  return (await repo.save(category)) as unknown as Category;
+  return createAndSaveEntity(Category, { ...defaults, ...overrides } as DeepPartial<Category>);
 }
 
 export async function seedTransaction(
@@ -223,11 +239,9 @@ export async function seedTransaction(
     date: '2025-01-01',
     userId,
     exchangeRate: null,
-  };
+  } satisfies DeepPartial<Transaction>;
 
-  const repo = AppDataSource.getRepository(Transaction);
-  const tx = repo.create({ ...defaults, ...overrides } as any);
-  return (await repo.save(tx)) as unknown as Transaction;
+  return createAndSaveEntity(Transaction, { ...defaults, ...overrides } as DeepPartial<Transaction>);
 }
 
 export async function seedFinancialGoal(
@@ -242,11 +256,9 @@ export async function seedFinancialGoal(
     note: '',
     targetDate: '2026-01-01',
     userId,
-  };
+  } satisfies DeepPartial<FinancialGoal>;
 
-  const repo = AppDataSource.getRepository(FinancialGoal);
-  const goal = repo.create({ ...defaults, ...overrides } as any);
-  return (await repo.save(goal)) as unknown as FinancialGoal;
+  return createAndSaveEntity(FinancialGoal, { ...defaults, ...overrides } as DeepPartial<FinancialGoal>);
 }
 
 export async function seedBudget(userId: string, overrides: Record<string, unknown> = {}): Promise<Budget> {
@@ -260,11 +272,9 @@ export async function seedBudget(userId: string, overrides: Record<string, unkno
     month: '2025-01-01',
     amount: 500,
     alertThreshold: 80,
-  };
+  } satisfies DeepPartial<Budget>;
 
-  const repo = AppDataSource.getRepository(Budget);
-  const budget = repo.create({ ...defaults, ...overrides } as any);
-  return (await repo.save(budget)) as unknown as Budget;
+  return createAndSaveEntity(Budget, { ...defaults, ...overrides } as DeepPartial<Budget>);
 }
 
 export async function seedRecurring(
@@ -286,11 +296,12 @@ export async function seedRecurring(
     startDate: '2025-01-01',
     note: null,
     exchangeRate: null,
-  };
+  } satisfies DeepPartial<RecurringTransaction>;
 
-  const repo = AppDataSource.getRepository(RecurringTransaction);
-  const recurring = repo.create({ ...defaults, ...overrides } as any);
-  return (await repo.save(recurring)) as unknown as RecurringTransaction;
+  return createAndSaveEntity(RecurringTransaction, {
+    ...defaults,
+    ...overrides,
+  } as DeepPartial<RecurringTransaction>);
 }
 
 export async function seedInstallmentPlan(
@@ -310,11 +321,9 @@ export async function seedInstallmentPlan(
     categoryId: null,
     note: null,
     status: PlanStatus.ACTIVE,
-  };
+  } satisfies DeepPartial<InstallmentPlan>;
 
-  const repo = AppDataSource.getRepository(InstallmentPlan);
-  const plan = repo.create({ ...defaults, ...overrides } as any);
-  return (await repo.save(plan)) as unknown as InstallmentPlan;
+  return createAndSaveEntity(InstallmentPlan, { ...defaults, ...overrides } as DeepPartial<InstallmentPlan>);
 }
 
 export async function seedInstallmentObligation(
@@ -329,9 +338,10 @@ export async function seedInstallmentObligation(
     status: ObligationStatus.PENDING,
     transactionId: null,
     paidAt: null,
-  };
+  } satisfies DeepPartial<InstallmentObligation>;
 
-  const repo = AppDataSource.getRepository(InstallmentObligation);
-  const obligation = repo.create({ ...defaults, ...overrides } as any);
-  return (await repo.save(obligation)) as unknown as InstallmentObligation;
+  return createAndSaveEntity(InstallmentObligation, {
+    ...defaults,
+    ...overrides,
+  } as DeepPartial<InstallmentObligation>);
 }
