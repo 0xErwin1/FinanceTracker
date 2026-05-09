@@ -3,6 +3,8 @@ import {
   type CategoryDTO,
   type CurrencyEnum,
   type TransactionDTO,
+  type TransactionImportApprovedRowRefDTO,
+  type TransactionImportCommitFromSessionRequestDTO,
   type TransactionImportCommitRequestDTO,
   type TransactionImportCommitResponseDTO,
   type TransactionImportCommitRowDTO,
@@ -10,10 +12,12 @@ import {
   type TransactionImportIssueDTO,
   type TransactionImportMappingDTO,
   type TransactionImportNormalizedRowDTO,
+  type TransactionImportPreviewFromSessionRequestDTO,
   type TransactionImportPreviewRequestDTO,
   type TransactionImportPreviewResponseDTO,
   type TransactionImportPreviewRowDTO,
   type TransactionImportPreviewSummaryDTO,
+  type TransactionImportStageResponseDTO,
   TransactionType,
 } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
@@ -25,6 +29,11 @@ import { accountService } from './account.service';
 import { categoryService } from './category.service';
 import { BankPdfNormalizationError, normalizeBankPdfText } from './import/bank-pdf-normalizer';
 import { BankPdfTextExtractionError, extractBankPdfText } from './import/bank-pdf-text-extractor.service';
+import type {
+  TransactionImportStagedSession,
+  TransactionImportStageInput,
+} from './transaction-import-staging.service';
+import { transactionImportStagingService } from './transaction-import-staging.service';
 import { transactionService } from './transactions.service';
 
 const HEADER_ALIASES: Record<keyof TransactionImportMappingDTO, string[]> = {
@@ -81,6 +90,12 @@ interface CommitValidationResult {
     externalReference: string | null;
     type: TransactionType;
   };
+}
+
+interface ParsedImportSourceResult {
+  rows: ParsedCSVTextResult['rows'];
+  parserIssues: TransactionImportIssueDTO[];
+  response: TransactionImportPreviewResponseDTO;
 }
 
 type ImportAwareTransaction = TransactionDTO & Pick<Transaction, 'importBatchId' | 'importFingerprint'>;
@@ -194,7 +209,7 @@ async function importPreview(
 ): Promise<TransactionImportPreviewResponseDTO> {
   await accountService.getPostingAccount(input.defaults.accountId, userId, input.defaults.currency);
 
-  const parsed = await safelyParseSource(input.source, input.mapping, input.sourceFormat);
+  const parsed = await parseImportSource(input.source, input.mapping, input.sourceFormat);
 
   if (parsed.parserIssues.length > 0) {
     return parsed.response;
@@ -246,15 +261,11 @@ async function importPreview(
   };
 }
 
-async function safelyParseSource(
+async function parseImportSource(
   source: string,
   mapping: TransactionImportMappingDTO | undefined,
   sourceFormat: TransactionImportPreviewRequestDTO['sourceFormat'],
-): Promise<{
-  rows: ParsedCSVTextResult['rows'];
-  parserIssues: TransactionImportIssueDTO[];
-  response: TransactionImportPreviewResponseDTO;
-}> {
+): Promise<ParsedImportSourceResult> {
   if (sourceFormat === 'bank_pdf_text') {
     return safelyParsePdfSource(source, mapping);
   }
@@ -819,6 +830,113 @@ function normalizeReference(value: string | null): string {
   return value?.trim().toLowerCase() ?? '';
 }
 
+function decodeStagedSource(session: TransactionImportStagedSession): string {
+  if (session.sourceFormat === 'csv') {
+    return Buffer.from(session.payload.data, 'base64').toString('utf8');
+  }
+
+  return session.payload.data;
+}
+
+async function loadStagedSessionOrThrow(
+  userId: string,
+  importSessionId: string,
+): Promise<TransactionImportStagedSession> {
+  const session = await transactionImportStagingService.getSession(userId, importSessionId);
+
+  if (!session) {
+    throw new TRPCError({
+      code: 'NOT_FOUND',
+      message: 'Import session was not found or has expired.',
+    });
+  }
+
+  return session;
+}
+
+function buildPreviewInputFromSession(
+  session: TransactionImportStagedSession,
+  input: TransactionImportPreviewFromSessionRequestDTO,
+): TransactionImportPreviewRequestDTO {
+  return {
+    defaults: input.defaults,
+    mapping: session.sourceFormat === 'bank_pdf_text' ? undefined : input.mapping,
+    source: decodeStagedSource(session),
+    sourceFilename: session.sourceFilename,
+    sourceFormat: session.sourceFormat,
+  };
+}
+
+function buildCommitPreviewInputFromSession(
+  session: TransactionImportStagedSession,
+): TransactionImportPreviewRequestDTO {
+  if (!session.latestPreview) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'Import session must be previewed again before commit.',
+    });
+  }
+
+  return {
+    defaults: session.latestPreview.defaults,
+    mapping: session.sourceFormat === 'bank_pdf_text' ? undefined : session.latestPreview.mapping,
+    source: decodeStagedSource(session),
+    sourceFilename: session.sourceFilename,
+    sourceFormat: session.sourceFormat,
+  };
+}
+
+function buildCommitRowsFromPreview(
+  approvedRows: TransactionImportApprovedRowRefDTO[],
+  previewRows: TransactionImportPreviewRowDTO[],
+): TransactionImportCommitRowDTO[] {
+  const previewRowsByFingerprint = new Map(previewRows.map((row) => [row.fingerprint, row]));
+
+  return approvedRows.map((approvedRow) => {
+    const previewRow = previewRowsByFingerprint.get(approvedRow.fingerprint);
+
+    if (!previewRow || previewRow.rowNumber !== approvedRow.rowNumber) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: `Row ${approvedRow.rowNumber} no longer matches the latest import preview.`,
+      });
+    }
+
+    if (previewRow.status !== 'ready') {
+      const conflictCode = previewRow.status === 'duplicate' ? 'CONFLICT' : 'BAD_REQUEST';
+
+      throw new TRPCError({
+        code: conflictCode,
+        message: `Row ${approvedRow.rowNumber} is no longer ready for commit and must be previewed again.`,
+      });
+    }
+
+    return {
+      categoryId: approvedRow.categoryId,
+      fingerprint: approvedRow.fingerprint,
+      normalized: previewRow.normalized,
+      rowNumber: approvedRow.rowNumber,
+    };
+  });
+}
+
+async function importPreviewFromSession(
+  input: TransactionImportPreviewFromSessionRequestDTO,
+  userId: string,
+): Promise<TransactionImportPreviewResponseDTO> {
+  const session = await loadStagedSessionOrThrow(userId, input.importSessionId);
+  const preview = await importPreview(buildPreviewInputFromSession(session, input), userId);
+
+  if (preview.parserIssues.length === 0) {
+    await transactionImportStagingService.saveLatestPreview(userId, input.importSessionId, {
+      defaults: input.defaults,
+      mapping: preview.mapping,
+    });
+  }
+
+  return preview;
+}
+
 async function importCommit(
   input: TransactionImportCommitRequestDTO,
   userId: string,
@@ -924,6 +1042,60 @@ async function importCommit(
 
     return buildCommitResponse(input.idempotencyKey, createdTransactions);
   });
+}
+
+async function stageImport(
+  input: Omit<TransactionImportStageInput, 'userId'>,
+  userId: string,
+): Promise<TransactionImportStageResponseDTO> {
+  return transactionImportStagingService.stageImport({
+    ...input,
+    userId,
+  });
+}
+
+async function importCommitFromSession(
+  input: TransactionImportCommitFromSessionRequestDTO,
+  userId: string,
+): Promise<TransactionImportCommitResponseDTO> {
+  const session = await loadStagedSessionOrThrow(userId, input.importSessionId);
+
+  if (!session.latestPreview) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'Import session must be previewed again before commit.',
+    });
+  }
+
+  if (session.latestPreview.defaults.accountId !== input.accountId) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'Import session account no longer matches the latest preview and must be previewed again.',
+    });
+  }
+
+  const preview = await importPreview(buildCommitPreviewInputFromSession(session), userId);
+
+  if (preview.parserIssues.length > 0) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'Import session source could not be revalidated for commit and must be previewed again.',
+    });
+  }
+
+  const commitResponse = await importCommit(
+    {
+      accountId: input.accountId,
+      approvedRows: buildCommitRowsFromPreview(input.approvedRows, preview.rows),
+      idempotencyKey: input.idempotencyKey,
+      sourceFormat: session.sourceFormat,
+    },
+    userId,
+  );
+
+  await transactionImportStagingService.deleteSession(userId, input.importSessionId);
+
+  return commitResponse;
 }
 
 async function validateCommitRows(
@@ -1081,6 +1253,9 @@ function toPdfParserIssue(
 }
 
 export const transactionImportService = {
+  importCommitFromSession,
   importCommit,
+  importPreviewFromSession,
   importPreview,
+  stageImport,
 };

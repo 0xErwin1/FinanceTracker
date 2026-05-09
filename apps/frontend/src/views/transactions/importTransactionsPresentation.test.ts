@@ -5,10 +5,11 @@ import {
   applyImportedSourceFileSelection,
   buildImportPreviewRequest,
   getCommitDisabledReason,
+  getCsvHeaderOptions,
   getImportPreviewErrorMessage,
   getImportSourceGuidance,
   getImportStatusPresentation,
-  readImportSourceFile,
+  shouldShowCsvMappingControls,
   validateImportDraft,
 } from './importTransactionsPresentation';
 
@@ -64,13 +65,13 @@ describe('import transactions presentation helpers', () => {
         currency: CurrencyEnum.USD,
         typeStrategy: 'signed_amount',
       },
+      importSessionId: '',
       mapping: {},
-      source: '   ',
       sourceFormat: 'csv',
     });
 
     expect(issues).toEqual([
-      'CSV source is required before generating a preview.',
+      'Select a staged CSV or PDF upload before generating a preview.',
       'Choose an active destination account.',
       'Map the CSV date column before previewing.',
       'Map the CSV description column before previewing.',
@@ -85,12 +86,12 @@ describe('import transactions presentation helpers', () => {
         currency: CurrencyEnum.USD,
         typeStrategy: 'signed_amount',
       },
+      importSessionId: 'session-csv',
       mapping: {
         amount: 'Amount',
         date: 'Date',
         description: 'Description',
       },
-      source: 'Date,Description,Amount',
       sourceFormat: 'csv',
     });
 
@@ -101,13 +102,13 @@ describe('import transactions presentation helpers', () => {
         fixedType: TransactionType.EXPENSE,
         typeStrategy: 'fixed_type',
       },
+      importSessionId: 'session-csv',
       mapping: {
         credit: 'Money In',
         date: 'Date',
         debit: 'Money Out',
         description: 'Description',
       },
-      source: 'Date,Description,Money Out,Money In',
       sourceFormat: 'csv',
     });
 
@@ -115,38 +116,20 @@ describe('import transactions presentation helpers', () => {
     expect(splitAmountIssues).toEqual([]);
   });
 
-  it('reads uploaded CSV files without changing their contents', async () => {
-    const csvText = 'Date;Description;Amount\n2026-05-08;Coffee;-12.50\n';
-    const file = new File([csvText], 'statement.csv', { type: 'text/csv' });
-
-    await expect(readImportSourceFile(file)).resolves.toEqual({
-      source: csvText,
-      sourceFilename: 'statement.csv',
-      sourceFormat: 'csv',
-    });
-  });
-
-  it('reads uploaded PDF files as base64 while preserving the original filename', async () => {
-    const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46]);
-    const file = new File([pdfBytes], 'statement.pdf', { type: 'application/pdf' });
-
-    await expect(readImportSourceFile(file)).resolves.toEqual({
-      source: 'JVBERg==',
-      sourceFilename: 'statement.pdf',
-      sourceFormat: 'bank_pdf_text',
-    });
-  });
-
-  it('derives PDF upload state that hides the CSV editor and clears prior file errors', () => {
+  it('stores staged upload metadata and clears prior file errors', () => {
     expect(
       applyImportedSourceFileSelection({
-        source: 'JVBERg==',
+        byteSize: 2048,
+        delimiter: ',',
+        hasHeader: true,
+        headers: ['Date', 'Description', 'Amount'],
+        importSessionId: 'session-csv',
+        parserIssues: [],
         sourceFilename: 'statement.pdf',
         sourceFormat: 'bank_pdf_text',
       }),
     ).toEqual({
       formIssues: [],
-      formSource: 'JVBERg==',
       sourceFileError: null,
       sourceFilename: 'statement.pdf',
       sourceFormat: 'bank_pdf_text',
@@ -159,18 +142,13 @@ describe('import transactions presentation helpers', () => {
         'The selected PDF file could not be read. Try choosing the bank statement again.',
       ),
     ).toEqual({
-      formSource: '',
       sourceFileError: 'The selected PDF file could not be read. Try choosing the bank statement again.',
       sourceFilename: undefined,
       sourceFormat: 'csv',
     });
   });
 
-  it('builds preview requests from uploaded file contents while normalizing optional fields', async () => {
-    const csvText = 'Date,Description,Amount\n2026-05-08,Coffee,-12.50';
-    const file = new File([csvText], 'statement.csv', { type: 'text/csv' });
-    const source = await readImportSourceFile(file);
-
+  it('builds staged CSV preview requests while normalizing optional fields', () => {
     expect(
       buildImportPreviewRequest({
         defaults: {
@@ -188,9 +166,8 @@ describe('import transactions presentation helpers', () => {
           description: 'Description',
           externalReference: '   ',
         },
-        source: source.source,
-        sourceFilename: source.sourceFilename,
-        sourceFormat: source.sourceFormat,
+        importSessionId: 'session-csv',
+        sourceFormat: 'csv',
       }),
     ).toEqual({
       defaults: {
@@ -208,9 +185,7 @@ describe('import transactions presentation helpers', () => {
         description: 'Description',
         externalReference: undefined,
       },
-      source: csvText,
-      sourceFilename: 'statement.csv',
-      sourceFormat: 'csv',
+      importSessionId: 'session-csv',
     });
   });
 
@@ -221,16 +196,15 @@ describe('import transactions presentation helpers', () => {
         currency: CurrencyEnum.USD,
         typeStrategy: 'signed_amount',
       },
+      importSessionId: 'session-pdf',
       mapping: {},
-      source: 'JVBERg==',
-      sourceFilename: 'statement.pdf',
       sourceFormat: 'bank_pdf_text',
     });
 
     expect(issues).toEqual([]);
   });
 
-  it('builds PDF preview requests with source metadata and without CSV mappings', () => {
+  it('builds PDF preview requests without CSV mappings', () => {
     expect(
       buildImportPreviewRequest({
         defaults: {
@@ -247,8 +221,7 @@ describe('import transactions presentation helpers', () => {
           description: 'Description',
           externalReference: 'Reference',
         },
-        source: 'JVBERg==',
-        sourceFilename: 'statement.pdf',
+        importSessionId: 'session-pdf',
         sourceFormat: 'bank_pdf_text',
       }),
     ).toEqual({
@@ -259,36 +232,28 @@ describe('import transactions presentation helpers', () => {
         fixedType: TransactionType.EXPENSE,
         typeStrategy: 'fixed_type',
       },
-      source: 'JVBERg==',
-      sourceFilename: 'statement.pdf',
-      sourceFormat: 'bank_pdf_text',
+      importSessionId: 'session-pdf',
     });
   });
 
-  it('surfaces a clear error when the selected CSV file cannot be read', async () => {
-    const unreadableFile = {
-      name: 'statement.csv',
-      text: async () => {
-        throw new Error('disk failure');
-      },
-    };
-
-    await expect(readImportSourceFile(unreadableFile)).rejects.toThrow(
-      'The selected CSV file could not be read. Try pasting the CSV text instead.',
-    );
-  });
-
-  it('rejects unsupported upload extensions with a format-aware message', async () => {
-    const file = new File(['irrelevant'], 'statement.txt', { type: 'text/plain' });
-
-    await expect(readImportSourceFile(file)).rejects.toThrow(
-      'Only CSV and PDF statement files are supported for transaction imports.',
-    );
+  it('provides blank-first dropdown options from detected CSV headers', () => {
+    expect(getCsvHeaderOptions(['Date', 'Description', 'Amount'])).toEqual([
+      { label: 'Select a column', value: '' },
+      { label: 'Date', value: 'Date' },
+      { label: 'Description', value: 'Description' },
+      { label: 'Amount', value: 'Amount' },
+    ]);
   });
 
   it('describes PDF uploads as text-only statement imports without OCR support', () => {
     expect(getImportSourceGuidance('bank_pdf_text')).toBe(
       'PDF statement imports require selectable text. Scanned PDFs and OCR are not supported.',
+    );
+  });
+
+  it('describes CSV uploads without suggesting an editable textarea', () => {
+    expect(getImportSourceGuidance('csv')).toBe(
+      'Select a bank export to load its contents. Map the detected CSV columns below.',
     );
   });
 
@@ -303,6 +268,11 @@ describe('import transactions presentation helpers', () => {
     ).toBe(
       'PDF statement preview failed. The uploaded PDF does not contain selectable text. Scanned PDFs and OCR are not supported.',
     );
+  });
+
+  it('shows CSV mapping controls only for staged CSV sessions', () => {
+    expect(shouldShowCsvMappingControls('csv')).toBe(true);
+    expect(shouldShowCsvMappingControls('bank_pdf_text')).toBe(false);
   });
 
   it('maps import statuses to user-facing labels and tones', () => {
@@ -365,5 +335,16 @@ describe('import transactions presentation helpers', () => {
     });
 
     expect(reason).toBeNull();
+  });
+
+  it('blocks commit when the preview is otherwise clean but no rows remain approved', () => {
+    const reason = getCommitDisabledReason({
+      approvedRowCount: 0,
+      commitLoading: false,
+      preview: makePreviewResponse(),
+      previewLoading: false,
+    });
+
+    expect(reason).toBe('Approve at least one preview row before committing.');
   });
 });

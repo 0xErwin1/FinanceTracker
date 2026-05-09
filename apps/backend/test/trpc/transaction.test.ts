@@ -2,6 +2,7 @@ import { CurrencyEnum, TransactionType } from '@expenses/api';
 import { TRPCError } from '@trpc/server';
 import { AppDataSource } from '../../src/data-source';
 import { Transaction } from '../../src/entities';
+import { transactionImportStagingService } from '../../src/services';
 import {
   createAuthenticatedCaller,
   createPublicCaller,
@@ -69,6 +70,15 @@ function buildApprovedRows(
       rowNumber: row.rowNumber,
     };
   });
+}
+
+async function stageImportSession(input: {
+  contentType: string;
+  payload: Buffer;
+  sourceFilename?: string;
+  userId: string;
+}) {
+  return transactionImportStagingService.stageImport(input);
 }
 
 describe('transaction router', () => {
@@ -678,6 +688,127 @@ describe('transaction router', () => {
     });
   });
 
+  describe('importPreviewFromSession', () => {
+    it('rejects missing staged session ids at the preview request boundary', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      await expect(
+        caller.transaction.importPreviewFromSession({
+          defaults: {
+            accountId: account.id,
+            currency: CurrencyEnum.USD,
+            typeStrategy: 'signed_amount',
+          },
+          importSessionId: '11111111-1111-4111-8111-111111111111',
+        }),
+      ).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        message: 'Import session was not found or has expired.',
+      });
+    });
+
+    it('rejects foreign staged session ids at the preview request boundary', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const otherUser = await seedUser({ email: 'import-preview-foreign-session@example.com' });
+      const staged = await stageImportSession({
+        contentType: 'text/csv',
+        payload: Buffer.from('Date,Description,Amount\n2026-05-08,Coffee,-12.50', 'utf8'),
+        sourceFilename: 'foreign-preview.csv',
+        userId: otherUser.id,
+      });
+
+      await expect(
+        caller.transaction.importPreviewFromSession({
+          defaults: {
+            accountId: account.id,
+            currency: CurrencyEnum.USD,
+            typeStrategy: 'signed_amount',
+          },
+          importSessionId: staged.importSessionId,
+        }),
+      ).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        message: 'Import session was not found or has expired.',
+      });
+    });
+
+    it('requires explicit CSV mappings for ambiguous staged headers', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const staged = await stageImportSession({
+        contentType: 'text/csv',
+        payload: Buffer.from('Booked On,Money In,Reference\n2026-05-08,200,payroll', 'utf8'),
+        sourceFilename: 'ambiguous.csv',
+        userId,
+      });
+
+      await expect(
+        caller.transaction.importPreviewFromSession({
+          defaults: {
+            accountId: account.id,
+            currency: CurrencyEnum.USD,
+            typeStrategy: 'signed_amount',
+          },
+          importSessionId: staged.importSessionId,
+        }),
+      ).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      });
+    });
+
+    it('bypasses CSV mapping input for staged PDF previews and does not write before commit', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      mockPdfDocument([
+        createMockPdfPage([
+          { str: 'Date', transform: [1, 0, 0, 1, 72, 720] },
+          { str: 'Description', transform: [1, 0, 0, 1, 160, 720] },
+          { str: 'Amount', transform: [1, 0, 0, 1, 320, 720] },
+          { str: '08/05/2026', transform: [1, 0, 0, 1, 72, 700] },
+          { str: 'Coffee Shop', transform: [1, 0, 0, 1, 160, 700] },
+          { str: '-12.50', transform: [1, 0, 0, 1, 320, 700] },
+        ]),
+      ]);
+
+      const staged = await stageImportSession({
+        contentType: 'application/pdf',
+        payload: Buffer.from('JVBERg==', 'base64'),
+        sourceFilename: 'statement.pdf',
+        userId,
+      });
+      const transactionRepository = AppDataSource.getRepository(Transaction);
+      const transactionCountBeforePreview = await transactionRepository.countBy({ userId });
+
+      const preview = await caller.transaction.importPreviewFromSession({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        importSessionId: staged.importSessionId,
+        mapping: {
+          amount: 'Not Real',
+          date: 'Still Wrong',
+          description: 'Ignored',
+        },
+      });
+
+      const transactionCountAfterPreview = await transactionRepository.countBy({ userId });
+
+      expect(preview.summary).toEqual({
+        duplicate: 0,
+        invalid: 0,
+        ready: 1,
+        reviewRequired: 0,
+        total: 1,
+      });
+      expect(preview.rows[0]).toMatchObject({
+        rowNumber: 2,
+        status: 'ready',
+      });
+      expect(transactionCountAfterPreview).toBe(transactionCountBeforePreview);
+    });
+  });
+
   describe('importCommit', () => {
     it('rolls back the whole commit when a preview-approved row becomes duplicate before insert', async () => {
       const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
@@ -935,6 +1066,283 @@ describe('transaction router', () => {
           code: 'duplicate_existing',
           rowNumber: 2,
         }),
+      ]);
+    }, 15000);
+  });
+
+  describe('importCommitFromSession', () => {
+    it('rejects missing staged session ids at the commit request boundary', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      await expect(
+        caller.transaction.importCommitFromSession({
+          accountId: account.id,
+          approvedRows: [
+            {
+              fingerprint: 'missing-session-fingerprint',
+              rowNumber: 2,
+            },
+          ],
+          idempotencyKey: 'missing-staged-import-batch',
+          importSessionId: '22222222-2222-4222-8222-222222222222',
+        }),
+      ).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        message: 'Import session was not found or has expired.',
+      });
+    });
+
+    it('rejects foreign staged session ids at the commit request boundary', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const otherUser = await seedUser({ email: 'import-commit-foreign-session@example.com' });
+      const staged = await stageImportSession({
+        contentType: 'text/csv',
+        payload: Buffer.from('Date,Description,Amount\n2026-05-18,Coffee,-12.50', 'utf8'),
+        sourceFilename: 'foreign-commit.csv',
+        userId: otherUser.id,
+      });
+
+      await expect(
+        caller.transaction.importCommitFromSession({
+          accountId: account.id,
+          approvedRows: [
+            {
+              fingerprint: 'foreign-session-fingerprint',
+              rowNumber: 2,
+            },
+          ],
+          idempotencyKey: 'foreign-staged-import-batch',
+          importSessionId: staged.importSessionId,
+        }),
+      ).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+        message: 'Import session was not found or has expired.',
+      });
+    });
+
+    it('commits staged CSV previews, deletes the session, and keeps the database untouched until commit', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const category = await seedCategory(userId, { type: TransactionType.EXPENSE });
+      const staged = await stageImportSession({
+        contentType: 'text/csv',
+        payload: Buffer.from(
+          'Date,Description,Amount,Reference\n2026-05-14,Coffee,-12.50,coffee-4\n2026-05-15,Groceries,-40.00,groceries-4',
+          'utf8',
+        ),
+        sourceFilename: 'statement.csv',
+        userId,
+      });
+      const transactionRepository = AppDataSource.getRepository(Transaction);
+      const transactionCountBeforePreview = await transactionRepository.countBy({ userId });
+
+      const preview = await caller.transaction.importPreviewFromSession({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        importSessionId: staged.importSessionId,
+      });
+
+      const transactionCountAfterPreview = await transactionRepository.countBy({ userId });
+      const commit = await caller.transaction.importCommitFromSession({
+        accountId: account.id,
+        approvedRows: buildApprovedRows(preview.rows, category.id).map(
+          ({ categoryId, fingerprint, rowNumber }) => ({
+            categoryId,
+            fingerprint,
+            rowNumber,
+          }),
+        ),
+        idempotencyKey: 'staged-import-batch',
+        importSessionId: staged.importSessionId,
+      });
+
+      expect(transactionCountAfterPreview).toBe(transactionCountBeforePreview);
+      expect(commit).toMatchObject({
+        batchId: 'staged-import-batch',
+        createdCount: 2,
+      });
+      expect(await transactionImportStagingService.getSession(userId, staged.importSessionId)).toBeNull();
+
+      const importedTransactions = await transactionRepository.find({
+        where: {
+          importBatchId: 'staged-import-batch',
+          userId,
+        },
+        order: { date: 'ASC' },
+      });
+
+      expect(importedTransactions).toHaveLength(2);
+    }, 15000);
+
+    it('keeps the staged session available when commit revalidation fails so the database stays atomic', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const category = await seedCategory(userId, { type: TransactionType.EXPENSE });
+      const staged = await stageImportSession({
+        contentType: 'text/csv',
+        payload: Buffer.from(
+          'Date,Description,Amount,Reference\n2026-05-16,Coffee,-12.50,coffee-5\n2026-05-17,Groceries,-40.00,groceries-5',
+          'utf8',
+        ),
+        sourceFilename: 'statement.csv',
+        userId,
+      });
+
+      const preview = await caller.transaction.importPreviewFromSession({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        importSessionId: staged.importSessionId,
+      });
+      const approvedRows = buildApprovedRows(preview.rows, category.id).map(
+        ({ categoryId, fingerprint, rowNumber }) => ({
+          categoryId,
+          fingerprint,
+          rowNumber,
+        }),
+      );
+
+      await seedTransaction(userId, {
+        accountId: account.id,
+        amount: 40,
+        categoryId: category.id,
+        currency: CurrencyEnum.USD,
+        date: '2026-05-17',
+        externalReference: 'groceries-5',
+        importBatchId: 'competing-staged-import-batch',
+        importFingerprint: approvedRows[1]?.fingerprint,
+        importSource: 'csv',
+        note: 'Groceries',
+        type: TransactionType.EXPENSE,
+      });
+
+      await expect(
+        caller.transaction.importCommitFromSession({
+          accountId: account.id,
+          approvedRows,
+          idempotencyKey: 'blocked-staged-import-batch',
+          importSessionId: staged.importSessionId,
+        }),
+      ).rejects.toMatchObject({
+        code: 'CONFLICT',
+      });
+
+      const importedTransactions = await AppDataSource.getRepository(Transaction).find({
+        where: {
+          importBatchId: 'blocked-staged-import-batch',
+          userId,
+        },
+      });
+
+      expect(importedTransactions).toEqual([]);
+      expect(await transactionImportStagingService.getSession(userId, staged.importSessionId)).not.toBeNull();
+    }, 15000);
+  });
+
+  describe('import regression coverage', () => {
+    it('matches staged CSV preview output with the legacy inline preview contract', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const source = Buffer.from(
+        'Date,Description,Amount,Reference\n2026-05-20,Coffee,-12.50,coffee-6\n2026-05-21,Groceries,-40.00,groceries-6',
+        'utf8',
+      );
+
+      const legacyPreview = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: source.toString('utf8'),
+      });
+
+      const staged = await stageImportSession({
+        contentType: 'text/csv',
+        payload: source,
+        sourceFilename: 'parity.csv',
+        userId,
+      });
+
+      const stagedPreview = await caller.transaction.importPreviewFromSession({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        importSessionId: staged.importSessionId,
+      });
+
+      expect(stagedPreview).toEqual(legacyPreview);
+    });
+
+    it('keeps the legacy inline commit fallback working after a staged session commit completes', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const category = await seedCategory(userId, { type: TransactionType.EXPENSE });
+      const staged = await stageImportSession({
+        contentType: 'text/csv',
+        payload: Buffer.from('Date,Description,Amount,Reference\n2026-05-22,Coffee,-12.50,coffee-7', 'utf8'),
+        sourceFilename: 'staged-first.csv',
+        userId,
+      });
+
+      const stagedPreview = await caller.transaction.importPreviewFromSession({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        importSessionId: staged.importSessionId,
+      });
+
+      const stagedCommit = await caller.transaction.importCommitFromSession({
+        accountId: account.id,
+        approvedRows: buildApprovedRows(stagedPreview.rows, category.id).map(
+          ({ categoryId, fingerprint, rowNumber }) => ({
+            categoryId,
+            fingerprint,
+            rowNumber,
+          }),
+        ),
+        idempotencyKey: 'staged-regression-batch',
+        importSessionId: staged.importSessionId,
+      });
+
+      const legacyPreview = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'Date,Description,Amount,Reference\n2026-05-23,Groceries,-40.00,groceries-7',
+      });
+
+      const legacyCommit = await caller.transaction.importCommit({
+        accountId: account.id,
+        approvedRows: buildApprovedRows(legacyPreview.rows, category.id),
+        idempotencyKey: 'legacy-regression-batch',
+      });
+
+      const importedTransactions = await AppDataSource.getRepository(Transaction).find({
+        where: {
+          userId,
+        },
+        order: { date: 'ASC' },
+      });
+
+      expect(stagedCommit).toMatchObject({
+        batchId: 'staged-regression-batch',
+        createdCount: 1,
+      });
+      expect(legacyCommit).toMatchObject({
+        batchId: 'legacy-regression-batch',
+        createdCount: 1,
+      });
+      expect(importedTransactions.map((transaction) => transaction.importBatchId)).toEqual([
+        'staged-regression-batch',
+        'legacy-regression-batch',
       ]);
     }, 15000);
   });

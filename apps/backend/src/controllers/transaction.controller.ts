@@ -1,7 +1,14 @@
-import type { TransactionImportCommitRequestDTO, TransactionImportPreviewRequestDTO } from '@expenses/api';
+import type {
+  TransactionImportCommitFromSessionRequestDTO,
+  TransactionImportCommitRequestDTO,
+  TransactionImportPreviewFromSessionRequestDTO,
+  TransactionImportPreviewRequestDTO,
+  TransactionImportStageResponseDTO,
+} from '@expenses/api';
 import { TRPCError } from '@trpc/server';
 import { Between } from 'typeorm';
-import { transactionImportService, transactionService } from '../services';
+import { transactionImportService, transactionImportStagingService, transactionService } from '../services';
+import type { TransactionImportStageInput } from '../services/transaction-import-staging.service';
 import { mapServiceError } from '../trpc/errors';
 
 export const transactionController = {
@@ -167,6 +174,29 @@ export const transactionController = {
     } catch (error) {
       mapServiceError(error);
     }
+  },
+
+  async importPreviewFromSession(input: TransactionImportPreviewFromSessionRequestDTO, userId: string) {
+    try {
+      return await transactionImportService.importPreviewFromSession(input, userId);
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
+
+  async importCommitFromSession(input: TransactionImportCommitFromSessionRequestDTO, userId: string) {
+    try {
+      return await transactionImportService.importCommitFromSession(input, userId);
+    } catch (error) {
+      mapServiceError(error);
+    }
+  },
+
+  async stageImport(
+    input: TransactionImportStageInput,
+    userId: string,
+  ): Promise<TransactionImportStageResponseDTO> {
+    return transactionImportStagingService.stageImport({ ...input, userId });
   },
 
   async updateTransfer(

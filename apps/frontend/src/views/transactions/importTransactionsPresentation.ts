@@ -1,16 +1,16 @@
 import type {
   TransactionImportDefaultsDTO,
   TransactionImportMappingDTO,
-  TransactionImportPreviewRequestDTO,
+  TransactionImportPreviewFromSessionRequestDTO,
   TransactionImportPreviewResponseDTO,
   TransactionImportRowStatus,
   TransactionImportSourceFormat,
+  TransactionImportStageResponseDTO,
 } from '@expenses/api';
 
 export interface ImportDraftValidationInput {
-  source: string;
+  importSessionId: string;
   sourceFormat?: TransactionImportSourceFormat;
-  sourceFilename?: string;
   mapping: TransactionImportMappingDTO;
   defaults: Pick<TransactionImportDefaultsDTO, 'accountId' | 'typeStrategy' | 'fixedType' | 'currency'>;
 }
@@ -29,65 +29,23 @@ export interface CommitDisabledReasonInput {
 }
 
 export interface BuildImportPreviewRequestInput {
-  source: string;
+  importSessionId: string;
   sourceFormat?: TransactionImportSourceFormat;
-  sourceFilename?: string;
   mapping: TransactionImportMappingDTO;
   defaults: TransactionImportDefaultsDTO;
 }
 
-export interface ReadImportSourceFileResult {
-  source: string;
-  sourceFormat: TransactionImportSourceFormat;
-  sourceFilename?: string;
-}
-
 export interface ImportedSourceFileSelectionState {
   formIssues: string[];
-  formSource: string;
   sourceFileError: string | null;
   sourceFilename?: string;
   sourceFormat: TransactionImportSourceFormat;
 }
 
 export interface ImportedSourceFileErrorState {
-  formSource: string;
   sourceFileError: string;
   sourceFilename?: string;
   sourceFormat: 'csv';
-}
-
-type ImportReadableFile = Pick<Blob, 'text'> & {
-  arrayBuffer?: () => Promise<ArrayBuffer>;
-  name?: string;
-  type?: string;
-};
-
-function resolveImportSourceFormat(
-  file: Pick<ImportReadableFile, 'name' | 'type'>,
-): TransactionImportSourceFormat {
-  const filename = file.name?.trim().toLowerCase() ?? '';
-  const mimeType = file.type?.trim().toLowerCase() ?? '';
-
-  if (filename.endsWith('.pdf') || mimeType === 'application/pdf') {
-    return 'bank_pdf_text';
-  }
-
-  if (filename.endsWith('.csv') || mimeType === 'text/csv' || mimeType === 'application/vnd.ms-excel') {
-    return 'csv';
-  }
-
-  throw new Error('Only CSV and PDF statement files are supported for transaction imports.');
-}
-
-function encodeBase64(bytes: Uint8Array): string {
-  let binary = '';
-
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-
-  return btoa(binary);
 }
 
 const IMPORT_STATUS_PRESENTATION: Record<TransactionImportRowStatus, ImportStatusPresentation> = {
@@ -131,44 +89,18 @@ function normalizeOptionalField(value: string | null | undefined): string | unde
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-export async function readImportSourceFile(file: ImportReadableFile): Promise<ReadImportSourceFileResult> {
-  const sourceFormat = resolveImportSourceFormat(file);
-
-  try {
-    if (sourceFormat === 'bank_pdf_text') {
-      if (typeof file.arrayBuffer !== 'function') {
-        throw new Error('The selected PDF file could not be read. Try choosing the bank statement again.');
-      }
-
-      const source = encodeBase64(new Uint8Array(await file.arrayBuffer()));
-
-      return {
-        source,
-        sourceFilename: file.name,
-        sourceFormat,
-      };
-    }
-
-    return {
-      source: await file.text(),
-      sourceFilename: file.name,
-      sourceFormat,
-    };
-  } catch {
-    if (sourceFormat === 'bank_pdf_text') {
-      throw new Error('The selected PDF file could not be read. Try choosing the bank statement again.');
-    }
-
-    throw new Error('The selected CSV file could not be read. Try pasting the CSV text instead.');
-  }
+export function getCsvHeaderOptions(headers: string[]): Array<{ label: string; value: string }> {
+  return [
+    { label: 'Select a column', value: '' },
+    ...headers.map((header) => ({ label: header, value: header })),
+  ];
 }
 
 export function applyImportedSourceFileSelection(
-  result: ReadImportSourceFileResult,
+  result: TransactionImportStageResponseDTO,
 ): ImportedSourceFileSelectionState {
   return {
     formIssues: [],
-    formSource: result.source,
     sourceFileError: null,
     sourceFilename: result.sourceFilename,
     sourceFormat: result.sourceFormat,
@@ -177,11 +109,14 @@ export function applyImportedSourceFileSelection(
 
 export function applyImportedSourceFileError(message: string): ImportedSourceFileErrorState {
   return {
-    formSource: '',
     sourceFileError: message,
     sourceFilename: undefined,
     sourceFormat: 'csv',
   };
+}
+
+export function shouldShowCsvMappingControls(sourceFormat: TransactionImportSourceFormat = 'csv'): boolean {
+  return sourceFormat === 'csv';
 }
 
 export function getImportSourceGuidance(sourceFormat: TransactionImportSourceFormat = 'csv'): string {
@@ -189,7 +124,7 @@ export function getImportSourceGuidance(sourceFormat: TransactionImportSourceFor
     return 'PDF statement imports require selectable text. Scanned PDFs and OCR are not supported.';
   }
 
-  return 'Select a bank export to load its contents. CSV files stay editable below.';
+  return 'Select a bank export to load its contents. Map the detected CSV columns below.';
 }
 
 export function getImportPreviewErrorMessage(
@@ -209,7 +144,7 @@ export function getImportPreviewErrorMessage(
 
 export function buildImportPreviewRequest(
   input: BuildImportPreviewRequestInput,
-): TransactionImportPreviewRequestDTO {
+): TransactionImportPreviewFromSessionRequestDTO {
   const sourceFormat = input.sourceFormat ?? 'csv';
 
   return {
@@ -220,9 +155,7 @@ export function buildImportPreviewRequest(
       fixedType: input.defaults.typeStrategy === 'fixed_type' ? (input.defaults.fixedType ?? null) : null,
       typeStrategy: input.defaults.typeStrategy,
     },
-    source: input.source,
-    sourceFilename: normalizeOptionalField(input.sourceFilename),
-    sourceFormat,
+    importSessionId: input.importSessionId,
     ...(sourceFormat === 'csv'
       ? {
           mapping: {
@@ -242,19 +175,15 @@ export function validateImportDraft(input: ImportDraftValidationInput): string[]
   const issues: string[] = [];
   const sourceFormat = input.sourceFormat ?? 'csv';
 
-  if (input.source.trim().length === 0) {
-    issues.push(
-      sourceFormat === 'bank_pdf_text'
-        ? 'Select a PDF statement before generating a preview.'
-        : 'CSV source is required before generating a preview.',
-    );
+  if (input.importSessionId.trim().length === 0) {
+    issues.push('Select a staged CSV or PDF upload before generating a preview.');
   }
 
   if (input.defaults.accountId.trim().length === 0) {
     issues.push('Choose an active destination account.');
   }
 
-  if (sourceFormat === 'bank_pdf_text') {
+  if (!shouldShowCsvMappingControls(sourceFormat)) {
     return issues;
   }
 

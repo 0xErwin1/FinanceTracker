@@ -18,10 +18,11 @@ import {
   applyImportedSourceFileSelection,
   buildImportPreviewRequest,
   getCommitDisabledReason,
+  getCsvHeaderOptions,
   getImportPreviewErrorMessage,
   getImportSourceGuidance,
   getImportStatusPresentation,
-  readImportSourceFile,
+  shouldShowCsvMappingControls,
   validateImportDraft,
 } from './importTransactionsPresentation';
 
@@ -44,7 +45,6 @@ const statusToneClass: Record<'success' | 'danger' | 'muted' | 'warning', string
 const currencyOptions = Object.values(CurrencyEnum);
 
 interface ImportFormState {
-  source: string;
   sourceFilename?: string;
   sourceFormat: TransactionImportSourceFormat;
   defaults: {
@@ -58,7 +58,6 @@ interface ImportFormState {
 }
 
 const form = reactive<ImportFormState>({
-  source: '',
   sourceFilename: undefined,
   sourceFormat: 'csv',
   defaults: {
@@ -93,13 +92,15 @@ const categoryOptions = computed(() => {
   return items.filter((category) => category.type === form.defaults.fixedType);
 });
 
-const availableHeaders = computed(() => transactionImport.preview.value?.headers ?? []);
+const availableHeaders = computed(() => transactionImport.stagedUpload.value?.headers ?? []);
+const headerOptions = computed(() => getCsvHeaderOptions(availableHeaders.value));
 const previewRows = computed(() => transactionImport.preview.value?.rows ?? []);
 const parserIssues = computed(() => transactionImport.preview.value?.parserIssues ?? []);
 const previewErrorMessage = computed(() =>
   getImportPreviewErrorMessage(transactionImport.previewError.value, form.sourceFormat),
 );
 const sourceGuidance = computed(() => getImportSourceGuidance(form.sourceFormat));
+const showCsvMappingControls = computed(() => shouldShowCsvMappingControls(form.sourceFormat));
 const approvedRowCount = computed(() => transactionImport.approvedPreviewRows.value.length);
 const commitDisabledReason = computed(() =>
   getCommitDisabledReason({
@@ -109,6 +110,15 @@ const commitDisabledReason = computed(() =>
     previewLoading: transactionImport.previewLoading.value,
   }),
 );
+
+function clearMapping(): void {
+  form.mapping.amount = '';
+  form.mapping.credit = '';
+  form.mapping.date = '';
+  form.mapping.debit = '';
+  form.mapping.description = '';
+  form.mapping.externalReference = '';
+}
 
 watch(
   () => form.defaults.currency,
@@ -146,10 +156,10 @@ async function handleSourceFileChange(event: Event): Promise<void> {
   }
 
   try {
-    const result = await readImportSourceFile(file);
+    const result = await transactionImport.stageSourceFile(file);
     const nextState = applyImportedSourceFileSelection(result);
 
-    form.source = nextState.formSource;
+    clearMapping();
     form.sourceFilename = nextState.sourceFilename;
     form.sourceFormat = nextState.sourceFormat;
     formIssues.value = nextState.formIssues;
@@ -157,25 +167,18 @@ async function handleSourceFileChange(event: Event): Promise<void> {
   } catch (error) {
     const nextState = applyImportedSourceFileError(error instanceof Error ? error.message : String(error));
 
-    form.source = nextState.formSource;
+    clearMapping();
     form.sourceFilename = nextState.sourceFilename;
     form.sourceFormat = nextState.sourceFormat;
     sourceFileError.value = nextState.sourceFileError;
   }
 }
 
-function handleSourceInput(): void {
-  form.sourceFormat = 'csv';
-  form.sourceFilename = undefined;
-  selectedFileName.value = null;
-}
-
 async function handlePreview(): Promise<void> {
   const issues = validateImportDraft({
     defaults: form.defaults,
+    importSessionId: transactionImport.importSessionId.value ?? '',
     mapping: form.mapping,
-    source: form.source,
-    sourceFilename: form.sourceFilename,
     sourceFormat: form.sourceFormat,
   });
 
@@ -194,9 +197,8 @@ async function handlePreview(): Promise<void> {
         fixedType: form.defaults.fixedType,
         typeStrategy: form.defaults.typeStrategy,
       },
+      importSessionId: transactionImport.importSessionId.value ?? '',
       mapping: form.mapping,
-      source: form.source,
-      sourceFilename: form.sourceFilename,
       sourceFormat: form.sourceFormat,
     }),
   );
@@ -257,24 +259,31 @@ async function handleCommit(): Promise<void> {
         </p>
         <p v-if="selectedFileName" class="text-xs text-text-secondary">Loaded file: {{ selectedFileName }}</p>
         <p v-if="sourceFileError" class="text-xs text-rose-100">{{ sourceFileError }}</p>
+        <p v-if="transactionImport.stageLoading.value" class="text-xs text-text-secondary">
+          Uploading and staging file…
+        </p>
       </div>
 
-      <div v-if="form.sourceFormat === 'csv'" class="space-y-1.5 shell:col-span-2">
-        <label for="import-source" class="text-xs font-medium text-text-muted">CSV source</label>
-        <textarea
-          id="import-source"
-          v-model="form.source"
-          rows="10"
-          :class="fieldClass"
-          placeholder="Date,Description,Amount&#10;2026-05-08,Coffee,-12.50"
-          @input="handleSourceInput"
-        />
-      </div>
-
-      <div v-else class="space-y-2 shell:col-span-2 rounded-base border border-border-default bg-bg-card px-3 py-2 text-sm text-text-secondary">
-        <p>PDF source loaded: {{ form.sourceFilename ?? selectedFileName ?? 'statement.pdf' }}</p>
+      <div
+        v-if="transactionImport.stagedUpload.value"
+        class="space-y-2 shell:col-span-2 rounded-base border border-border-default bg-bg-card px-3 py-2 text-sm text-text-secondary"
+      >
+        <p>
+          Staged {{ form.sourceFormat === 'bank_pdf_text' ? 'PDF statement' : 'CSV file' }}:
+          {{ form.sourceFilename ?? selectedFileName ?? 'statement.csv' }}
+        </p>
         <p class="text-xs text-text-muted">
-          The backend will extract selectable text, normalize supported statement rows, and reject scanned PDFs or unsupported layouts before any preview rows are created.
+          Import session <span class="font-mono">{{ transactionImport.importSessionId.value }}</span> is ready for preview.
+        </p>
+        <p v-if="showCsvMappingControls" class="text-xs text-text-muted">
+          Detected CSV headers: {{ availableHeaders.join(', ') || 'No headers detected.' }}
+        </p>
+      </div>
+
+      <div v-else class="space-y-2 shell:col-span-2 rounded-base border border-dashed border-border-default bg-bg-primary px-3 py-2 text-sm text-text-secondary">
+        <p>No staged upload yet.</p>
+        <p class="text-xs text-text-muted">
+          Choose a CSV or text-based PDF statement to create an import session before previewing rows.
         </p>
       </div>
 
@@ -324,49 +333,68 @@ async function handleCommit(): Promise<void> {
         </select>
       </div>
 
-      <div class="space-y-1.5">
+      <div v-if="showCsvMappingControls" class="space-y-1.5">
         <label for="mapping-date" class="text-xs font-medium text-text-muted">Date column</label>
-        <input id="mapping-date" v-model="form.mapping.date" list="import-headers" :class="fieldClass" />
+        <select id="mapping-date" v-model="form.mapping.date" :class="fieldClass">
+          <option v-for="option in headerOptions" :key="`date-${option.value}`" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
-      <div class="space-y-1.5">
+      <div v-if="showCsvMappingControls" class="space-y-1.5">
         <label for="mapping-description" class="text-xs font-medium text-text-muted">Description column</label>
-        <input
-          id="mapping-description"
-          v-model="form.mapping.description"
-          list="import-headers"
-          :class="fieldClass"
-        />
+        <select id="mapping-description" v-model="form.mapping.description" :class="fieldClass">
+          <option v-for="option in headerOptions" :key="`description-${option.value}`" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
-      <div class="space-y-1.5">
+      <div v-if="showCsvMappingControls" class="space-y-1.5">
         <label for="mapping-amount" class="text-xs font-medium text-text-muted">Signed amount column</label>
-        <input id="mapping-amount" v-model="form.mapping.amount" list="import-headers" :class="fieldClass" />
+        <select id="mapping-amount" v-model="form.mapping.amount" :class="fieldClass">
+          <option v-for="option in headerOptions" :key="`amount-${option.value}`" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
-      <div class="space-y-1.5">
+      <div v-if="showCsvMappingControls" class="space-y-1.5">
         <label for="mapping-debit" class="text-xs font-medium text-text-muted">Debit column</label>
-        <input id="mapping-debit" v-model="form.mapping.debit" list="import-headers" :class="fieldClass" />
+        <select id="mapping-debit" v-model="form.mapping.debit" :class="fieldClass">
+          <option v-for="option in headerOptions" :key="`debit-${option.value}`" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
-      <div class="space-y-1.5">
+      <div v-if="showCsvMappingControls" class="space-y-1.5">
         <label for="mapping-credit" class="text-xs font-medium text-text-muted">Credit column</label>
-        <input id="mapping-credit" v-model="form.mapping.credit" list="import-headers" :class="fieldClass" />
+        <select id="mapping-credit" v-model="form.mapping.credit" :class="fieldClass">
+          <option v-for="option in headerOptions" :key="`credit-${option.value}`" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
-      <div class="space-y-1.5">
+      <div v-if="showCsvMappingControls" class="space-y-1.5">
         <label for="mapping-reference" class="text-xs font-medium text-text-muted">Reference column</label>
-        <input
-          id="mapping-reference"
-          v-model="form.mapping.externalReference"
-          list="import-headers"
-          :class="fieldClass"
-        />
+        <select id="mapping-reference" v-model="form.mapping.externalReference" :class="fieldClass">
+          <option v-for="option in headerOptions" :key="`reference-${option.value}`" :value="option.value">
+            {{ option.label }}
+          </option>
+        </select>
       </div>
 
       <template #actions>
         <div class="flex-1 text-xs text-text-muted sm:max-w-xl">
-          Use exact header names. You can leave optional fields blank and the backend will keep the preview authoritative.
+          <span v-if="showCsvMappingControls">
+            Choose from the detected CSV headers. You can leave optional fields blank and the backend will keep the preview authoritative.
+          </span>
+          <span v-else>
+            PDF sessions skip CSV column mapping and rely on backend statement extraction.
+          </span>
         </div>
 
         <button
@@ -379,10 +407,6 @@ async function handleCommit(): Promise<void> {
         </button>
       </template>
     </ResponsiveFormSection>
-
-    <datalist id="import-headers">
-      <option v-for="header in availableHeaders" :key="header" :value="header" />
-    </datalist>
 
     <div v-if="formIssues.length > 0" class="rounded-base border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-100">
       <p class="font-medium">Preview is blocked until the required inputs are complete.</p>

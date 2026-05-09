@@ -24,6 +24,8 @@ export type { InstallmentObligationDTO, InstallmentPlanDTO } from './types/insta
 export type { RecurringTransactionDTO } from './types/recurring_transaction/model';
 export type { SessionDTO } from './types/session/model';
 export type {
+  TransactionImportApprovedRowRefDTO,
+  TransactionImportCommitFromSessionRequestDTO,
   TransactionImportCommitRequestDTO,
   TransactionImportCommitResponseDTO,
   TransactionImportCommitRowDTO,
@@ -33,12 +35,14 @@ export type {
   TransactionImportIssueDTO,
   TransactionImportMappingDTO,
   TransactionImportNormalizedRowDTO,
+  TransactionImportPreviewFromSessionRequestDTO,
   TransactionImportPreviewRequestDTO,
   TransactionImportPreviewResponseDTO,
   TransactionImportPreviewRowDTO,
   TransactionImportPreviewSummaryDTO,
   TransactionImportRowStatus,
   TransactionImportSourceFormat,
+  TransactionImportStageResponseDTO,
   TransactionImportTypeStrategy,
 } from './types/transaction/import';
 export type { TransactionDTO } from './types/transaction/model';

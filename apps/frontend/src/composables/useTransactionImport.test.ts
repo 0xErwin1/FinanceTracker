@@ -1,19 +1,43 @@
-import { CurrencyEnum, type TransactionImportPreviewResponseDTO, TransactionType } from '@expenses/api';
+import {
+  CurrencyEnum,
+  type TransactionImportPreviewResponseDTO,
+  type TransactionImportStageResponseDTO,
+  TransactionType,
+} from '@expenses/api';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const importPreviewMutate = vi.fn();
-const importCommitMutate = vi.fn();
+const importPreviewFromSessionMutate = vi.fn();
+const importCommitFromSessionMutate = vi.fn();
+const fetchMock = vi.fn<typeof fetch>();
 
 vi.mock('@/api/trpc', () => ({
   trpc: {
     transaction: {
-      importPreview: { mutate: importPreviewMutate },
-      importCommit: { mutate: importCommitMutate },
+      importPreviewFromSession: { mutate: importPreviewFromSessionMutate },
+      importCommitFromSession: { mutate: importCommitFromSessionMutate },
     },
   },
 }));
 
-function makePreviewResponse(): TransactionImportPreviewResponseDTO {
+function makeStageResponse(
+  overrides: Partial<TransactionImportStageResponseDTO> = {},
+): TransactionImportStageResponseDTO {
+  return {
+    byteSize: 128,
+    delimiter: ',',
+    hasHeader: true,
+    headers: ['Date', 'Description', 'Amount'],
+    importSessionId: 'session-1',
+    parserIssues: [],
+    sourceFilename: 'statement.csv',
+    sourceFormat: 'csv',
+    ...overrides,
+  };
+}
+
+function makePreviewResponse(
+  overrides: Partial<TransactionImportPreviewResponseDTO> = {},
+): TransactionImportPreviewResponseDTO {
   return {
     delimiter: ',',
     hasHeader: true,
@@ -104,22 +128,35 @@ function makePreviewResponse(): TransactionImportPreviewResponseDTO {
       reviewRequired: 1,
       total: 4,
     },
+    ...overrides,
   };
 }
 
 describe('useTransactionImport', () => {
   beforeEach(() => {
     vi.resetModules();
-    importPreviewMutate.mockReset();
-    importCommitMutate.mockReset();
+    vi.stubGlobal('fetch', fetchMock);
+    importPreviewFromSessionMutate.mockReset();
+    importCommitFromSessionMutate.mockReset();
+    fetchMock.mockReset();
   });
 
-  it('stores preview results and auto-approves only eligible rows', async () => {
+  it('uploads a file, stores the staged session metadata, and previews via the staged session id', async () => {
+    const stageResponse = makeStageResponse();
     const preview = makePreviewResponse();
-    importPreviewMutate.mockResolvedValue(preview);
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(stageResponse), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      }),
+    );
+    importPreviewFromSessionMutate.mockResolvedValue(preview);
 
     const { useTransactionImport } = await import('./useTransactionImport');
     const transactionImport = useTransactionImport();
+    const file = new File(['Date,Description,Amount'], 'statement.csv', { type: 'text/csv' });
+
+    const staged = await transactionImport.stageSourceFile(file);
 
     const result = await transactionImport.requestPreview({
       defaults: {
@@ -127,11 +164,42 @@ describe('useTransactionImport', () => {
         currency: CurrencyEnum.USD,
         typeStrategy: 'signed_amount',
       },
-      source: 'Date,Description,Amount\n2026-05-08,Coffee,-12.50',
+      mapping: {
+        amount: 'Amount',
+        date: 'Date',
+        description: 'Description',
+      },
     });
 
+    expect(staged).toEqual(stageResponse);
+    expect(fetchMock).toHaveBeenCalledWith('/api/transactions/import/stage', {
+      body: file,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'text/csv',
+        'X-Import-Filename': 'statement.csv',
+      },
+      method: 'POST',
+    });
+    expect(transactionImport.stagedUpload.value).toEqual(stageResponse);
+    expect(transactionImport.importSessionId.value).toBe('session-1');
     expect(result).toEqual(preview);
     expect(transactionImport.preview.value).toEqual(preview);
+    expect(importPreviewFromSessionMutate).toHaveBeenCalledWith({
+      defaults: {
+        accountId: 'account-1',
+        categoryId: null,
+        currency: CurrencyEnum.USD,
+        fixedType: null,
+        typeStrategy: 'signed_amount',
+      },
+      importSessionId: 'session-1',
+      mapping: {
+        amount: 'Amount',
+        date: 'Date',
+        description: 'Description',
+      },
+    });
     expect(transactionImport.approvalState.value).toEqual({
       2: true,
       3: false,
@@ -142,9 +210,15 @@ describe('useTransactionImport', () => {
   });
 
   it('commits only the rows that remain approved locally', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeStageResponse()), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      }),
+    );
     const preview = makePreviewResponse();
-    importPreviewMutate.mockResolvedValue(preview);
-    importCommitMutate.mockResolvedValue({
+    importPreviewFromSessionMutate.mockResolvedValue(preview);
+    importCommitFromSessionMutate.mockResolvedValue({
       batchId: 'batch-1',
       createdCount: 1,
       createdTransactionIds: ['tx-1'],
@@ -153,6 +227,10 @@ describe('useTransactionImport', () => {
     const { useTransactionImport } = await import('./useTransactionImport');
     const transactionImport = useTransactionImport();
 
+    await transactionImport.stageSourceFile(
+      new File(['Date,Description,Amount'], 'statement.csv', { type: 'text/csv' }),
+    );
+
     await transactionImport.requestPreview({
       defaults: {
         accountId: 'account-1',
@@ -160,7 +238,11 @@ describe('useTransactionImport', () => {
         currency: CurrencyEnum.USD,
         typeStrategy: 'signed_amount',
       },
-      source: 'Date,Description,Amount\n2026-05-08,Coffee,-12.50',
+      mapping: {
+        amount: 'Amount',
+        date: 'Date',
+        description: 'Description',
+      },
     });
 
     transactionImport.setRowApproved(2, false);
@@ -171,18 +253,17 @@ describe('useTransactionImport', () => {
       idempotencyKey: 'batch-1',
     });
 
-    expect(importCommitMutate).toHaveBeenCalledWith({
+    expect(importCommitFromSessionMutate).toHaveBeenCalledWith({
       accountId: 'account-1',
       approvedRows: [
         {
           categoryId: 'category-1',
           fingerprint: 'review-row',
-          normalized: preview.rows[3]?.normalized,
           rowNumber: 5,
         },
       ],
+      importSessionId: 'session-1',
       idempotencyKey: 'batch-1',
-      sourceFormat: 'csv',
     });
     expect(result).toEqual({
       batchId: 'batch-1',
@@ -191,10 +272,129 @@ describe('useTransactionImport', () => {
     });
   });
 
-  it('reuses the preview source format when committing bank PDF rows', async () => {
+  it('replaces approval state when a later preview returns a different staged result set', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify(makeStageResponse()), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 200,
+      }),
+    );
+    importPreviewFromSessionMutate.mockResolvedValue(makePreviewResponse());
+
+    const replacementPreview = makePreviewResponse({
+      rows: [
+        {
+          rowNumber: 8,
+          status: 'duplicate',
+          issues: [{ code: 'duplicate_existing', message: 'Already imported.', rowNumber: 8 }],
+          normalized: {
+            amount: 22,
+            date: '2026-05-12',
+            description: 'Duplicate replacement row',
+            externalReference: 'duplicate-replacement',
+            type: TransactionType.EXPENSE,
+          },
+          raw: {
+            Amount: '-22.00',
+            Date: '2026-05-12',
+            Description: 'Duplicate replacement row',
+          },
+          fingerprint: 'replacement-row',
+        },
+      ],
+      summary: {
+        duplicate: 1,
+        invalid: 0,
+        ready: 0,
+        reviewRequired: 0,
+        total: 1,
+      },
+    });
+
+    let secondPreviewPending = false;
+    let resolveSecondPreview: (preview: TransactionImportPreviewResponseDTO) => void = () => {
+      throw new Error('Expected the second preview request to remain pending.');
+    };
+
+    const { useTransactionImport } = await import('./useTransactionImport');
+    const transactionImport = useTransactionImport();
+
+    await transactionImport.stageSourceFile(
+      new File(['Date,Description,Amount'], 'statement.csv', { type: 'text/csv' }),
+    );
+
+    await transactionImport.requestPreview({
+      defaults: {
+        accountId: 'account-1',
+        currency: CurrencyEnum.USD,
+        typeStrategy: 'signed_amount',
+      },
+      mapping: {
+        amount: 'Amount',
+        date: 'Date',
+        description: 'Description',
+      },
+    });
+
+    expect(transactionImport.approvedPreviewRows.value.map((row) => row.rowNumber)).toEqual([2, 5]);
+
+    importPreviewFromSessionMutate.mockImplementationOnce(
+      () =>
+        new Promise<TransactionImportPreviewResponseDTO>((resolve) => {
+          secondPreviewPending = true;
+          resolveSecondPreview = resolve;
+        }),
+    );
+
+    const secondPreviewPromise = transactionImport.requestPreview({
+      defaults: {
+        accountId: 'account-1',
+        currency: CurrencyEnum.USD,
+        typeStrategy: 'signed_amount',
+      },
+      mapping: {
+        amount: 'Amount',
+        date: 'Date',
+        description: 'Description',
+      },
+    });
+
+    expect(transactionImport.previewLoading.value).toBe(true);
+    expect(transactionImport.approvalState.value).toEqual({});
+    expect(transactionImport.approvedPreviewRows.value).toEqual([]);
+
+    if (!secondPreviewPending) {
+      throw new Error('Expected the second preview request to remain pending.');
+    }
+
+    resolveSecondPreview(replacementPreview);
+
+    await secondPreviewPromise;
+
+    expect(transactionImport.approvalState.value).toEqual({ 8: false });
+    expect(transactionImport.approvedPreviewRows.value).toEqual([]);
+  });
+
+  it('branches for staged PDF uploads without sending CSV mapping fields', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify(
+          makeStageResponse({
+            headers: [],
+            importSessionId: 'session-pdf',
+            sourceFilename: 'statement.pdf',
+            sourceFormat: 'bank_pdf_text',
+          }),
+        ),
+        {
+          headers: { 'Content-Type': 'application/json' },
+          status: 200,
+        },
+      ),
+    );
     const preview = makePreviewResponse();
-    importPreviewMutate.mockResolvedValue(preview);
-    importCommitMutate.mockResolvedValue({
+    importPreviewFromSessionMutate.mockResolvedValue(preview);
+    importCommitFromSessionMutate.mockResolvedValue({
       batchId: 'batch-2',
       createdCount: 2,
       createdTransactionIds: ['tx-2', 'tx-3'],
@@ -203,15 +403,14 @@ describe('useTransactionImport', () => {
     const { useTransactionImport } = await import('./useTransactionImport');
     const transactionImport = useTransactionImport();
 
+    await transactionImport.stageSourceFile(new File(['%PDF'], 'statement.pdf', { type: 'application/pdf' }));
+
     await transactionImport.requestPreview({
       defaults: {
         accountId: 'account-1',
         currency: CurrencyEnum.USD,
         typeStrategy: 'signed_amount',
       },
-      source: 'JVBERg==',
-      sourceFilename: 'statement.pdf',
-      sourceFormat: 'bank_pdf_text',
     });
 
     await transactionImport.commitApprovedRows({
@@ -219,12 +418,42 @@ describe('useTransactionImport', () => {
       idempotencyKey: 'batch-2',
     });
 
-    expect(importCommitMutate).toHaveBeenCalledWith(
+    expect(importPreviewFromSessionMutate).toHaveBeenCalledWith({
+      defaults: {
+        accountId: 'account-1',
+        categoryId: null,
+        currency: CurrencyEnum.USD,
+        fixedType: null,
+        typeStrategy: 'signed_amount',
+      },
+      importSessionId: 'session-pdf',
+    });
+    expect(importCommitFromSessionMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         accountId: 'account-1',
         idempotencyKey: 'batch-2',
-        sourceFormat: 'bank_pdf_text',
+        importSessionId: 'session-pdf',
       }),
     );
+  });
+
+  it('surfaces staged upload failures and clears the staged session state', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ message: 'Unsupported statement upload.' }), {
+        headers: { 'Content-Type': 'application/json' },
+        status: 415,
+      }),
+    );
+
+    const { useTransactionImport } = await import('./useTransactionImport');
+    const transactionImport = useTransactionImport();
+
+    await expect(
+      transactionImport.stageSourceFile(new File(['bad'], 'statement.txt', { type: 'text/plain' })),
+    ).rejects.toThrow('Unsupported statement upload.');
+
+    expect(transactionImport.stagedUpload.value).toBeNull();
+    expect(transactionImport.importSessionId.value).toBeNull();
+    expect(transactionImport.stageError.value?.message).toBe('Unsupported statement upload.');
   });
 });

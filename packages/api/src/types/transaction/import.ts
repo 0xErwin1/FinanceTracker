@@ -85,6 +85,23 @@ export interface TransactionImportPreviewRequestDTO {
   defaults: TransactionImportDefaultsDTO;
 }
 
+export interface TransactionImportStageResponseDTO {
+  importSessionId: string;
+  sourceFormat: TransactionImportSourceFormat;
+  sourceFilename?: string;
+  byteSize: number;
+  delimiter: string;
+  hasHeader: boolean;
+  headers: string[];
+  parserIssues: TransactionImportIssueDTO[];
+}
+
+export interface TransactionImportPreviewFromSessionRequestDTO {
+  importSessionId: string;
+  mapping?: TransactionImportMappingDTO;
+  defaults: TransactionImportDefaultsDTO;
+}
+
 export interface TransactionImportPreviewResponseDTO {
   delimiter: string;
   hasHeader: boolean;
@@ -102,11 +119,24 @@ export interface TransactionImportCommitRowDTO {
   categoryId?: string | null;
 }
 
+export interface TransactionImportApprovedRowRefDTO {
+  rowNumber: number;
+  fingerprint: string;
+  categoryId?: string | null;
+}
+
 export interface TransactionImportCommitRequestDTO {
   accountId: string;
   idempotencyKey: string;
   sourceFormat?: TransactionImportSourceFormat;
   approvedRows: TransactionImportCommitRowDTO[];
+}
+
+export interface TransactionImportCommitFromSessionRequestDTO {
+  importSessionId: string;
+  accountId: string;
+  idempotencyKey: string;
+  approvedRows: TransactionImportApprovedRowRefDTO[];
 }
 
 export interface TransactionImportCommitResponseDTO {

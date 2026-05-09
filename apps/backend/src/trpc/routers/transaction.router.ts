@@ -148,6 +148,12 @@ const importPreviewSchema = z.object({
   sourceFormat: transactionImportSourceFormatSchema.optional().default('csv'),
 });
 
+const importPreviewFromSessionSchema = z.object({
+  defaults: importPreviewDefaultsSchema,
+  importSessionId: z.string().uuid(),
+  mapping: importPreviewMappingSchema.optional(),
+});
+
 function validateImportPreviewInput(input: z.infer<typeof importPreviewSchema>): void {
   if (input.sourceFormat !== 'bank_pdf_text') {
     return;
@@ -195,6 +201,19 @@ const importCommitSchema = z.object({
   idempotencyKey: z.string().min(1),
   approvedRows: z.array(importCommitRowSchema).min(1),
   sourceFormat: transactionImportSourceFormatSchema.optional(),
+});
+
+const importCommitFromSessionRowSchema = z.object({
+  rowNumber: z.number().int().positive(),
+  fingerprint: z.string().min(1),
+  categoryId: z.string().uuid().nullable().optional(),
+});
+
+const importCommitFromSessionSchema = z.object({
+  accountId: z.string().uuid(),
+  idempotencyKey: z.string().min(1),
+  importSessionId: z.string().uuid(),
+  approvedRows: z.array(importCommitFromSessionRowSchema).min(1),
 });
 
 export const transactionRouter = {
@@ -255,10 +274,20 @@ export const transactionRouter = {
       return transactionController.importPreview(input, ctx.userId);
     }),
 
+  importPreviewFromSession: publicProcedure
+    .use(isAuthenticated)
+    .input(importPreviewFromSessionSchema)
+    .mutation(({ input, ctx }) => transactionController.importPreviewFromSession(input, ctx.userId)),
+
   importCommit: publicProcedure
     .use(isAuthenticated)
     .input(importCommitSchema)
     .mutation(({ input, ctx }) => transactionController.importCommit(input, ctx.userId)),
+
+  importCommitFromSession: publicProcedure
+    .use(isAuthenticated)
+    .input(importCommitFromSessionSchema)
+    .mutation(({ input, ctx }) => transactionController.importCommitFromSession(input, ctx.userId)),
 
   updateTransfer: publicProcedure
     .use(isAuthenticated)
