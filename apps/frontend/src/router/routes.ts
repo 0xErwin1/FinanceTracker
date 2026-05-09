@@ -34,6 +34,11 @@ export const appRoutes: RouteRecordRaw[] = [
     component: () => import('@/views/transactions/CreateTransactionView.vue'),
   },
   {
+    path: '/transactions/import',
+    name: 'ImportTransactions',
+    component: () => import('@/views/transactions/ImportTransactionsView.vue'),
+  },
+  {
     path: '/transactions/:id/edit',
     name: 'EditTransaction',
     component: () => import('@/views/transactions/EditTransactionView.vue'),

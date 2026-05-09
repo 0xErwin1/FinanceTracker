@@ -205,6 +205,25 @@ const valuationMessage = computed(() => getValuationCoverageMessage(valuationSna
 
 <template>
   <div class="flex h-full min-w-0 flex-col gap-4">
+    <div class="rounded-base border border-border-default bg-bg-card px-4 py-4 sm:px-5">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-1">
+          <h1 class="text-lg font-semibold text-text-primary">Transactions</h1>
+          <p class="text-sm text-text-secondary">
+            Review ledger activity, then jump into the CSV import flow when you need to bring statement data in without manual re-entry.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="inline-flex w-full items-center justify-center rounded-base border border-border-default px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-bg-card-hover hover:text-text-primary sm:w-auto"
+          @click="router.push('/transactions/import')"
+        >
+          Import CSV
+        </button>
+      </div>
+    </div>
+
     <!-- Section 1: Filter Bar -->
     <TransactionFilterBar
       :search-filter="searchFilter"

@@ -29,4 +29,17 @@ describe('appRoutes', () => {
     expect(forgotResolution.matched).toHaveLength(0);
     expect(resetResolution.matched).toHaveLength(0);
   });
+
+  it('exposes the CSV import flow under /transactions/import', () => {
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: appRoutes,
+    });
+
+    const importResolution = router.resolve('/transactions/import');
+
+    expect(importResolution.name).toBe('ImportTransactions');
+    expect(importResolution.matched).toHaveLength(1);
+    expect(importResolution.matched[0]?.path).toBe('/transactions/import');
+  });
 });

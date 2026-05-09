@@ -4,7 +4,10 @@ import { InitialSchema1744500000000 } from '../../src/migrations/1744500000000-I
 import { RecurringTransactions1744600000000 } from '../../src/migrations/1744600000000-RecurringTransactions';
 import { InstallmentsRedesign1744700000000 } from '../../src/migrations/1744700000000-InstallmentsRedesign';
 import { AccountsBankingFoundation1744800000000 } from '../../src/migrations/1744800000000-AccountsBankingFoundation';
+import { AccountOwnershipBackfill1744810000000 } from '../../src/migrations/1744810000000-AccountOwnershipBackfill';
+import { MultiCurrencyPreferencesAndRates1760900000000 } from '../../src/migrations/1760900000000-MultiCurrencyPreferencesAndRates';
 import { InstitutionOwnership1761000000000 } from '../../src/migrations/1761000000000-InstitutionOwnership';
+import { TransactionImportMetadata1761100000000 } from '../../src/migrations/1761100000000-TransactionImportMetadata';
 
 jest.setTimeout(30000);
 
@@ -14,9 +17,17 @@ const legacyMigrations: MigrationInterface[] = [
   new InstallmentsRedesign1744700000000(),
 ];
 
-const latestMigrations: MigrationInterface[] = [
+const preInstitutionOwnershipMigrations: MigrationInterface[] = [
   ...legacyMigrations,
   new AccountsBankingFoundation1744800000000(),
+  new AccountOwnershipBackfill1744810000000(),
+  new MultiCurrencyPreferencesAndRates1760900000000(),
+];
+
+const latestMigrations: MigrationInterface[] = [
+  ...preInstitutionOwnershipMigrations,
+  new InstitutionOwnership1761000000000(),
+  new TransactionImportMetadata1761100000000(),
 ];
 
 describe('accounts banking foundation migration', () => {
@@ -208,11 +219,11 @@ describe('institution ownership migration', () => {
   }
 
   beforeEach(async () => {
-    await resetSchema(latestMigrations);
+    await resetSchema(preInstitutionOwnershipMigrations);
   });
 
   afterAll(async () => {
-    await resetSchema([...latestMigrations, new InstitutionOwnership1761000000000()]);
+    await resetSchema(latestMigrations);
     await dataSource.destroy();
   });
 
@@ -341,4 +352,65 @@ describe('institution ownership migration', () => {
       ]),
     );
   }, 20000);
+});
+
+describe('latest migration baseline', () => {
+  let dataSource: DataSource;
+
+  async function resetSchema(migrations: MigrationInterface[]): Promise<void> {
+    if (dataSource?.isInitialized) {
+      await dataSource.destroy();
+    }
+
+    dataSource = new DataSource({
+      type: 'postgres',
+      url: config.databaseUrl,
+      synchronize: false,
+      logging: false,
+      migrations: [],
+    });
+
+    await dataSource.initialize();
+    await dataSource.query('DROP SCHEMA IF EXISTS public CASCADE');
+    await dataSource.query('CREATE SCHEMA IF NOT EXISTS public');
+
+    const queryRunner = dataSource.createQueryRunner();
+
+    try {
+      for (const migration of migrations) {
+        await migration.up(queryRunner);
+      }
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  beforeEach(async () => {
+    await resetSchema(latestMigrations);
+  });
+
+  afterAll(async () => {
+    await resetSchema(latestMigrations);
+    await dataSource.destroy();
+  });
+
+  it('restores the full latest transaction import schema for the next test suite', async () => {
+    const transactionColumns = (await dataSource.query(
+      `
+        SELECT "column_name"
+        FROM "information_schema"."columns"
+        WHERE "table_schema" = 'public'
+          AND "table_name" = 'transactions'
+          AND "column_name" IN ('external_reference', 'import_source', 'import_batch_id', 'import_fingerprint')
+        ORDER BY "column_name" ASC
+      `,
+    )) as Array<{ column_name: string }>;
+
+    expect(transactionColumns).toEqual([
+      { column_name: 'external_reference' },
+      { column_name: 'import_batch_id' },
+      { column_name: 'import_fingerprint' },
+      { column_name: 'import_source' },
+    ]);
+  });
 });
