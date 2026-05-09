@@ -1,8 +1,36 @@
 import { publicProcedure } from '@expenses/api';
+import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { transactionController } from '../../controllers';
 import { CurrencyEnum, TransactionType } from '../../enums';
 import { isAuthenticated } from '../protected';
+
+const MAX_PDF_IMPORT_BYTES = 8 * 1024 * 1024;
+const transactionImportSourceFormatSchema = z.enum(['csv', 'bank_pdf_text']);
+
+function decodeBase64PdfPayload(source: string): Buffer | null {
+  const normalized = source.trim();
+
+  if (normalized.length === 0 || normalized.length % 4 !== 0) {
+    return null;
+  }
+
+  if (!/^[A-Za-z0-9+/]+=*$/.test(normalized)) {
+    return null;
+  }
+
+  try {
+    const decoded = Buffer.from(normalized, 'base64');
+
+    if (decoded.length === 0 || decoded.toString('base64') !== normalized) {
+      return null;
+    }
+
+    return decoded;
+  } catch {
+    return null;
+  }
+}
 
 const categoryInlineSchema = z.object({
   type: z.nativeEnum(TransactionType).optional(),
@@ -116,7 +144,38 @@ const importPreviewSchema = z.object({
   defaults: importPreviewDefaultsSchema,
   mapping: importPreviewMappingSchema.optional(),
   source: z.string().min(1),
+  sourceFilename: z.string().min(1).optional(),
+  sourceFormat: transactionImportSourceFormatSchema.optional().default('csv'),
 });
+
+function validateImportPreviewInput(input: z.infer<typeof importPreviewSchema>): void {
+  if (input.sourceFormat !== 'bank_pdf_text') {
+    return;
+  }
+
+  if (!input.sourceFilename?.trim().toLowerCase().endsWith('.pdf')) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'PDF imports must include the original .pdf filename.',
+    });
+  }
+
+  const decoded = decodeBase64PdfPayload(input.source);
+
+  if (decoded === null) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'PDF imports must provide a valid base64 payload.',
+    });
+  }
+
+  if (decoded.length > MAX_PDF_IMPORT_BYTES) {
+    throw new TRPCError({
+      code: 'BAD_REQUEST',
+      message: 'PDF imports cannot exceed 8 MB before extraction.',
+    });
+  }
+}
 
 const importCommitRowSchema = z.object({
   rowNumber: z.number().int().positive(),
@@ -135,6 +194,7 @@ const importCommitSchema = z.object({
   accountId: z.string().uuid(),
   idempotencyKey: z.string().min(1),
   approvedRows: z.array(importCommitRowSchema).min(1),
+  sourceFormat: transactionImportSourceFormatSchema.optional(),
 });
 
 export const transactionRouter = {
@@ -189,7 +249,11 @@ export const transactionRouter = {
   importPreview: publicProcedure
     .use(isAuthenticated)
     .input(importPreviewSchema)
-    .mutation(({ input, ctx }) => transactionController.importPreview(input, ctx.userId)),
+    .mutation(({ input, ctx }) => {
+      validateImportPreviewInput(input);
+
+      return transactionController.importPreview(input, ctx.userId);
+    }),
 
   importCommit: publicProcedure
     .use(isAuthenticated)

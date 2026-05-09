@@ -13,6 +13,36 @@ import {
   truncateAllTables,
 } from './setup';
 
+jest.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({
+  getDocument: jest.fn(),
+}));
+
+const { getDocument } = require('pdfjs-dist/legacy/build/pdf.mjs') as {
+  getDocument: jest.Mock;
+};
+
+function createMockPdfPage(items: Array<{ str: string; transform: number[] }> = []) {
+  return {
+    cleanup: jest.fn(),
+    getTextContent: jest.fn().mockResolvedValue({ items }),
+  };
+}
+
+function mockPdfDocument(pages: Array<ReturnType<typeof createMockPdfPage>>) {
+  const destroy = jest.fn().mockResolvedValue(undefined);
+  const document = {
+    getPage: jest.fn((pageNumber: number) => Promise.resolve(pages[pageNumber - 1])),
+    numPages: pages.length,
+  };
+
+  getDocument.mockReturnValue({
+    destroy,
+    promise: Promise.resolve(document),
+  });
+
+  return { destroy, document };
+}
+
 function buildApprovedRows(
   previewRows: Array<{
     rowNumber: number;
@@ -47,6 +77,7 @@ describe('transaction router', () => {
   const publicCaller = createPublicCaller();
 
   beforeEach(async () => {
+    getDocument.mockReset();
     await truncateAllTables();
     const user = await seedUser();
     userId = user.id;
@@ -412,6 +443,239 @@ describe('transaction router', () => {
         },
       });
     }, 15000);
+
+    it('accepts explicit CSV source metadata without changing preview behavior', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      const result = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'Date,Description,Amount\n2026-05-08,Coffee,-12.50',
+        sourceFilename: 'statement.csv',
+        sourceFormat: 'csv',
+      });
+
+      expect(result.summary).toEqual({
+        duplicate: 0,
+        invalid: 0,
+        ready: 1,
+        reviewRequired: 0,
+        total: 1,
+      });
+    });
+
+    it('rejects bank PDF previews when the payload is not valid base64', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      await expect(
+        caller.transaction.importPreview({
+          defaults: {
+            accountId: account.id,
+            currency: CurrencyEnum.USD,
+            typeStrategy: 'signed_amount',
+          },
+          source: 'not-base64',
+          sourceFilename: 'statement.pdf',
+          sourceFormat: 'bank_pdf_text',
+        }),
+      ).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      });
+    });
+
+    it('rejects bank PDF previews when the decoded payload exceeds the PDF limit', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const oversizedPdfPayload = Buffer.alloc(8 * 1024 * 1024 + 1, 1).toString('base64');
+
+      await expect(
+        caller.transaction.importPreview({
+          defaults: {
+            accountId: account.id,
+            currency: CurrencyEnum.USD,
+            typeStrategy: 'signed_amount',
+          },
+          source: oversizedPdfPayload,
+          sourceFilename: 'statement.pdf',
+          sourceFormat: 'bank_pdf_text',
+        }),
+      ).rejects.toMatchObject({
+        code: 'BAD_REQUEST',
+      });
+    }, 15000);
+
+    it('rejects oversized PDF previews without writes or raw payload details', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const oversizedPdfPayload = Buffer.alloc(8 * 1024 * 1024 + 1, 1).toString('base64');
+      const payloadSnippet = oversizedPdfPayload.slice(0, 32);
+      const transactionRepository = AppDataSource.getRepository(Transaction);
+      const transactionCountBeforePreview = await transactionRepository.countBy({ userId });
+
+      try {
+        await caller.transaction.importPreview({
+          defaults: {
+            accountId: account.id,
+            currency: CurrencyEnum.USD,
+            typeStrategy: 'signed_amount',
+          },
+          source: oversizedPdfPayload,
+          sourceFilename: 'statement.pdf',
+          sourceFormat: 'bank_pdf_text',
+        });
+
+        throw new Error('Expected oversized PDF preview to fail');
+      } catch (error) {
+        expect(error).toMatchObject({
+          code: 'BAD_REQUEST',
+          message: 'PDF imports cannot exceed 8 MB before extraction.',
+        });
+
+        const errorMessage = error instanceof Error ? error.message : '';
+
+        expect(errorMessage).not.toContain(payloadSnippet);
+      }
+
+      const transactionCountAfterPreview = await transactionRepository.countBy({ userId });
+
+      expect(transactionCountAfterPreview).toBe(transactionCountBeforePreview);
+    }, 15000);
+
+    it('reuses the existing preview flow after normalizing supported bank PDF rows', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      mockPdfDocument([
+        createMockPdfPage([
+          { str: 'Date', transform: [1, 0, 0, 1, 72, 720] },
+          { str: 'Description', transform: [1, 0, 0, 1, 160, 720] },
+          { str: 'Amount', transform: [1, 0, 0, 1, 320, 720] },
+          { str: '08/05/2026', transform: [1, 0, 0, 1, 72, 700] },
+          { str: 'Coffee Shop', transform: [1, 0, 0, 1, 160, 700] },
+          { str: '-12.50', transform: [1, 0, 0, 1, 320, 700] },
+          { str: '09/05/2026', transform: [1, 0, 0, 1, 72, 680] },
+          { str: 'Salary', transform: [1, 0, 0, 1, 160, 680] },
+          { str: '2000.00', transform: [1, 0, 0, 1, 320, 680] },
+        ]),
+      ]);
+
+      const result = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'JVBERg==',
+        sourceFilename: 'statement.pdf',
+        sourceFormat: 'bank_pdf_text',
+      });
+
+      expect(result.headers).toEqual(['Date', 'Description', 'Amount']);
+      expect(result.parserIssues).toEqual([]);
+      expect(result.summary).toEqual({
+        duplicate: 0,
+        invalid: 0,
+        ready: 2,
+        reviewRequired: 0,
+        total: 2,
+      });
+      expect(result.rows.map((row) => row.status)).toEqual(['ready', 'ready']);
+    });
+
+    it('does not create transactions before review when previewing a supported bank PDF', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      mockPdfDocument([
+        createMockPdfPage([
+          { str: 'Date', transform: [1, 0, 0, 1, 72, 720] },
+          { str: 'Description', transform: [1, 0, 0, 1, 160, 720] },
+          { str: 'Amount', transform: [1, 0, 0, 1, 320, 720] },
+          { str: '08/05/2026', transform: [1, 0, 0, 1, 72, 700] },
+          { str: 'Coffee Shop', transform: [1, 0, 0, 1, 160, 700] },
+          { str: '-12.50', transform: [1, 0, 0, 1, 320, 700] },
+        ]),
+      ]);
+
+      const transactionRepository = AppDataSource.getRepository(Transaction);
+      const transactionCountBeforePreview = await transactionRepository.countBy({ userId });
+
+      const preview = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'JVBERg==',
+        sourceFilename: 'statement.pdf',
+        sourceFormat: 'bank_pdf_text',
+      });
+
+      const transactionCountAfterPreview = await transactionRepository.countBy({ userId });
+
+      expect(preview.summary).toEqual({
+        duplicate: 0,
+        invalid: 0,
+        ready: 1,
+        reviewRequired: 0,
+        total: 1,
+      });
+      expect(transactionCountAfterPreview).toBe(transactionCountBeforePreview);
+    });
+
+    it('returns a parser issue when the PDF has no selectable text', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      mockPdfDocument([createMockPdfPage()]);
+
+      const result = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'JVBERg==',
+        sourceFilename: 'statement.pdf',
+        sourceFormat: 'bank_pdf_text',
+      });
+
+      expect(result.parserIssues).toEqual([
+        expect.objectContaining({
+          code: 'pdf_no_text',
+        }),
+      ]);
+      expect(result.rows).toEqual([]);
+      expect(result.summary.total).toBe(0);
+    });
+
+    it('returns a parser issue when the PDF layout is ambiguous', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+
+      mockPdfDocument([
+        createMockPdfPage([
+          { str: 'Date Description Amount', transform: [1, 0, 0, 1, 72, 720] },
+          { str: '08/05/2026 Coffee Shop -12.50', transform: [1, 0, 0, 1, 72, 700] },
+        ]),
+      ]);
+
+      const result = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'JVBERg==',
+        sourceFilename: 'statement.pdf',
+        sourceFormat: 'bank_pdf_text',
+      });
+
+      expect(result.parserIssues).toEqual([
+        expect.objectContaining({
+          code: 'pdf_unsupported_layout',
+        }),
+      ]);
+      expect(result.rows).toEqual([]);
+      expect(result.summary.total).toBe(0);
+    });
   });
 
   describe('importCommit', () => {
@@ -562,6 +826,101 @@ describe('transaction router', () => {
           typeStrategy: 'signed_amount',
         },
         source: 'Date,Description,Amount,Reference\n2026-05-13,Coffee,-12.50,coffee-3',
+      });
+
+      expect(duplicatePreview.summary).toEqual({
+        duplicate: 1,
+        invalid: 0,
+        ready: 0,
+        reviewRequired: 0,
+        total: 1,
+      });
+      expect(duplicatePreview.rows[0]?.issues).toEqual([
+        expect.objectContaining({
+          code: 'duplicate_existing',
+          rowNumber: 2,
+        }),
+      ]);
+    }, 15000);
+
+    it('preserves PDF commit idempotency, duplicate detection, and source metadata', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const category = await seedCategory(userId, { type: TransactionType.EXPENSE });
+
+      mockPdfDocument([
+        createMockPdfPage([
+          { str: 'Date', transform: [1, 0, 0, 1, 72, 720] },
+          { str: 'Description', transform: [1, 0, 0, 1, 160, 720] },
+          { str: 'Amount', transform: [1, 0, 0, 1, 320, 720] },
+          { str: '08/05/2026', transform: [1, 0, 0, 1, 72, 700] },
+          { str: 'Coffee Shop', transform: [1, 0, 0, 1, 160, 700] },
+          { str: '-12.50', transform: [1, 0, 0, 1, 320, 700] },
+        ]),
+      ]);
+
+      const preview = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'JVBERg==',
+        sourceFilename: 'statement.pdf',
+        sourceFormat: 'bank_pdf_text',
+      });
+
+      const approvedRows = buildApprovedRows(preview.rows, category.id);
+
+      const firstCommit = await caller.transaction.importCommit({
+        accountId: account.id,
+        approvedRows,
+        idempotencyKey: 'pdf-stable-import-batch',
+        sourceFormat: 'bank_pdf_text',
+      });
+
+      const secondCommit = await caller.transaction.importCommit({
+        accountId: account.id,
+        approvedRows,
+        idempotencyKey: 'pdf-stable-import-batch',
+        sourceFormat: 'bank_pdf_text',
+      });
+
+      expect(secondCommit).toEqual(firstCommit);
+
+      const importedTransactions = await AppDataSource.getRepository(Transaction).find({
+        where: {
+          importBatchId: 'pdf-stable-import-batch',
+          userId,
+        },
+        order: { date: 'ASC' },
+      });
+
+      expect(importedTransactions).toHaveLength(1);
+      expect(importedTransactions[0]).toMatchObject({
+        importFingerprint: approvedRows[0]?.fingerprint,
+        importSource: 'bank_pdf_text',
+      });
+
+      mockPdfDocument([
+        createMockPdfPage([
+          { str: 'Date', transform: [1, 0, 0, 1, 72, 720] },
+          { str: 'Description', transform: [1, 0, 0, 1, 160, 720] },
+          { str: 'Amount', transform: [1, 0, 0, 1, 320, 720] },
+          { str: '08/05/2026', transform: [1, 0, 0, 1, 72, 700] },
+          { str: 'Coffee Shop', transform: [1, 0, 0, 1, 160, 700] },
+          { str: '-12.50', transform: [1, 0, 0, 1, 320, 700] },
+        ]),
+      ]);
+
+      const duplicatePreview = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: 'JVBERg==',
+        sourceFilename: 'statement.pdf',
+        sourceFormat: 'bank_pdf_text',
       });
 
       expect(duplicatePreview.summary).toEqual({

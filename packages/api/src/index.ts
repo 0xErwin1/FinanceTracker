@@ -38,6 +38,7 @@ export type {
   TransactionImportPreviewRowDTO,
   TransactionImportPreviewSummaryDTO,
   TransactionImportRowStatus,
+  TransactionImportSourceFormat,
   TransactionImportTypeStrategy,
 } from './types/transaction/import';
 export type { TransactionDTO } from './types/transaction/model';

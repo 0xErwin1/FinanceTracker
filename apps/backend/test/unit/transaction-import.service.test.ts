@@ -1,6 +1,7 @@
 import { CurrencyEnum, type TransactionImportMappingDTO, TransactionType } from '@expenses/api';
 import {
   buildImportFingerprint,
+  buildTransactionImportMetadata,
   resolveImportPreviewMapping,
   TransactionImportMappingError,
 } from '../../src/services/transaction-import.service';
@@ -105,6 +106,39 @@ describe('transaction import preview helpers', () => {
       });
 
       expect(expenseFingerprint).not.toBe(incomeFingerprint);
+    });
+  });
+
+  describe('buildTransactionImportMetadata', () => {
+    it('persists bank PDF commits with the bank_pdf_text source marker', () => {
+      expect(
+        buildTransactionImportMetadata({
+          batchId: 'batch-1',
+          externalReference: 'statement-line-1',
+          fingerprint: 'fingerprint-1',
+          sourceFormat: 'bank_pdf_text',
+        }),
+      ).toEqual({
+        batchId: 'batch-1',
+        externalReference: 'statement-line-1',
+        fingerprint: 'fingerprint-1',
+        source: 'bank_pdf_text',
+      });
+    });
+
+    it('defaults commit metadata back to csv when no source format is provided', () => {
+      expect(
+        buildTransactionImportMetadata({
+          batchId: 'batch-2',
+          externalReference: null,
+          fingerprint: 'fingerprint-2',
+        }),
+      ).toEqual({
+        batchId: 'batch-2',
+        externalReference: null,
+        fingerprint: 'fingerprint-2',
+        source: 'csv',
+      });
     });
   });
 });

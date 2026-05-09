@@ -2,6 +2,7 @@
 import {
   CurrencyEnum,
   type TransactionImportMappingDTO,
+  type TransactionImportSourceFormat,
   type TransactionImportTypeStrategy,
   TransactionType,
 } from '@expenses/api';
@@ -13,8 +14,12 @@ import { useAccounts } from '@/composables/useAccounts';
 import { useCategories } from '@/composables/useCategories';
 import { useTransactionImport } from '@/composables/useTransactionImport';
 import {
+  applyImportedSourceFileError,
+  applyImportedSourceFileSelection,
   buildImportPreviewRequest,
   getCommitDisabledReason,
+  getImportPreviewErrorMessage,
+  getImportSourceGuidance,
   getImportStatusPresentation,
   readImportSourceFile,
   validateImportDraft,
@@ -40,6 +45,8 @@ const currencyOptions = Object.values(CurrencyEnum);
 
 interface ImportFormState {
   source: string;
+  sourceFilename?: string;
+  sourceFormat: TransactionImportSourceFormat;
   defaults: {
     accountId: string;
     categoryId: string;
@@ -52,6 +59,8 @@ interface ImportFormState {
 
 const form = reactive<ImportFormState>({
   source: '',
+  sourceFilename: undefined,
+  sourceFormat: 'csv',
   defaults: {
     accountId: '',
     categoryId: '',
@@ -87,6 +96,10 @@ const categoryOptions = computed(() => {
 const availableHeaders = computed(() => transactionImport.preview.value?.headers ?? []);
 const previewRows = computed(() => transactionImport.preview.value?.rows ?? []);
 const parserIssues = computed(() => transactionImport.preview.value?.parserIssues ?? []);
+const previewErrorMessage = computed(() =>
+  getImportPreviewErrorMessage(transactionImport.previewError.value, form.sourceFormat),
+);
+const sourceGuidance = computed(() => getImportSourceGuidance(form.sourceFormat));
 const approvedRowCount = computed(() => transactionImport.approvedPreviewRows.value.length);
 const commitDisabledReason = computed(() =>
   getCommitDisabledReason({
@@ -133,12 +146,28 @@ async function handleSourceFileChange(event: Event): Promise<void> {
   }
 
   try {
-    form.source = await readImportSourceFile(file);
-    formIssues.value = [];
+    const result = await readImportSourceFile(file);
+    const nextState = applyImportedSourceFileSelection(result);
+
+    form.source = nextState.formSource;
+    form.sourceFilename = nextState.sourceFilename;
+    form.sourceFormat = nextState.sourceFormat;
+    formIssues.value = nextState.formIssues;
+    sourceFileError.value = nextState.sourceFileError;
   } catch (error) {
-    form.source = '';
-    sourceFileError.value = error instanceof Error ? error.message : String(error);
+    const nextState = applyImportedSourceFileError(error instanceof Error ? error.message : String(error));
+
+    form.source = nextState.formSource;
+    form.sourceFilename = nextState.sourceFilename;
+    form.sourceFormat = nextState.sourceFormat;
+    sourceFileError.value = nextState.sourceFileError;
   }
+}
+
+function handleSourceInput(): void {
+  form.sourceFormat = 'csv';
+  form.sourceFilename = undefined;
+  selectedFileName.value = null;
 }
 
 async function handlePreview(): Promise<void> {
@@ -146,6 +175,8 @@ async function handlePreview(): Promise<void> {
     defaults: form.defaults,
     mapping: form.mapping,
     source: form.source,
+    sourceFilename: form.sourceFilename,
+    sourceFormat: form.sourceFormat,
   });
 
   formIssues.value = issues;
@@ -165,6 +196,8 @@ async function handlePreview(): Promise<void> {
       },
       mapping: form.mapping,
       source: form.source,
+      sourceFilename: form.sourceFilename,
+      sourceFormat: form.sourceFormat,
     }),
   );
 
@@ -192,7 +225,7 @@ async function handleCommit(): Promise<void> {
   <div class="space-y-4 lg:space-y-5">
     <ResponsivePageHeader
       title="Import transactions"
-      subtitle="Upload or paste bank CSV data, confirm the inferred mapping, and commit only the rows that survive preview validation."
+      subtitle="Upload bank CSV data or a text-based PDF statement, confirm the inferred mapping when needed, and commit only the rows that survive preview validation."
     >
       <template #actions>
         <button
@@ -207,26 +240,26 @@ async function handleCommit(): Promise<void> {
 
     <ResponsiveFormSection
       title="Source and defaults"
-      description="Upload a CSV file or paste raw CSV text, pick the destination account, and confirm the columns the backend should interpret."
+      description="Upload a CSV file or a text-based PDF statement, pick the destination account, and confirm the columns the backend should interpret when the source is CSV."
       :columns="2"
     >
       <div class="space-y-1.5 shell:col-span-2">
-        <label for="import-source-file" class="text-xs font-medium text-text-muted">CSV file</label>
+        <label for="import-source-file" class="text-xs font-medium text-text-muted">CSV or PDF file</label>
         <input
           id="import-source-file"
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,text/csv,.pdf,application/pdf"
           :class="fieldClass"
           @change="handleSourceFileChange"
         />
         <p class="text-xs text-text-muted">
-          Select a bank export to load its contents into the source editor, or leave this blank and paste the CSV manually.
+          {{ sourceGuidance }}
         </p>
         <p v-if="selectedFileName" class="text-xs text-text-secondary">Loaded file: {{ selectedFileName }}</p>
         <p v-if="sourceFileError" class="text-xs text-rose-100">{{ sourceFileError }}</p>
       </div>
 
-      <div class="space-y-1.5 shell:col-span-2">
+      <div v-if="form.sourceFormat === 'csv'" class="space-y-1.5 shell:col-span-2">
         <label for="import-source" class="text-xs font-medium text-text-muted">CSV source</label>
         <textarea
           id="import-source"
@@ -234,7 +267,15 @@ async function handleCommit(): Promise<void> {
           rows="10"
           :class="fieldClass"
           placeholder="Date,Description,Amount&#10;2026-05-08,Coffee,-12.50"
+          @input="handleSourceInput"
         />
+      </div>
+
+      <div v-else class="space-y-2 shell:col-span-2 rounded-base border border-border-default bg-bg-card px-3 py-2 text-sm text-text-secondary">
+        <p>PDF source loaded: {{ form.sourceFilename ?? selectedFileName ?? 'statement.pdf' }}</p>
+        <p class="text-xs text-text-muted">
+          The backend will extract selectable text, normalize supported statement rows, and reject scanned PDFs or unsupported layouts before any preview rows are created.
+        </p>
       </div>
 
       <div class="space-y-1.5">
@@ -350,12 +391,9 @@ async function handleCommit(): Promise<void> {
       </ul>
     </div>
 
-    <div
-      v-if="transactionImport.previewError.value"
-      class="rounded-base border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-100"
-    >
-      {{ transactionImport.previewError.value.message }}
-    </div>
+      <div v-if="previewErrorMessage" class="rounded-base border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-100">
+        {{ previewErrorMessage }}
+      </div>
 
     <ResponsiveFormSection
       title="Preview"
@@ -385,7 +423,9 @@ async function handleCommit(): Promise<void> {
       </div>
 
       <div v-if="parserIssues.length > 0" class="rounded-base border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
-        <p class="font-medium">Parser feedback</p>
+        <p class="font-medium">
+          {{ form.sourceFormat === 'bank_pdf_text' ? 'PDF statement feedback' : 'Parser feedback' }}
+        </p>
         <ul class="mt-2 list-disc space-y-1 pl-5">
           <li v-for="issue in parserIssues" :key="`${issue.code}-${issue.message}`">{{ issue.message }}</li>
         </ul>

@@ -3,18 +3,16 @@ import {
   type TransactionImportCommitRequestDTO,
   type TransactionImportPreviewRequestDTO,
   type TransactionImportPreviewResponseDTO,
+  type TransactionImportSourceFormat,
   TransactionType,
 } from '../../../../packages/api/src/client';
 
 describe('transaction import DTO exports', () => {
   it('keeps preview request payloads JSON-serializable for browser clients', () => {
     const payload: TransactionImportPreviewRequestDTO = {
-      source: 'Date,Amount,Description\n2026-05-01,-14.5,Coffee',
-      mapping: {
-        date: 'Date',
-        amount: 'Amount',
-        description: 'Description',
-      },
+      source: 'JVBERi0xLjQKJcTl8uXr',
+      sourceFilename: 'statement.pdf',
+      sourceFormat: 'bank_pdf_text',
       defaults: {
         accountId: 'account-1',
         currency: CurrencyEnum.USD,
@@ -24,12 +22,9 @@ describe('transaction import DTO exports', () => {
     };
 
     expect(JSON.parse(JSON.stringify(payload))).toEqual({
-      source: 'Date,Amount,Description\n2026-05-01,-14.5,Coffee',
-      mapping: {
-        date: 'Date',
-        amount: 'Amount',
-        description: 'Description',
-      },
+      source: 'JVBERi0xLjQKJcTl8uXr',
+      sourceFilename: 'statement.pdf',
+      sourceFormat: 'bank_pdf_text',
       defaults: {
         accountId: 'account-1',
         currency: 'USD',
@@ -40,6 +35,7 @@ describe('transaction import DTO exports', () => {
   });
 
   it('supports preview and commit DTOs with machine-readable statuses', () => {
+    const sourceFormat: TransactionImportSourceFormat = 'bank_pdf_text';
     const preview: TransactionImportPreviewResponseDTO = {
       delimiter: ',',
       hasHeader: true,
@@ -80,6 +76,7 @@ describe('transaction import DTO exports', () => {
     const commit: TransactionImportCommitRequestDTO = {
       accountId: 'account-1',
       idempotencyKey: 'batch-1',
+      sourceFormat,
       approvedRows: [
         {
           rowNumber: 2,
@@ -91,6 +88,21 @@ describe('transaction import DTO exports', () => {
     };
 
     expect(preview.rows[0].status).toBe('ready');
+    expect(sourceFormat).toBe('bank_pdf_text');
+    expect<readonly string[]>([
+      'parser_error',
+      'mapping_required',
+      'invalid_date',
+      'invalid_amount',
+      'category_type_mismatch',
+      'duplicate_in_file',
+      'duplicate_existing',
+      'review_required',
+      'row_limit_exceeded',
+      'pdf_no_text',
+      'pdf_unsupported_layout',
+      'pdf_size_exceeded',
+    ]).toContain('pdf_unsupported_layout');
     expect(commit.approvedRows[0]).toEqual({
       rowNumber: 2,
       fingerprint: 'fp-1',
@@ -103,5 +115,6 @@ describe('transaction import DTO exports', () => {
       },
       categoryId: 'category-1',
     });
+    expect(commit.sourceFormat).toBe('bank_pdf_text');
   });
 });

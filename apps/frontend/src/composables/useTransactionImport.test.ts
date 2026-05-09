@@ -182,11 +182,49 @@ describe('useTransactionImport', () => {
         },
       ],
       idempotencyKey: 'batch-1',
+      sourceFormat: 'csv',
     });
     expect(result).toEqual({
       batchId: 'batch-1',
       createdCount: 1,
       createdTransactionIds: ['tx-1'],
     });
+  });
+
+  it('reuses the preview source format when committing bank PDF rows', async () => {
+    const preview = makePreviewResponse();
+    importPreviewMutate.mockResolvedValue(preview);
+    importCommitMutate.mockResolvedValue({
+      batchId: 'batch-2',
+      createdCount: 2,
+      createdTransactionIds: ['tx-2', 'tx-3'],
+    });
+
+    const { useTransactionImport } = await import('./useTransactionImport');
+    const transactionImport = useTransactionImport();
+
+    await transactionImport.requestPreview({
+      defaults: {
+        accountId: 'account-1',
+        currency: CurrencyEnum.USD,
+        typeStrategy: 'signed_amount',
+      },
+      source: 'JVBERg==',
+      sourceFilename: 'statement.pdf',
+      sourceFormat: 'bank_pdf_text',
+    });
+
+    await transactionImport.commitApprovedRows({
+      accountId: 'account-1',
+      idempotencyKey: 'batch-2',
+    });
+
+    expect(importCommitMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: 'account-1',
+        idempotencyKey: 'batch-2',
+        sourceFormat: 'bank_pdf_text',
+      }),
+    );
   });
 });

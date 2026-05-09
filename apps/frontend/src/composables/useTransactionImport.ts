@@ -17,6 +17,12 @@ interface CommitApprovedRowsOptions {
   idempotencyKey?: string;
 }
 
+function resolvePreviewSourceFormat(
+  sourceFormat: TransactionImportPreviewRequestDTO['sourceFormat'],
+): TransactionImportCommitRequestDTO['sourceFormat'] {
+  return sourceFormat ?? 'csv';
+}
+
 interface UseTransactionImportReturn {
   preview: ComputedRef<TransactionImportPreviewResponseDTO | null>;
   previewLoading: ComputedRef<boolean>;
@@ -78,6 +84,7 @@ function createImportIdempotencyKey(): string {
 
 export function useTransactionImport(): UseTransactionImportReturn {
   const preview = ref<TransactionImportPreviewResponseDTO | null>(null);
+  const previewSourceFormat = ref<TransactionImportCommitRequestDTO['sourceFormat']>('csv');
   const previewLoading = ref(false);
   const previewError = ref<Error | null>(null);
 
@@ -108,6 +115,7 @@ export function useTransactionImport(): UseTransactionImportReturn {
 
   function clear(): void {
     preview.value = null;
+    previewSourceFormat.value = 'csv';
     previewError.value = null;
     approvalState.value = {};
     commitResult.value = null;
@@ -126,11 +134,13 @@ export function useTransactionImport(): UseTransactionImportReturn {
       const result = await trpc.transaction.importPreview.mutate(input);
 
       preview.value = result;
+      previewSourceFormat.value = resolvePreviewSourceFormat(input.sourceFormat);
       approvalState.value = buildApprovalState(result.rows);
 
       return result;
     } catch (error) {
       preview.value = null;
+      previewSourceFormat.value = 'csv';
       approvalState.value = {};
 
       const normalizedError = error instanceof Error ? error : new Error(String(error));
@@ -162,6 +172,7 @@ export function useTransactionImport(): UseTransactionImportReturn {
       accountId: options.accountId,
       approvedRows,
       idempotencyKey: options.idempotencyKey ?? createImportIdempotencyKey(),
+      sourceFormat: previewSourceFormat.value,
     };
 
     try {

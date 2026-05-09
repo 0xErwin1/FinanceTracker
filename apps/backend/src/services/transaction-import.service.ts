@@ -23,6 +23,8 @@ import { Transaction } from '../entities';
 import { CSVParserError, type ParsedCSVTextResult, parseCSVText } from '../utils/csv.util';
 import { accountService } from './account.service';
 import { categoryService } from './category.service';
+import { BankPdfNormalizationError, normalizeBankPdfText } from './import/bank-pdf-normalizer';
+import { BankPdfTextExtractionError, extractBankPdfText } from './import/bank-pdf-text-extractor.service';
 import { transactionService } from './transactions.service';
 
 const HEADER_ALIASES: Record<keyof TransactionImportMappingDTO, string[]> = {
@@ -82,6 +84,13 @@ interface CommitValidationResult {
 }
 
 type ImportAwareTransaction = TransactionDTO & Pick<Transaction, 'importBatchId' | 'importFingerprint'>;
+
+interface BuildTransactionImportMetadataInput {
+  batchId: string;
+  externalReference: string | null;
+  fingerprint: string;
+  sourceFormat?: TransactionImportCommitRequestDTO['sourceFormat'];
+}
 
 export class TransactionImportMappingError extends Error {
   readonly issues: TransactionImportIssueDTO[];
@@ -165,13 +174,27 @@ export function buildImportFingerprint(input: FingerprintInput): string {
   return createHash('sha256').update(payload).digest('hex');
 }
 
+export function buildTransactionImportMetadata(input: BuildTransactionImportMetadataInput): {
+  batchId: string;
+  externalReference: string | null;
+  fingerprint: string;
+  source: 'csv' | 'bank_pdf_text';
+} {
+  return {
+    batchId: input.batchId,
+    externalReference: input.externalReference,
+    fingerprint: input.fingerprint,
+    source: input.sourceFormat ?? 'csv',
+  };
+}
+
 async function importPreview(
   input: TransactionImportPreviewRequestDTO,
   userId: string,
 ): Promise<TransactionImportPreviewResponseDTO> {
   await accountService.getPostingAccount(input.defaults.accountId, userId, input.defaults.currency);
 
-  const parsed = safelyParseSource(input.source, input.mapping);
+  const parsed = await safelyParseSource(input.source, input.mapping, input.sourceFormat);
 
   if (parsed.parserIssues.length > 0) {
     return parsed.response;
@@ -223,7 +246,23 @@ async function importPreview(
   };
 }
 
-function safelyParseSource(
+async function safelyParseSource(
+  source: string,
+  mapping: TransactionImportMappingDTO | undefined,
+  sourceFormat: TransactionImportPreviewRequestDTO['sourceFormat'],
+): Promise<{
+  rows: ParsedCSVTextResult['rows'];
+  parserIssues: TransactionImportIssueDTO[];
+  response: TransactionImportPreviewResponseDTO;
+}> {
+  if (sourceFormat === 'bank_pdf_text') {
+    return safelyParsePdfSource(source, mapping);
+  }
+
+  return safelyParseCsvSource(source, mapping);
+}
+
+function safelyParseCsvSource(
   source: string,
   mapping: TransactionImportMappingDTO | undefined,
 ): {
@@ -253,6 +292,54 @@ function safelyParseSource(
     }
 
     const issue = toParserIssue(error);
+
+    return {
+      parserIssues: [issue],
+      response: {
+        delimiter: ',',
+        hasHeader: false,
+        headers: [],
+        mapping: mapping ?? {},
+        parserIssues: [issue],
+        rows: [],
+        summary: createEmptySummary(),
+      },
+      rows: [],
+    };
+  }
+}
+
+async function safelyParsePdfSource(
+  source: string,
+  mapping: TransactionImportMappingDTO | undefined,
+): Promise<{
+  rows: ParsedCSVTextResult['rows'];
+  parserIssues: TransactionImportIssueDTO[];
+  response: TransactionImportPreviewResponseDTO;
+}> {
+  try {
+    const extracted = await extractBankPdfText(Buffer.from(source, 'base64'));
+    const parsed = normalizeBankPdfText(extracted.text);
+
+    return {
+      parserIssues: [],
+      response: {
+        delimiter: parsed.delimiter,
+        hasHeader: parsed.hasHeader,
+        headers: parsed.headers,
+        mapping: mapping ?? {},
+        parserIssues: [],
+        rows: [],
+        summary: createEmptySummary(),
+      },
+      rows: parsed.rows,
+    };
+  } catch (error) {
+    if (!(error instanceof BankPdfTextExtractionError) && !(error instanceof BankPdfNormalizationError)) {
+      throw error;
+    }
+
+    const issue = toPdfParserIssue(error);
 
     return {
       parserIssues: [issue],
@@ -810,12 +897,12 @@ async function importCommit(
           currency: account.currency,
           date: normalized.date,
           disableCategoryAutoCreate: true,
-          importMetadata: {
+          importMetadata: buildTransactionImportMetadata({
             batchId: input.idempotencyKey,
             externalReference: normalized.externalReference,
             fingerprint: row.fingerprint,
-            source: 'csv',
-          },
+            sourceFormat: input.sourceFormat,
+          }),
           note: normalized.description,
           type: normalized.type,
           userId,
@@ -980,6 +1067,15 @@ function isImportFingerprintConflict(error: unknown): boolean {
 function toParserIssue(error: CSVParserError): TransactionImportIssueDTO {
   return {
     code: error.code === 'ROW_LIMIT_EXCEEDED' ? 'row_limit_exceeded' : 'parser_error',
+    message: error.message,
+  };
+}
+
+function toPdfParserIssue(
+  error: BankPdfTextExtractionError | BankPdfNormalizationError,
+): TransactionImportIssueDTO {
+  return {
+    code: error instanceof BankPdfNormalizationError ? 'pdf_unsupported_layout' : error.code,
     message: error.message,
   };
 }

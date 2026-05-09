@@ -2,6 +2,8 @@ import type { CurrencyEnum, TransactionType } from '../../enums';
 
 export type TransactionImportTypeStrategy = 'signed_amount' | 'fixed_type';
 
+export type TransactionImportSourceFormat = 'csv' | 'bank_pdf_text';
+
 export type TransactionImportField =
   | 'date'
   | 'amount'
@@ -21,7 +23,10 @@ export type TransactionImportIssueCode =
   | 'duplicate_in_file'
   | 'duplicate_existing'
   | 'review_required'
-  | 'row_limit_exceeded';
+  | 'row_limit_exceeded'
+  | 'pdf_no_text'
+  | 'pdf_unsupported_layout'
+  | 'pdf_size_exceeded';
 
 export interface TransactionImportMappingDTO {
   date?: string;
@@ -74,6 +79,8 @@ export interface TransactionImportPreviewSummaryDTO {
 
 export interface TransactionImportPreviewRequestDTO {
   source: string;
+  sourceFormat?: TransactionImportSourceFormat;
+  sourceFilename?: string;
   mapping?: TransactionImportMappingDTO;
   defaults: TransactionImportDefaultsDTO;
 }
@@ -98,6 +105,7 @@ export interface TransactionImportCommitRowDTO {
 export interface TransactionImportCommitRequestDTO {
   accountId: string;
   idempotencyKey: string;
+  sourceFormat?: TransactionImportSourceFormat;
   approvedRows: TransactionImportCommitRowDTO[];
 }
 
