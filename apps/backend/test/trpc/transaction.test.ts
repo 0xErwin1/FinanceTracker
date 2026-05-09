@@ -375,6 +375,43 @@ describe('transaction router', () => {
         }),
       ]);
     }, 15000);
+
+    it('returns a parser issue before previewing rows when the CSV exceeds the row limit', async () => {
+      const account = await seedAccount(userId, { currency: CurrencyEnum.USD });
+      const oversizedSource = [
+        'Date,Description,Amount',
+        ...Array.from({ length: 501 }, (_, index) => {
+          const day = String((index % 28) + 1).padStart(2, '0');
+
+          return `2026-05-${day},Oversized Row ${index + 1},-1.00`;
+        }),
+      ].join('\n');
+
+      const result = await caller.transaction.importPreview({
+        defaults: {
+          accountId: account.id,
+          currency: CurrencyEnum.USD,
+          typeStrategy: 'signed_amount',
+        },
+        source: oversizedSource,
+      });
+
+      expect(result).toMatchObject({
+        parserIssues: [
+          expect.objectContaining({
+            code: 'row_limit_exceeded',
+          }),
+        ],
+        rows: [],
+        summary: {
+          duplicate: 0,
+          invalid: 0,
+          ready: 0,
+          reviewRequired: 0,
+          total: 0,
+        },
+      });
+    }, 15000);
   });
 
   describe('importCommit', () => {
