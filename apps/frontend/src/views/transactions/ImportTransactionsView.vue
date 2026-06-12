@@ -95,7 +95,10 @@ const categoryOptions = computed(() => {
 const availableHeaders = computed(() => transactionImport.stagedUpload.value?.headers ?? []);
 const headerOptions = computed(() => getCsvHeaderOptions(availableHeaders.value));
 const previewRows = computed(() => transactionImport.preview.value?.rows ?? []);
-const parserIssues = computed(() => transactionImport.preview.value?.parserIssues ?? []);
+const parserIssues = computed(
+  () =>
+    transactionImport.preview.value?.parserIssues ?? transactionImport.stagedUpload.value?.parserIssues ?? [],
+);
 const previewErrorMessage = computed(() =>
   getImportPreviewErrorMessage(transactionImport.previewError.value, form.sourceFormat),
 );
